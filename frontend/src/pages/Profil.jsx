@@ -499,10 +499,10 @@ export default function Profil() {
         {/* ─── Public profile link ─── */}
         {profileUrl && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
-            className="flex items-center justify-center gap-3">
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 px-2 w-full max-w-[280px] sm:max-w-none mx-auto">
             <button
               onClick={handleCopyProfileLink}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-[0.15em] transition-all ${
+              className={`flex items-center justify-center gap-2 px-6 py-3 sm:py-2 rounded-full w-full sm:w-auto text-[11px] font-bold uppercase tracking-[0.15em] transition-all ${
                 profileLinkCopied
                   ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
                   : 'bg-white/5 border border-white/10 text-ivory/50 hover:text-amber hover:border-amber/30'
@@ -514,6 +514,8 @@ export default function Profil() {
               url={profileUrl}
               text={`${displayName}'in Sinemood profili`}
               compact
+              hideTelegram
+              hideCopy
             />
           </motion.div>
         )}

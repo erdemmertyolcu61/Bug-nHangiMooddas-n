@@ -287,22 +287,22 @@ export default function KafanMiKarisik() {
                 <button
                   type="button"
                   onClick={handleMicClick}
-                  className={`absolute bottom-8 right-[6.5rem] w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                  className={`absolute bottom-4 sm:bottom-8 right-[3.5rem] sm:right-[6.5rem] w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all ${
                     isListening
                       ? 'bg-red-600 text-white shadow-[0_0_25px_rgba(220,38,38,0.6)] animate-pulse'
                       : 'bg-white/10 hover:bg-white/20 text-[#f5f2eb]/70 hover:text-[#f5f2eb] border border-white/10'
                   }`}
                   title={isListening ? 'Dinlemeyi Durdur' : 'Sesle Yaz'}
                 >
-                  {isListening ? <MicOff size={18} className="animate-bounce" /> : <Mic size={18} />}
+                  {isListening ? <MicOff size={16} className="animate-bounce" /> : <Mic size={16} className="sm:w-[18px] sm:h-[18px]" />}
                 </button>
               )}
               <button
                 onClick={() => analyze()}
                 disabled={!text.trim()}
-                className="absolute bottom-8 right-8 w-12 h-12 rounded-full bg-[#ffbf00] hover:bg-amber-400 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all shadow-[0_0_20px_rgba(255,191,0,0.3)]"
+                className="absolute bottom-4 sm:bottom-8 right-3 sm:right-8 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#ffbf00] hover:bg-amber-400 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all shadow-[0_0_20px_rgba(255,191,0,0.3)]"
               >
-                <Send size={18} className="text-[#120d0b]" />
+                <Send size={16} className="text-[#120d0b] sm:w-[18px] sm:h-[18px]" />
               </button>
               {isListening && (
                 <p className="text-xs text-red-500 font-serif italic text-center mt-2 animate-pulse">

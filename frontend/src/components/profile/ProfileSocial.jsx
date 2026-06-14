@@ -653,7 +653,7 @@ function ShareCard({ share: s, direction, onDetail, onRetract, onReaction, local
 
         {/* Reaction buttons (received) / Reaction badge (sent) */}
         {!isSent && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
+          <div className="hidden sm:flex flex-wrap gap-1.5 pt-1">
             {REACTIONS.map((r) => {
               const Icon = r.icon;
               const active = effectiveReaction === r.key;

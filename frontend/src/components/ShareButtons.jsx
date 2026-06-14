@@ -13,7 +13,7 @@ import { track, EVENTS } from '../utils/analytics';
  *  - className: string — wrapper classes
  *  - compact: boolean — smaller variant
  */
-export default function ShareButtons({ url = '', text = '', className = '', compact = false, forceDark = false }) {
+export default function ShareButtons({ url = '', text = '', className = '', compact = false, forceDark = false, hideTelegram = false, hideCopy = false }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -25,7 +25,7 @@ export default function ShareButtons({ url = '', text = '', className = '', comp
   };
 
   const sz = compact ? 'w-9 h-9' : 'w-10 h-10 sm:w-11 sm:h-11';
-  const btnBase = `${sz} rounded-full flex items-center justify-center transition-all duration-200`;
+  const btnBase = `${sz} rounded-full flex items-center justify-center transition-all duration-200 shrink-0`;
   const iconSize = compact ? 15 : 17;
 
   const wa = forceDark
@@ -51,13 +51,15 @@ export default function ShareButtons({ url = '', text = '', className = '', comp
         </svg>
       </button>
 
-      <button onClick={() => { track(EVENTS.SHARE_CLICK, { network: 'telegram' }); shareToTelegram(text, url); }}
-        className={`${btnBase} hover:scale-110 ${forceDark ? '' : 'bg-[#0088cc]/15 hover:bg-[#0088cc]/25 border border-[#0088cc]/20 hover:border-[#0088cc]/40 text-[#0088cc]'}`}
-        style={tg} title="Telegram">
-        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-        </svg>
-      </button>
+      {!hideTelegram && (
+        <button onClick={() => { track(EVENTS.SHARE_CLICK, { network: 'telegram' }); shareToTelegram(text, url); }}
+          className={`${btnBase} hover:scale-110 ${forceDark ? '' : 'bg-[#0088cc]/15 hover:bg-[#0088cc]/25 border border-[#0088cc]/20 hover:border-[#0088cc]/40 text-[#0088cc]'}`}
+          style={tg} title="Telegram">
+          <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+          </svg>
+        </button>
+      )}
 
       <button onClick={() => { track(EVENTS.SHARE_CLICK, { network: 'instagram' }); shareToInstagram(text, url); }}
         className={`${btnBase} hover:scale-110 ${forceDark ? '' : 'bg-[#e1306c]/10 hover:bg-[#e1306c]/20 border border-[#e1306c]/20 hover:border-[#e1306c]/40 text-[#e1306c]'}`}
@@ -77,28 +79,29 @@ export default function ShareButtons({ url = '', text = '', className = '', comp
         </svg>
       </button>
 
-
-      <button onClick={handleCopy}
-        className={`${btnBase} hover:scale-110 ${forceDark ? '' : copied ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/50 hover:text-white/80'}`}
-        style={forceDark
-          ? copied
-            ? { backgroundColor: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#34d399' }
-            : { backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.5)' }
-          : {}
-        }
-        title={copied ? 'Kopyalandı!' : 'Linki Kopyala'}>
-        <AnimatePresence mode="wait">
-          {copied ? (
-            <motion.div key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-              <Check size={iconSize - 2} />
-            </motion.div>
-          ) : (
-            <motion.div key="link" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-              <Link2 size={iconSize - 2} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </button>
+      {!hideCopy && (
+        <button onClick={handleCopy}
+          className={`${btnBase} hover:scale-110 ${forceDark ? '' : copied ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/50 hover:text-white/80'}`}
+          style={forceDark
+            ? copied
+              ? { backgroundColor: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#34d399' }
+              : { backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.5)' }
+            : {}
+          }
+          title={copied ? 'Kopyalandı!' : 'Linki Kopyala'}>
+          <AnimatePresence mode="wait">
+            {copied ? (
+              <motion.div key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                <Check size={iconSize - 2} />
+              </motion.div>
+            ) : (
+              <motion.div key="link" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                <Link2 size={iconSize - 2} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </button>
+      )}
     </div>
   );
 }
