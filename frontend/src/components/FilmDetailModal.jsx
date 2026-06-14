@@ -5,13 +5,14 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Check, Eye, ExternalLink, Users, RotateCcw, ListPlus, Share2 } from 'lucide-react';
+import { X, Plus, Check, Eye, ExternalLink, Users, RotateCcw, ListPlus, Share2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { getApiUrl } from '../utils/apiConfig';
 import {
   proxyImageUrl, getSimilarMovies, getMovieVideos,
   addToWatchlist, removeFromWatchlist, toggleWatched,
   getRecommendationHistory, retractRecommendation,
   getRating, saveRating, isLoggedIn,
+  saveMoodFeedback, getMoodFeedback,
 } from '../services/api';
 import { buildWatchUrl, getPlatformInfo } from '../utils/streamingMemory';
 import SimilarFilmsStrip from './SimilarFilmsStrip';
@@ -59,7 +60,7 @@ const reliableRating = (m) => {
   return avg <= 9.0 ? avg.toFixed(1) : null;
 };
 
-export default function FilmDetailModal({ movieId, onClose, headerBadge = null, extraActions = null, initialMovie = null, onActiveChange = null, hideWatchProviders = false }) {
+export default function FilmDetailModal({ movieId, onClose, headerBadge = null, extraActions = null, initialMovie = null, onActiveChange = null, hideWatchProviders = false, activeMoodId = null }) {
   // Fragman durumu — handleEsc'ten ÖNCE tanımlı olmalı (TDZ).
   const [trailerKey, setTrailerKey] = useState(null);
   const [trailerPlaying, setTrailerPlaying] = useState(false);
@@ -94,12 +95,31 @@ export default function FilmDetailModal({ movieId, onClose, headerBadge = null, 
   // spinner'ı önleyen güvenlik valfi.
   const [thinkingDone, setThinkingDone] = useState(false);
   const [giveUp, setGiveUp] = useState(false);
+  const [moodFeedback, setMoodFeedback] = useState(null);
   const { token } = useAuth();
 
   const handleReactionChange = useCallback((next) => {
     setMyReaction(next.reaction);          // optimistik
     saveRating(activeId, { reaction: next.reaction }); // backend (token yoksa no-op)
   }, [activeId]);
+
+  const handleMoodFeedback = useCallback(async (fb) => {
+    if (!activeMoodId || !activeId) return;
+    const next = moodFeedback === fb ? null : fb;
+    setMoodFeedback(next);
+    if (next) {
+      try { await saveMoodFeedback(activeId, activeMoodId, next); } catch {}
+    }
+  }, [activeId, activeMoodId, moodFeedback]);
+
+  useEffect(() => {
+    if (!activeMoodId || !activeId || !token) return;
+    let alive = true;
+    getMoodFeedback(activeId, activeMoodId)
+      .then(d => { if (alive) setMoodFeedback(d?.my_feedback || null); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [activeId, activeMoodId, token]);
 
   // Bu film için gönderilmiş önerileri yükle (giriş yapılmışsa) → "Geri Al" için.
   const loadSentForMovie = useCallback(async (mid) => {
@@ -347,6 +367,33 @@ export default function FilmDetailModal({ movieId, onClose, headerBadge = null, 
                     </p>
                   )}
                 </div>
+
+                {/* Mood uyum geri bildirimi — sadece mood sayfasından açıldığında */}
+                {activeMoodId && token && (
+                  <div className="flex items-center gap-3 pt-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Mood'a uyuyor mu?</span>
+                    <button
+                      onClick={() => handleMoodFeedback('perfect_match')}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        moodFeedback === 'perfect_match'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                          : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      <ThumbsUp size={12} /> Uyuyor
+                    </button>
+                    <button
+                      onClick={() => handleMoodFeedback('wrong_mood')}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        moodFeedback === 'wrong_mood'
+                          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                          : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      <ThumbsDown size={12} /> Uymuyor
+                    </button>
+                  </div>
+                )}
 
                 {movie.ai_analysis && thinkingDone ? (
                   <motion.div

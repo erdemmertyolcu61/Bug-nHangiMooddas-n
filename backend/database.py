@@ -832,6 +832,21 @@ class MovieCache:
                     UNIQUE(challenge_id, user_id)
                 )
             """)
+            # mood_feedback — kullanıcı geri bildirimi (bu film bu mood'a uyuyor/uymuyor)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS mood_feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    tmdb_id INTEGER NOT NULL,
+                    mood_id TEXT NOT NULL,
+                    feedback TEXT NOT NULL CHECK(feedback IN ('wrong_mood', 'perfect_match')),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, tmdb_id, mood_id)
+                )
+            """)
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_mood_feedback_film ON mood_feedback(tmdb_id, mood_id)"
+            )
             # user_lists public paylaşım kolonları
             for _col_mig in (
                 "ALTER TABLE user_lists ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0",
@@ -848,6 +863,17 @@ class MovieCache:
                 )
             except Exception:
                 logger.warning("[DB] idx_user_lists_slug failed")
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS list_collaborators (
+                    list_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'editor' CHECK(role IN ('editor','viewer')),
+                    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (list_id, user_id)
+                )
+            """)
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_list_collab_user ON list_collaborators(user_id, status)")
             await db.commit()
 
     async def _init_turso_user_tables(self):
@@ -1057,6 +1083,25 @@ class MovieCache:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(challenge_id, user_id)
             )""",
+            """CREATE TABLE IF NOT EXISTS mood_feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                tmdb_id INTEGER NOT NULL,
+                mood_id TEXT NOT NULL,
+                feedback TEXT NOT NULL CHECK(feedback IN ('wrong_mood', 'perfect_match')),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, tmdb_id, mood_id)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_mood_feedback_film ON mood_feedback(tmdb_id, mood_id)",
+            """CREATE TABLE IF NOT EXISTS list_collaborators (
+                list_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                role TEXT NOT NULL DEFAULT 'editor',
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (list_id, user_id)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_list_collab_user ON list_collaborators(user_id, status)",
         ):
             try:
                 await _turso_client.execute(mig)
@@ -1074,6 +1119,86 @@ class MovieCache:
             """)
         except Exception:
             logger.warning("[DB] Turso UPDATE username auto-generate failed")
+
+    # --- Mood Feedback Methods ---
+    async def save_mood_feedback(self, user_id: int, tmdb_id: int, mood_id: str, feedback: str):
+        async with _get_connection(self.db_path, user_data=True) as db:
+            await db.execute(
+                """INSERT INTO mood_feedback (user_id, tmdb_id, mood_id, feedback)
+                   VALUES (?, ?, ?, ?)
+                   ON CONFLICT(user_id, tmdb_id, mood_id) DO UPDATE SET
+                       feedback = excluded.feedback,
+                       created_at = CURRENT_TIMESTAMP""",
+                (user_id, tmdb_id, mood_id, feedback)
+            )
+            await db.commit()
+
+    async def get_mood_feedback(self, user_id: int, tmdb_id: int, mood_id: str) -> Optional[str]:
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                "SELECT feedback FROM mood_feedback WHERE user_id = ? AND tmdb_id = ? AND mood_id = ?",
+                (user_id, tmdb_id, mood_id)
+            )
+            row = await cur.fetchone()
+            return row[0] if row else None
+
+    async def get_mood_feedback_stats(self, tmdb_id: int, mood_id: str) -> dict:
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                """SELECT feedback, COUNT(*) FROM mood_feedback
+                   WHERE tmdb_id = ? AND mood_id = ? GROUP BY feedback""",
+                (tmdb_id, mood_id)
+            )
+            rows = await cur.fetchall()
+            stats = {"wrong_mood": 0, "perfect_match": 0}
+            for row in rows:
+                stats[row[0]] = row[1]
+            return stats
+
+    async def get_crowd_penalties(self, mood_id: str, min_wrong: int = 3) -> dict:
+        """Films with >=min_wrong 'wrong_mood' votes for this mood -> {tmdb_id: wrong_count}."""
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                """SELECT tmdb_id, COUNT(*) as cnt FROM mood_feedback
+                   WHERE mood_id = ? AND feedback = 'wrong_mood'
+                   GROUP BY tmdb_id HAVING cnt >= ?""",
+                (mood_id, min_wrong)
+            )
+            return {row[0]: row[1] for row in await cur.fetchall()}
+
+    async def get_user_genre_preferences(self, user_id: int) -> dict:
+        """User's liked movie genre distribution -> {genre_id: count}."""
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                """SELECT w.tmdb_id FROM watchlist w
+                   WHERE w.user_id = ? AND w.status = 'watched'
+                   UNION
+                   SELECT r.tmdb_id FROM movie_ratings r
+                   WHERE r.user_id = ? AND r.reaction = 'like'""",
+                (user_id, user_id)
+            )
+            tmdb_ids = [row[0] for row in await cur.fetchall()]
+
+        if not tmdb_ids:
+            return {}
+
+        conn = self._sync_conn()
+        try:
+            placeholders = ",".join("?" * len(tmdb_ids))
+            rows = conn.execute(
+                f"SELECT genre_ids FROM movie_repository WHERE tmdb_id IN ({placeholders})",
+                tmdb_ids
+            ).fetchall()
+        finally:
+            conn.close()
+
+        import json as _json
+        genre_counts = {}
+        for row in rows:
+            if row[0]:
+                for gid in _json.loads(row[0]):
+                    genre_counts[gid] = genre_counts.get(gid, 0) + 1
+        return genre_counts
 
     async def get_daily_film(self, date_key: str) -> Optional[dict]:
         """Daily film'i Turso'dan oku (varsa). Cloud'da kalici, restart'a dayanikli."""
@@ -1967,25 +2092,34 @@ class MovieCache:
             return result
 
     async def get_list_items(self, list_id: int, user_id: int) -> Optional[dict]:
-        """A list's header + its movies (None if not owned)."""
+        """A list's header + its movies (None if not owned/collaborator)."""
         async with _get_connection(self.db_path, user_data=True) as db:
             try:
                 cur = await db.execute(
-                    "SELECT id, name, emoji, is_public, slug FROM user_lists WHERE id = ? AND user_id = ?",
-                    (list_id, user_id)
+                    "SELECT id, name, emoji, is_public, slug, user_id FROM user_lists WHERE id = ?",
+                    (list_id,)
                 )
                 header = await cur.fetchone()
             except Exception:
-                # is_public/slug kolonları henüz yoksa eski SELECT'e düş
                 cur = await db.execute(
-                    "SELECT id, name, emoji FROM user_lists WHERE id = ? AND user_id = ?",
-                    (list_id, user_id)
+                    "SELECT id, name, emoji, user_id FROM user_lists WHERE id = ?",
+                    (list_id,)
                 )
                 header = await cur.fetchone()
                 if header:
-                    header = (*header, 0, None)
+                    header = (header[0], header[1], header[2], 0, None, header[3])
             if not header:
                 return None
+            list_owner_id = header[5]
+            is_owner = list_owner_id == user_id
+            if not is_owner:
+                collab_cur = await db.execute(
+                    "SELECT role FROM list_collaborators WHERE list_id = ? AND user_id = ? AND status = 'accepted'",
+                    (list_id, user_id),
+                )
+                collab = await collab_cur.fetchone()
+                if not collab:
+                    return None
             cur2 = await db.execute(
                 "SELECT tmdb_id, title, poster_url, added_at FROM list_items WHERE list_id = ? ORDER BY added_at DESC",
                 (list_id,)
@@ -1995,12 +2129,13 @@ class MovieCache:
                 for r in await cur2.fetchall()
             ]
             return {"id": header[0], "name": header[1], "emoji": header[2],
-                    "is_public": bool(header[3]), "slug": header[4], "movies": items}
+                    "is_public": bool(header[3]), "slug": header[4], "movies": items,
+                    "is_owner": is_owner}
 
     async def add_to_list(self, list_id: int, user_id: int, tmdb_id: int, title: str, poster_url: Optional[str]) -> bool:
-        """Add a movie to a list (only if owned). Returns False if not owned."""
+        """Add a movie to a list (owner or editor collaborator)."""
         async with _get_connection(self.db_path, user_data=True) as db:
-            if not await self._owns_list(db, list_id, user_id):
+            if not await self._can_edit_list(db, list_id, user_id):
                 return False
             await db.execute(
                 "INSERT OR IGNORE INTO list_items (list_id, tmdb_id, title, poster_url) VALUES (?, ?, ?, ?)",
@@ -2010,15 +2145,125 @@ class MovieCache:
             return True
 
     async def remove_from_list(self, list_id: int, user_id: int, tmdb_id: int) -> bool:
-        """Remove a movie from a list (only if owned)."""
+        """Remove a movie from a list (owner or editor collaborator)."""
         async with _get_connection(self.db_path, user_data=True) as db:
-            if not await self._owns_list(db, list_id, user_id):
+            if not await self._can_edit_list(db, list_id, user_id):
                 return False
             await db.execute(
                 "DELETE FROM list_items WHERE list_id = ? AND tmdb_id = ?", (list_id, tmdb_id)
             )
             await db.commit()
             return True
+
+    # --- List Collaborator Methods ---
+
+    async def _can_edit_list(self, db, list_id: int, user_id: int) -> bool:
+        if await self._owns_list(db, list_id, user_id):
+            return True
+        cur = await db.execute(
+            "SELECT 1 FROM list_collaborators WHERE list_id = ? AND user_id = ? AND role = 'editor' AND status = 'accepted'",
+            (list_id, user_id),
+        )
+        return await cur.fetchone() is not None
+
+    async def invite_collaborator(self, list_id: int, owner_id: int, target_user_id: int, role: str = "editor") -> bool:
+        async with _get_connection(self.db_path, user_data=True) as db:
+            if not await self._owns_list(db, list_id, owner_id):
+                return False
+            if target_user_id == owner_id:
+                return False
+            await db.execute(
+                "INSERT OR REPLACE INTO list_collaborators (list_id, user_id, role, status) VALUES (?, ?, ?, 'pending')",
+                (list_id, target_user_id, role),
+            )
+            await db.commit()
+            return True
+
+    async def respond_collaboration(self, list_id: int, user_id: int, accept: bool) -> bool:
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                "SELECT 1 FROM list_collaborators WHERE list_id = ? AND user_id = ? AND status = 'pending'",
+                (list_id, user_id),
+            )
+            if not await cur.fetchone():
+                return False
+            status = "accepted" if accept else "declined"
+            await db.execute(
+                "UPDATE list_collaborators SET status = ? WHERE list_id = ? AND user_id = ?",
+                (status, list_id, user_id),
+            )
+            await db.commit()
+            return True
+
+    async def remove_collaborator(self, list_id: int, remover_id: int, target_user_id: int) -> bool:
+        async with _get_connection(self.db_path, user_data=True) as db:
+            is_owner = await self._owns_list(db, list_id, remover_id)
+            is_self = remover_id == target_user_id
+            if not is_owner and not is_self:
+                return False
+            await db.execute(
+                "DELETE FROM list_collaborators WHERE list_id = ? AND user_id = ?",
+                (list_id, target_user_id),
+            )
+            await db.commit()
+            return True
+
+    async def get_list_collaborators(self, list_id: int) -> list:
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                """SELECT lc.user_id, lc.role, lc.status, u.username, u.name, u.picture
+                   FROM list_collaborators lc JOIN users u ON u.id = lc.user_id
+                   WHERE lc.list_id = ? ORDER BY lc.created_at""",
+                (list_id,),
+            )
+            return [
+                {"user_id": r[0], "role": r[1], "status": r[2],
+                 "username": r[3] or "", "name": r[4] or "", "avatar": r[5] or ""}
+                for r in await cur.fetchall()
+            ]
+
+    async def get_collab_invites(self, user_id: int) -> list:
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                """SELECT lc.list_id, l.name, l.emoji, u.username, u.name as owner_name
+                   FROM list_collaborators lc
+                   JOIN user_lists l ON l.id = lc.list_id
+                   JOIN users u ON u.id = l.user_id
+                   WHERE lc.user_id = ? AND lc.status = 'pending'
+                   ORDER BY lc.created_at DESC""",
+                (user_id,),
+            )
+            return [
+                {"list_id": r[0], "list_name": r[1], "list_emoji": r[2] or "",
+                 "owner_username": r[3] or "", "owner_name": r[4] or ""}
+                for r in await cur.fetchall()
+            ]
+
+    async def get_collaborated_lists(self, user_id: int) -> list:
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                """SELECT l.id, l.name, l.emoji, l.created_at, u.username as owner_username
+                   FROM list_collaborators lc
+                   JOIN user_lists l ON l.id = lc.list_id
+                   JOIN users u ON u.id = l.user_id
+                   WHERE lc.user_id = ? AND lc.status = 'accepted'
+                   ORDER BY l.created_at DESC""",
+                (user_id,),
+            )
+            result = []
+            for r in await cur.fetchall():
+                lid = r[0]
+                cur2 = await db.execute("SELECT COUNT(*) FROM list_items WHERE list_id = ?", (lid,))
+                count = (await cur2.fetchone())[0]
+                cur3 = await db.execute(
+                    "SELECT poster_url FROM list_items WHERE list_id = ? AND poster_url IS NOT NULL ORDER BY added_at DESC LIMIT 4",
+                    (lid,),
+                )
+                covers = [row[0] for row in await cur3.fetchall()]
+                result.append({"id": lid, "name": r[1], "emoji": r[2],
+                               "created_at": r[3], "count": count, "covers": covers,
+                               "owner_username": r[4], "is_collab": True})
+            return result
 
     # --- Future Plans Methods ---
     async def add_to_future(self, tmdb_id: int, title: str, poster_url: str, priority: int = 0, watch_date: str = None, notes: str = None, user_id: int = 0):

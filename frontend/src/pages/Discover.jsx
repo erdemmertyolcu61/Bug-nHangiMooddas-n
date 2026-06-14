@@ -565,6 +565,7 @@ export default function Discover() {
         <FilmDetailModal
           movieId={selectedMovie.id || selectedMovie.tmdb_id}
           initialMovie={selectedMovie}
+          activeMoodId={selectedMood?.id}
           onActiveChange={(m) => setSelectedMovie(m)}
           onClose={() => { setSelectedMovie(null); navigate(-1); }}
         />
@@ -771,6 +772,7 @@ export default function Discover() {
         <FilmDetailModal
           movieId={selectedMovie.id || selectedMovie.tmdb_id}
           initialMovie={selectedMovie}
+          activeMoodId={selectedMood?.id}
           onActiveChange={(m) => setSelectedMovie(m)}
           onClose={() => setSelectedMovie(null)}
           headerBadge={recommenders.length > 0 ? (

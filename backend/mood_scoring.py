@@ -290,6 +290,50 @@ def _tmdb_keyword_block_check(tmdb_keywords: list, mood_id: str) -> bool:
     return False
 
 
+# Tone markers: overview'daki duygusal ipuçlarını mood'lara bağlar.
+# Keyword profilleri zaten TR+EN kapsar; burası ek ton sinyali verir.
+_TONE_MARKERS = {
+    "dark": {"gece": 0.3, "deep-chills": 0.2, "zihin": 0.1},
+    "karanlık": {"gece": 0.3, "deep-chills": 0.2},
+    "violent": {"adrenalin": 0.2, "gece": 0.1},
+    "şiddet": {"adrenalin": 0.2, "gece": 0.1},
+    "tender": {"battaniye": 0.2, "askbahcesi": 0.15},
+    "gentle": {"battaniye": 0.2, "sessiz": 0.15},
+    "yumuşak": {"battaniye": 0.2, "sessiz": 0.1},
+    "devastating": {"gozyasi": 0.3},
+    "yıkıcı": {"gozyasi": 0.25},
+    "hilarious": {"kahkaha": 0.3},
+    "absurd": {"kahkaha": 0.2, "karmakar": 0.15},
+    "bizarre": {"karmakar": 0.3},
+    "tuhaf": {"karmakar": 0.25},
+    "breathtaking": {"kadraj-estetigi": 0.3, "yolculuk": 0.1},
+    "nefes kesen": {"kadraj-estetigi": 0.25, "adrenalin": 0.15},
+    "intimate": {"geceyarisi-itirafi": 0.25, "kalp": 0.15},
+    "samimi": {"geceyarisi-itirafi": 0.2, "kalp": 0.15},
+    "eerie": {"deep-chills": 0.3},
+    "ürpertici": {"deep-chills": 0.25},
+    "twist": {"zihin": 0.3},
+    "unexpected": {"zihin": 0.2, "karmakar": 0.1},
+    "beklenmedik": {"zihin": 0.2},
+    "epic": {"yolculuk": 0.2, "zamanyolcusu": 0.15},
+    "destansı": {"yolculuk": 0.2, "zamanyolcusu": 0.15},
+    "short": {"sipsak": 0.2},
+    "kısa": {"sipsak": 0.2},
+}
+
+
+def _overview_tone_score(overview: str, mood_id: str) -> float:
+    """Overview'dan mood ton sinyali (0.0 - 0.5). Keyword profilinin üstüne ek sinyal."""
+    if not overview:
+        return 0.0
+    text_lower = overview.lower()
+    total = 0.0
+    for marker, affinities in _TONE_MARKERS.items():
+        if marker in text_lower:
+            total += affinities.get(mood_id, 0)
+    return min(0.5, total)
+
+
 def _overview_keyword_score(overview: str, mood_id: str) -> float:
     """
     Overview metni içinde mood'un positive/negative keyword'lerini arar.
@@ -313,6 +357,9 @@ def _overview_keyword_score(overview: str, mood_id: str) -> float:
     raw = (pos_matches / max(len(pos_kw), 1)) * 3.5
     if pos_matches >= 3:
         raw += 0.15  # Güçlü multi-keyword eşleşme bonusu
+
+    # Ton sinyali ekle
+    raw += _overview_tone_score(overview, mood_id)
 
     # Negatif ceza güçlendirildi (her negatif keyword daha ağır)
     penalty = (neg_matches / max(len(neg_kw), 1)) * 3.0 if neg_kw else 0

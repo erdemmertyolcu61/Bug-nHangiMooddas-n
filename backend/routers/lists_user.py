@@ -57,6 +57,29 @@ async def save_movie_rating(body: RatingBody, movie_id: int = Path(..., ge=1), u
     return {"status": "success", "reaction": _clean_reaction(body.reaction)}
 
 
+# ─── Mood geri bildirim (bu film bu mood'a uyuyor mu?) ───────────────────────
+class MoodFeedbackBody(BaseModel):
+    mood_id: str = Field(..., min_length=2, max_length=30)
+    feedback: str = Field(...)  # 'wrong_mood' | 'perfect_match'
+
+
+@router.post("/movies/{movie_id}/mood-feedback")
+async def save_mood_feedback(body: MoodFeedbackBody, movie_id: int = Path(..., ge=1), user: dict = Depends(get_current_user)):
+    if body.feedback not in ("wrong_mood", "perfect_match"):
+        raise HTTPException(status_code=422, detail="feedback must be 'wrong_mood' or 'perfect_match'")
+    await cache.save_mood_feedback(user["user_id"], movie_id, body.mood_id, body.feedback)
+    return {"status": "success"}
+
+
+@router.get("/movies/{movie_id}/mood-feedback")
+async def get_mood_feedback(movie_id: int = Path(..., ge=1), mood_id: str = "", user: dict = Depends(get_current_user)):
+    if not mood_id:
+        raise HTTPException(status_code=422, detail="mood_id query param required")
+    my = await cache.get_mood_feedback(user["user_id"], movie_id, mood_id)
+    stats = await cache.get_mood_feedback_stats(movie_id, mood_id)
+    return {"my_feedback": my, "stats": stats}
+
+
 # ─── Özel listeler ───────────────────────────────────────────────────────────
 @router.get("/custom-lists")
 async def list_custom_lists(user: dict = Depends(get_current_user)):
@@ -109,6 +132,66 @@ async def remove_item_from_list(list_id: int = Path(..., ge=1), tmdb_id: int = P
     if not ok:
         raise HTTPException(status_code=404, detail="Liste bulunamadı")
     return {"status": "success"}
+
+
+# ─── Ortak liste (collaborator) ──────────────────────────────────────────────
+
+class CollabInviteBody(BaseModel):
+    username: str = Field(..., min_length=2, max_length=30)
+    role: str = Field(default="editor")
+
+
+class CollabRespondBody(BaseModel):
+    accept: bool
+
+
+@router.get("/custom-lists/{list_id}/collaborators")
+async def list_collaborators(list_id: int = Path(..., ge=1), user: dict = Depends(get_current_user)):
+    return {"collaborators": await cache.get_list_collaborators(list_id)}
+
+
+@router.post("/custom-lists/{list_id}/collaborators")
+async def invite_collaborator(body: CollabInviteBody, list_id: int = Path(..., ge=1),
+                              user: dict = Depends(get_current_user)):
+    from backend.database import _get_connection as _conn
+    async with _conn(cache.db_path, user_data=True) as db:
+        cur = await db.execute("SELECT id FROM users WHERE username = ?", (body.username,))
+        target = await cur.fetchone()
+    if not target:
+        raise HTTPException(404, "Kullanıcı bulunamadı")
+    ok = await cache.invite_collaborator(list_id, user["user_id"], target[0], body.role)
+    if not ok:
+        raise HTTPException(400, "Davet gönderilemedi")
+    return {"status": "success"}
+
+
+@router.delete("/custom-lists/{list_id}/collaborators/{target_user_id}")
+async def remove_collaborator_endpoint(list_id: int = Path(..., ge=1),
+                                       target_user_id: int = Path(..., ge=1),
+                                       user: dict = Depends(get_current_user)):
+    ok = await cache.remove_collaborator(list_id, user["user_id"], target_user_id)
+    if not ok:
+        raise HTTPException(404, "İşlem yapılamadı")
+    return {"status": "success"}
+
+
+@router.get("/collab-invites")
+async def get_collab_invites(user: dict = Depends(get_current_user)):
+    return {"invites": await cache.get_collab_invites(user["user_id"])}
+
+
+@router.post("/collab-invites/{list_id}/respond")
+async def respond_collab_invite(body: CollabRespondBody, list_id: int = Path(..., ge=1),
+                                user: dict = Depends(get_current_user)):
+    ok = await cache.respond_collaboration(list_id, user["user_id"], body.accept)
+    if not ok:
+        raise HTTPException(404, "Davet bulunamadı")
+    return {"status": "success"}
+
+
+@router.get("/collaborated-lists")
+async def get_collaborated_lists(user: dict = Depends(get_current_user)):
+    return {"lists": await cache.get_collaborated_lists(user["user_id"])}
 
 
 # ─── Herkese açık liste paylaşımı ────────────────────────────────────────────

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronLeft, ListPlus, X, Loader2, Globe2, Lock } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ListPlus, X, Loader2, Globe2, Lock, Users, UserPlus, Check, XCircle } from 'lucide-react';
 import {
   getCustomLists, createCustomList, deleteCustomList,
   getCustomList, removeFromCustomList, proxyImageUrl, setListVisibility,
+  getListCollaborators, inviteCollaborator, removeCollaborator,
+  getCollabInvites, respondCollabInvite, getCollaboratedLists,
 } from '../services/api';
 import FilmDetailModal from './FilmDetailModal';
 import ShareButtons from './ShareButtons';
@@ -22,14 +24,29 @@ export default function CustomListsPanel({ user }) {
   const [newEmoji, setNewEmoji] = useState('🎬');
   const [busy, setBusy] = useState(false);
 
-  const [openList, setOpenList] = useState(null);     // {id, name, emoji, movies}
+  const [openList, setOpenList] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailMovie, setDetailMovie] = useState(null);
 
+  const [collabLists, setCollabLists] = useState([]);
+  const [collabInvites, setCollabInvites] = useState([]);
+  const [collabUsers, setCollabUsers] = useState([]);
+  const [inviteUsername, setInviteUsername] = useState('');
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [showCollabPanel, setShowCollabPanel] = useState(false);
+
   const loadLists = useCallback(async () => {
     setLoading(true);
-    try { const d = await getCustomLists(); setLists(d.lists || []); }
-    catch { setLists([]); }
+    try {
+      const [d, cl, inv] = await Promise.all([
+        getCustomLists(),
+        getCollaboratedLists().catch(() => ({ lists: [] })),
+        getCollabInvites().catch(() => ({ invites: [] })),
+      ]);
+      setLists(d.lists || []);
+      setCollabLists(cl.lists || []);
+      setCollabInvites(inv.invites || []);
+    } catch { setLists([]); }
     finally { setLoading(false); }
   }, []);
 
@@ -53,9 +70,16 @@ export default function CustomListsPanel({ user }) {
 
   const openListDetail = async (list) => {
     setDetailLoading(true);
+    setShowCollabPanel(false);
     setOpenList({ ...list, movies: [] });
-    try { const d = await getCustomList(list.id); setOpenList(d); }
-    catch { setOpenList(null); }
+    try {
+      const [d, c] = await Promise.all([
+        getCustomList(list.id),
+        getListCollaborators(list.id).catch(() => ({ collaborators: [] })),
+      ]);
+      setOpenList(d);
+      setCollabUsers(c.collaborators || []);
+    } catch { setOpenList(null); }
     finally { setDetailLoading(false); }
   };
 
@@ -64,6 +88,35 @@ export default function CustomListsPanel({ user }) {
     setOpenList(prev => ({ ...prev, movies: prev.movies.filter(m => m.tmdb_id !== tmdbId) }));
     try { await removeFromCustomList(openList.id, tmdbId); } catch {}
     loadLists(); // sayım/kapak güncellensin
+  };
+
+  const handleRespondInvite = async (listId, accept) => {
+    try {
+      await respondCollabInvite(listId, accept);
+      setCollabInvites(prev => prev.filter(i => i.list_id !== listId));
+      if (accept) loadLists();
+    } catch {}
+  };
+
+  const handleInviteCollab = async () => {
+    const uname = inviteUsername.trim();
+    if (!uname || !openList || inviteBusy) return;
+    setInviteBusy(true);
+    try {
+      await inviteCollaborator(openList.id, uname);
+      setInviteUsername('');
+      const c = await getListCollaborators(openList.id);
+      setCollabUsers(c.collaborators || []);
+    } catch {}
+    finally { setInviteBusy(false); }
+  };
+
+  const handleRemoveCollab = async (targetUserId) => {
+    if (!openList) return;
+    try {
+      await removeCollaborator(openList.id, targetUserId);
+      setCollabUsers(prev => prev.filter(c => c.user_id !== targetUserId));
+    } catch {}
   };
 
   const [visBusy, setVisBusy] = useState(false);
@@ -131,6 +184,49 @@ export default function CustomListsPanel({ user }) {
             />
           )}
         </div>
+
+        {/* Ortak düzenleme paneli — sadece sahip görür */}
+        {openList.is_owner !== false && (
+          <div className="space-y-3">
+            <button onClick={() => setShowCollabPanel(p => !p)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold uppercase tracking-wider text-ivory/60 hover:border-amber/30 transition-all">
+              <Users size={13} /> Katkıcılar {collabUsers.length > 0 && `(${collabUsers.filter(c => c.status === 'accepted').length})`}
+            </button>
+            {showCollabPanel && (
+              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] space-y-3">
+                <div className="flex gap-2">
+                  <input value={inviteUsername} onChange={e => setInviteUsername(e.target.value.slice(0, 30))}
+                    onKeyDown={e => e.key === 'Enter' && handleInviteCollab()}
+                    placeholder="Kullanıcı adı"
+                    className="flex-1 px-4 py-2.5 bg-black/30 border border-white/10 rounded-full text-sm text-ivory placeholder:text-ivory/30 focus:outline-none focus:border-amber/40" />
+                  <button onClick={handleInviteCollab} disabled={inviteBusy || !inviteUsername.trim()}
+                    className="px-4 py-2.5 rounded-full bg-amber/10 border border-amber/30 text-amber text-[11px] font-bold uppercase tracking-wider hover:bg-amber/20 disabled:opacity-40 transition-all">
+                    {inviteBusy ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
+                  </button>
+                </div>
+                {collabUsers.length > 0 && (
+                  <div className="space-y-2">
+                    {collabUsers.map(c => (
+                      <div key={c.user_id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-white/[0.03]">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium text-ivory truncate">@{c.username || c.name}</span>
+                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                            c.status === 'accepted' ? 'bg-emerald-500/15 text-emerald-400' :
+                            c.status === 'pending' ? 'bg-amber/15 text-amber' : 'bg-white/5 text-ivory/40'
+                          }`}>{c.status === 'accepted' ? 'Aktif' : c.status === 'pending' ? 'Bekliyor' : 'Reddetti'}</span>
+                        </div>
+                        <button onClick={() => handleRemoveCollab(c.user_id)}
+                          className="text-ivory/30 hover:text-rose-300 transition-colors">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {detailLoading ? (
           <div className="flex justify-center py-16"><Loader2 className="animate-spin text-amber/60" size={28} /></div>
@@ -208,6 +304,64 @@ export default function CustomListsPanel({ user }) {
           </motion.button>
         )}
       </AnimatePresence>
+
+      {/* Bekleyen ortak liste davetleri */}
+      {collabInvites.length > 0 && (
+        <div className="space-y-2">
+          {collabInvites.map(inv => (
+            <div key={inv.list_id} className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-amber/5 border border-amber/20">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-ivory">
+                  <span className="text-amber">@{inv.owner_username}</span> seni
+                  <span className="font-bold"> {inv.list_emoji} {inv.list_name}</span> listesine davet etti
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button onClick={() => handleRespondInvite(inv.list_id, true)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-all">
+                  <Check size={14} />
+                </button>
+                <button onClick={() => handleRespondInvite(inv.list_id, false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition-all">
+                  <XCircle size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Ortak olduğun listeler */}
+      {collabLists.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-ivory/40">Ortak Listeler</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {collabLists.map(list => (
+              <motion.div key={`c-${list.id}`} layout
+                className="group relative rounded-[1.75rem] overflow-hidden bg-white/5 border border-indigo-400/20 hover:border-indigo-400/40 transition-all">
+                <button onClick={() => openListDetail(list)} className="block w-full text-left">
+                  <div className="grid grid-cols-4 h-28 sm:h-32 bg-black/30">
+                    {(list.covers && list.covers.length > 0 ? list.covers : [null, null, null, null]).slice(0, 4).map((c, i) => (
+                      <div key={i} className="overflow-hidden">
+                        {c ? <img src={proxyImageUrl(c)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                          : <div className="w-full h-full bg-white/[0.03]" />}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-4 flex items-center gap-3">
+                    <span className="text-2xl">{list.emoji || '🎬'}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-serif font-bold text-lg text-ivory truncate">{list.name}</p>
+                      <p className="text-[11px] text-ivory/40">{list.count} film &middot; @{list.owner_username}</p>
+                    </div>
+                    <Users size={14} className="text-indigo-400/60 shrink-0" />
+                  </div>
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="animate-spin text-amber/60" size={28} /></div>

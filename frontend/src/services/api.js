@@ -970,6 +970,47 @@ export async function getPublicList(slug) {
   return res.json();
 }
 
+// ─── Ortak liste (collaborator) ─────────────────────────────────────────
+export async function getListCollaborators(listId) {
+  return getJson(`${BASE}/custom-lists/${listId}/collaborators`, { errorMsg: 'Katkıcılar yüklenemedi' });
+}
+
+export async function inviteCollaborator(listId, username, role = 'editor') {
+  const res = await fetch(`${BASE}/custom-lists/${listId}/collaborators`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ username, role }),
+  });
+  if (!res.ok) await _socialError(res, 'Davet gönderilemedi');
+  return res.json();
+}
+
+export async function removeCollaborator(listId, targetUserId) {
+  const res = await fetch(`${BASE}/custom-lists/${listId}/collaborators/${targetUserId}`, {
+    method: 'DELETE', headers: { ...authHeaders() },
+  });
+  if (!res.ok) await _socialError(res, 'Katkıcı çıkarılamadı');
+  return res.json();
+}
+
+export async function getCollabInvites() {
+  return getJson(`${BASE}/collab-invites`, { errorMsg: 'Davetler yüklenemedi' });
+}
+
+export async function respondCollabInvite(listId, accept) {
+  const res = await fetch(`${BASE}/collab-invites/${listId}/respond`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ accept }),
+  });
+  if (!res.ok) await _socialError(res, 'Yanıt gönderilemedi');
+  return res.json();
+}
+
+export async function getCollaboratedLists() {
+  return getJson(`${BASE}/collaborated-lists`, { errorMsg: 'Ortak listeler yüklenemedi' });
+}
+
 // ─── Söz yanıtları ─────────────────────────────────────────────────────
 export async function getReviewReplies(reviewId) {
   return getJson(`${BASE}/reviews/${reviewId}/replies`, { errorMsg: 'Yanıtlar yüklenemedi' });
@@ -1027,4 +1068,19 @@ export async function respondToChallenge(tmdbId, comment = '') {
   });
   if (!res.ok) await _socialError(res, 'Cevap gönderilemedi');
   return res.json();
+}
+
+// ─── Mood Feedback ──────────────────────────────────────────────────────────
+export async function saveMoodFeedback(movieId, moodId, feedback) {
+  const res = await fetch(`${BASE}/movies/${movieId}/mood-feedback`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mood_id: moodId, feedback }),
+  });
+  if (!res.ok) throw new Error('Geri bildirim gönderilemedi');
+  return res.json();
+}
+
+export async function getMoodFeedback(movieId, moodId) {
+  return getJson(`${BASE}/movies/${movieId}/mood-feedback?mood_id=${moodId}`, { errorMsg: 'Geri bildirim yüklenemedi' });
 }

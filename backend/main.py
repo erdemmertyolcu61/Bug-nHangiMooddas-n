@@ -1796,6 +1796,7 @@ CURATOR_PAGE_SIZE = 20
 
 @app.get("/api/repository/movies/{mood_id}", dependencies=[Depends(rate_limit_general)])
 async def get_repository_movies(
+    request: Request,
     mood_id: str,
     page: int = Query(1, ge=1),
     min_vote: float = Query(5.0, ge=0, le=10),
@@ -2031,6 +2032,41 @@ async def get_repository_movies(
                     movie["mood"] = None
                     movie["ai_analysis"] = None
                     movie["analyzed"] = False
+
+        # ── Crowd penalty: topluluk "bu film bu mood'a uymuyor" diyorsa sıradan düşür ──
+        if sort_by == "recommended":
+            try:
+                crowd_penalties = await cache.get_crowd_penalties(mood_id, min_wrong=3)
+                if crowd_penalties:
+                    for m in page_movies:
+                        wp = crowd_penalties.get(m["id"], 0)
+                        if wp >= 5:
+                            m["mood_score"] = max(0, (m.get("mood_score") or 0) - 15)
+                        elif wp >= 3:
+                            m["mood_score"] = max(0, (m.get("mood_score") or 0) - 8)
+            except Exception:
+                pass
+
+        # ── Personal taste boost: kullanıcının izlediği/beğendiği tür dağılımına göre sıralama ──
+        if sort_by == "recommended":
+            try:
+                auth = request.headers.get("Authorization", "")
+                if auth.startswith("Bearer "):
+                    payload = pyjwt.decode(auth[7:].strip(), JWT_SECRET, algorithms=["HS256"])
+                    uid = payload.get("user_id")
+                    if uid:
+                        genre_prefs = await cache.get_user_genre_preferences(uid)
+                        if genre_prefs:
+                            total_g = sum(genre_prefs.values()) or 1
+                            for m in page_movies:
+                                gids = m.get("genre_ids", [])
+                                if gids:
+                                    affinity = sum(genre_prefs.get(g, 0) for g in gids) / total_g
+                                    m["_personal_boost"] = round(affinity * 10, 2)
+                                    m["mood_score"] = round((m.get("mood_score") or 0) + m["_personal_boost"], 1)
+                        page_movies.sort(key=lambda x: -(x.get("mood_score") or 0))
+            except Exception:
+                pass
 
         # ── Streaming boost: Şipşak için Netflix/Prime/Apple/MUBİ filmlerini öne çıkar ──
         if mood_id == "sipsak" and sort_by == "recommended":
