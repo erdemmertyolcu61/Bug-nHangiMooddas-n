@@ -183,47 +183,51 @@ export default function CustomListsPanel({ user }) {
               text={`${openList.emoji || '🎬'} "${openList.name}" listem Sinemood'da:`}
             />
           )}
+          {/* Katkıcı davet butonu — visibility satırında */}
+          {openList.is_owner !== false && (
+            <button onClick={() => setShowCollabPanel(p => !p)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all ml-auto ${
+                showCollabPanel ? 'bg-indigo-500/15 border-indigo-400/40 text-indigo-300' : 'bg-white/5 border-white/10 text-ivory/60 hover:border-indigo-400/30'
+              }`}>
+              <Users size={13} /> Katkıcılar {collabUsers.filter(c => c.status === 'accepted').length > 0 && `(${collabUsers.filter(c => c.status === 'accepted').length})`}
+            </button>
+          )}
         </div>
 
-        {/* Ortak düzenleme paneli — sadece sahip görür */}
-        {openList.is_owner !== false && (
-          <div className="space-y-3">
-            <button onClick={() => setShowCollabPanel(p => !p)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold uppercase tracking-wider text-ivory/60 hover:border-amber/30 transition-all">
-              <Users size={13} /> Katkıcılar {collabUsers.length > 0 && `(${collabUsers.filter(c => c.status === 'accepted').length})`}
-            </button>
-            {showCollabPanel && (
-              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] space-y-3">
-                <div className="flex gap-2">
-                  <input value={inviteUsername} onChange={e => setInviteUsername(e.target.value.slice(0, 30))}
-                    onKeyDown={e => e.key === 'Enter' && handleInviteCollab()}
-                    placeholder="Kullanıcı adı"
-                    className="flex-1 px-4 py-2.5 bg-black/30 border border-white/10 rounded-full text-sm text-ivory placeholder:text-ivory/30 focus:outline-none focus:border-amber/40" />
-                  <button onClick={handleInviteCollab} disabled={inviteBusy || !inviteUsername.trim()}
-                    className="px-4 py-2.5 rounded-full bg-amber/10 border border-amber/30 text-amber text-[11px] font-bold uppercase tracking-wider hover:bg-amber/20 disabled:opacity-40 transition-all">
-                    {inviteBusy ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
-                  </button>
-                </div>
-                {collabUsers.length > 0 && (
-                  <div className="space-y-2">
-                    {collabUsers.map(c => (
-                      <div key={c.user_id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-white/[0.03]">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-sm font-medium text-ivory truncate">@{c.username || c.name}</span>
-                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                            c.status === 'accepted' ? 'bg-emerald-500/15 text-emerald-400' :
-                            c.status === 'pending' ? 'bg-amber/15 text-amber' : 'bg-white/5 text-ivory/40'
-                          }`}>{c.status === 'accepted' ? 'Aktif' : c.status === 'pending' ? 'Bekliyor' : 'Reddetti'}</span>
-                        </div>
-                        <button onClick={() => handleRemoveCollab(c.user_id)}
-                          className="text-ivory/30 hover:text-rose-300 transition-colors">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ))}
+        {/* Katkıcı yönetim paneli */}
+        {showCollabPanel && openList.is_owner !== false && (
+          <div className="p-4 rounded-2xl bg-indigo-500/[0.04] border border-indigo-400/20 space-y-3">
+            <div className="flex gap-2">
+              <input value={inviteUsername} onChange={e => setInviteUsername(e.target.value.slice(0, 30))}
+                onKeyDown={e => e.key === 'Enter' && handleInviteCollab()}
+                placeholder="Arkadaşının kullanıcı adı"
+                className="flex-1 px-4 py-2.5 bg-black/30 border border-white/10 rounded-full text-sm text-ivory placeholder:text-ivory/30 focus:outline-none focus:border-indigo-400/40" />
+              <button onClick={handleInviteCollab} disabled={inviteBusy || !inviteUsername.trim()}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-indigo-500/15 border border-indigo-400/30 text-indigo-300 text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500/25 disabled:opacity-40 transition-all">
+                {inviteBusy ? <Loader2 size={13} className="animate-spin" /> : <><UserPlus size={13} /> Davet Et</>}
+              </button>
+            </div>
+            {collabUsers.length > 0 && (
+              <div className="space-y-2">
+                {collabUsers.map(c => (
+                  <div key={c.user_id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-white/[0.03]">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-medium text-ivory truncate">@{c.username || c.name}</span>
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                        c.status === 'accepted' ? 'bg-emerald-500/15 text-emerald-400' :
+                        c.status === 'pending' ? 'bg-amber/15 text-amber' : 'bg-white/5 text-ivory/40'
+                      }`}>{c.status === 'accepted' ? 'Aktif' : c.status === 'pending' ? 'Bekliyor' : 'Reddetti'}</span>
+                    </div>
+                    <button onClick={() => handleRemoveCollab(c.user_id)}
+                      className="text-ivory/30 hover:text-rose-300 transition-colors">
+                      <X size={14} />
+                    </button>
                   </div>
-                )}
+                ))}
               </div>
+            )}
+            {collabUsers.length === 0 && (
+              <p className="text-[11px] text-ivory/40 italic">Henüz katkıcı yok. Arkadaşının kullanıcı adını yazıp davet et.</p>
             )}
           </div>
         )}
