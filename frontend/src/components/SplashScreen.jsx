@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import LottieAnimation from './LottieAnimation';
 
 /* ═══════════════════════════════════════════════════════════════════
    SplashScreen — Cinematic Spotlight Animasyonu
@@ -65,26 +64,6 @@ export default function SplashScreen() {
           {/* İçerik Konteyneri */}
           <div className="relative z-10 flex flex-col items-center mt-[-5vh]">
             
-            {/* Animasyonlu Logo (Lottie Film Reel) */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.5, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-              className="relative flex items-center justify-center mb-5"
-            >
-              {/* Arkasındaki Parlama */}
-              <motion.div
-                animate={{ opacity: [0.3, 0.7, 0.3], scale: [0.9, 1.1, 0.9] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute inset-0 bg-[#ffbf00] rounded-full blur-[40px] pointer-events-none mix-blend-screen opacity-50"
-              />
-              <LottieAnimation
-                path="/lottie/film-reel.json"
-                className="w-24 h-24 sm:w-28 sm:h-28 z-10"
-                style={{ filter: 'drop-shadow(0px 0px 15px rgba(255, 191, 0, 0.6))' }}
-                speed={0.8}
-              />
-            </motion.div>
             {/* SİNEMOOD Logo Yazısı */}
             <motion.h1
               initial={{ filter: 'blur(20px)', opacity: 0, letterSpacing: '0.05em', scale: 0.9 }}
