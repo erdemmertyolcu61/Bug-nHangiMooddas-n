@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Star, Share2, Download, CalendarDays, Play } from 'lucide-react';
 import { getDailyFilm, proxyImageUrl } from '../services/api';
-import { shareToWhatsApp, shareToTelegram } from '../utils/shareUtils';
+import { shareToWhatsApp, shareToTelegram, shareToInstagram } from '../utils/shareUtils';
 import { useShareableImage } from '../utils/useShareableImage';
 import { track, EVENTS } from '../utils/analytics';
 import FilmDetailModal from '../components/FilmDetailModal';
@@ -188,6 +188,12 @@ export default function DailyFilm() {
                 className="px-4 py-3 bg-[#0088cc]/15 border border-[#0088cc]/25 text-[#0088cc] rounded-full text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[#0088cc]/25 transition-all"
               >
                 Telegram
+              </button>
+              <button
+                onClick={() => { track(EVENTS.SHARE_CLICK, { network: 'instagram', kind: 'daily' }); shareToInstagram(shareText, shareUrl); }}
+                className="px-4 py-3 bg-[#e1306c]/15 border border-[#e1306c]/25 text-[#e1306c] rounded-full text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[#e1306c]/25 transition-all"
+              >
+                Instagram
               </button>
               <button
                 onClick={handleDownload}

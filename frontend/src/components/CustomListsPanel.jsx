@@ -6,6 +6,7 @@ import {
   getCustomList, removeFromCustomList, proxyImageUrl, setListVisibility,
   getListCollaborators, inviteCollaborator, removeCollaborator,
   getCollabInvites, respondCollabInvite, getCollaboratedLists,
+  getFriends,
 } from '../services/api';
 import FilmDetailModal from './FilmDetailModal';
 import ShareButtons from './ShareButtons';
@@ -34,6 +35,27 @@ export default function CustomListsPanel({ user }) {
   const [inviteUsername, setInviteUsername] = useState('');
   const [inviteBusy, setInviteBusy] = useState(false);
   const [showCollabPanel, setShowCollabPanel] = useState(false);
+  const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+
+  const loadFriends = useCallback(async () => {
+    if (!user) return;
+    setFriendsLoading(true);
+    try {
+      const d = await getFriends();
+      setFriends(d.friends || []);
+    } catch {
+      setFriends([]);
+    } finally {
+      setFriendsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (showCollabPanel) {
+      loadFriends();
+    }
+  }, [showCollabPanel, loadFriends]);
 
   const loadLists = useCallback(async () => {
     setLoading(true);
@@ -164,29 +186,32 @@ export default function CustomListsPanel({ user }) {
           <span className="text-sm text-ivory/40">{openList.movies?.length || 0} film</span>
         </div>
 
-        {/* Herkese açık paylaşım — WhatsApp büyüme döngüsü */}
-        <div className="flex flex-wrap items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-          <button onClick={handleToggleVisibility} disabled={visBusy}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all ${
-              openList.is_public
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                : 'bg-white/5 border-white/10 text-ivory/60 hover:border-amber/30'
-            }`}>
-            {visBusy ? <Loader2 size={13} className="animate-spin" />
-              : openList.is_public ? <Globe2 size={13} /> : <Lock size={13} />}
-            {openList.is_public ? 'Herkese Açık' : 'Gizli, paylaşmak için aç'}
-          </button>
-          {openList.is_public && openList.slug && (
-            <ShareButtons
-              compact
-              url={`${window.location.origin}/liste/${openList.slug}`}
-              text={`${openList.emoji || '🎬'} "${openList.name}" listem Sinemood'da:`}
-            />
-          )}
-          {/* Katkıcı davet butonu — visibility satırında */}
+        {/* Herkese açık paylaşım ve katkıcılar paneli */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+          <div className="flex flex-wrap items-center gap-3">
+            <button onClick={handleToggleVisibility} disabled={visBusy}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                openList.is_public
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : 'bg-white/5 border-white/10 text-ivory/60 hover:border-amber/30'
+              }`}>
+              {visBusy ? <Loader2 size={13} className="animate-spin" />
+                : openList.is_public ? <Globe2 size={13} /> : <Lock size={13} />}
+              {openList.is_public ? 'Herkese Açık' : 'Gizli, paylaşmak için aç'}
+            </button>
+            {openList.is_public && openList.slug && (
+              <div className="flex items-center">
+                <ShareButtons
+                  compact
+                  url={`${window.location.origin}/liste/${openList.slug}`}
+                  text={`${openList.emoji || '🎬'} "${openList.name}" listem Sinemood'da:`}
+                />
+              </div>
+            )}
+          </div>
           {openList.is_owner !== false && (
             <button onClick={() => setShowCollabPanel(p => !p)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all ml-auto ${
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer w-full sm:w-auto ${
                 showCollabPanel ? 'bg-indigo-500/15 border-indigo-400/40 text-indigo-300' : 'bg-white/5 border-white/10 text-ivory/60 hover:border-indigo-400/30'
               }`}>
               <Users size={13} /> Katkıcılar {collabUsers.filter(c => c.status === 'accepted').length > 0 && `(${collabUsers.filter(c => c.status === 'accepted').length})`}
@@ -197,13 +222,41 @@ export default function CustomListsPanel({ user }) {
         {/* Katkıcı yönetim paneli */}
         {showCollabPanel && openList.is_owner !== false && (
           <div className="p-4 rounded-2xl bg-indigo-500/[0.04] border border-indigo-400/20 space-y-3">
-            <div className="flex gap-2">
-              <input value={inviteUsername} onChange={e => setInviteUsername(e.target.value.slice(0, 30))}
-                onKeyDown={e => e.key === 'Enter' && handleInviteCollab()}
-                placeholder="Arkadaşının kullanıcı adı"
-                className="flex-1 px-4 py-2.5 bg-black/30 border border-white/10 rounded-full text-sm text-ivory placeholder:text-ivory/30 focus:outline-none focus:border-indigo-400/40" />
+            <div className="flex flex-col sm:flex-row gap-2 relative">
+              <div className="relative flex-1">
+                <input value={inviteUsername} onChange={e => setInviteUsername(e.target.value.slice(0, 30))}
+                  onKeyDown={e => e.key === 'Enter' && handleInviteCollab()}
+                  placeholder="Arkadaşının kullanıcı adı"
+                  className="w-full px-4 py-2.5 bg-black/30 border border-white/10 rounded-full text-sm text-ivory placeholder:text-ivory/30 focus:outline-none focus:border-indigo-400/40" />
+                {inviteUsername.trim() && friends.filter(f => 
+                  (f.username?.toLowerCase().includes(inviteUsername.toLowerCase()) || 
+                   f.name?.toLowerCase().includes(inviteUsername.toLowerCase())) &&
+                  !collabUsers.some(c => c.username === f.username || c.user_id === f.id)
+                ).length > 0 && (
+                  <div className="absolute left-0 right-0 mt-1 bg-[#1a1513] border border-white/10 rounded-2xl shadow-xl max-h-48 overflow-y-auto z-50 divide-y divide-white/5">
+                    {friends.filter(f => 
+                      (f.username?.toLowerCase().includes(inviteUsername.toLowerCase()) || 
+                       f.name?.toLowerCase().includes(inviteUsername.toLowerCase())) &&
+                      !collabUsers.some(c => c.username === f.username || c.user_id === f.id)
+                    ).map(f => (
+                      <button key={f.id} onClick={() => setInviteUsername(f.username)}
+                        className="w-full px-4 py-2 text-left text-xs text-ivory/80 hover:bg-white/5 hover:text-white flex items-center gap-2 transition-colors first:rounded-t-2xl last:rounded-b-2xl cursor-pointer">
+                        {f.avatar ? (
+                          <img src={f.avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[8px] font-bold shrink-0">{f.username.slice(0, 2).toUpperCase()}</div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold truncate">@{f.username}</p>
+                          {f.name && <p className="text-[10px] text-ivory/40 truncate">{f.name}</p>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button onClick={handleInviteCollab} disabled={inviteBusy || !inviteUsername.trim()}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-indigo-500/15 border border-indigo-400/30 text-indigo-300 text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500/25 disabled:opacity-40 transition-all">
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-indigo-500/15 border border-indigo-400/30 text-indigo-300 text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500/25 disabled:opacity-40 transition-all w-full sm:w-auto shrink-0 cursor-pointer">
                 {inviteBusy ? <Loader2 size={13} className="animate-spin" /> : <><UserPlus size={13} /> Davet Et</>}
               </button>
             </div>
@@ -219,7 +272,7 @@ export default function CustomListsPanel({ user }) {
                       }`}>{c.status === 'accepted' ? 'Aktif' : c.status === 'pending' ? 'Bekliyor' : 'Reddetti'}</span>
                     </div>
                     <button onClick={() => handleRemoveCollab(c.user_id)}
-                      className="text-ivory/30 hover:text-rose-300 transition-colors">
+                      className="text-ivory/30 hover:text-rose-300 transition-colors cursor-pointer">
                       <X size={14} />
                     </button>
                   </div>

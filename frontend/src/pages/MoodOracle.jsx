@@ -8,7 +8,7 @@ import {
 import { MOODS } from '../context/MoodContext';
 import { getMoodOracleRounds, proxyImageUrl } from '../services/api';
 import { getOracleState, applyResult, rankFor } from '../utils/oracleRank';
-import { shareToWhatsApp, shareToTelegram } from '../utils/shareUtils';
+import { shareToWhatsApp, shareToTelegram, shareToInstagram } from '../utils/shareUtils';
 import { useShareableImage } from '../utils/useShareableImage';
 import { track, EVENTS } from '../utils/analytics';
 import useDocumentMeta from '../utils/useDocumentMeta';
@@ -383,6 +383,8 @@ export default function MoodOracle() {
                   className="px-4 py-2.5 bg-[#25D366]/15 border border-[#25D366]/25 text-[#25D366] rounded-full text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[#25D366]/25 transition-all">WhatsApp</button>
                 <button onClick={() => { track(EVENTS.SHARE_CLICK, { network: 'telegram', kind: 'game' }); shareToTelegram(shareText, shareUrl); }}
                   className="px-4 py-2.5 bg-[#0088cc]/15 border border-[#0088cc]/25 text-[#0088cc] rounded-full text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[#0088cc]/25 transition-all">Telegram</button>
+                <button onClick={() => { track(EVENTS.SHARE_CLICK, { network: 'instagram', kind: 'game' }); shareToInstagram(shareText, shareUrl); }}
+                  className="px-4 py-2.5 bg-[#e1306c]/15 border border-[#e1306c]/25 text-[#e1306c] rounded-full text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[#e1306c]/25 transition-all">Instagram</button>
                 <button onClick={handleDownload} disabled={sharing}
                   className="flex items-center justify-center w-10 h-10 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-ivory/50 hover:text-ivory transition-all disabled:opacity-50" title="İndir">
                   <Download size={14} />

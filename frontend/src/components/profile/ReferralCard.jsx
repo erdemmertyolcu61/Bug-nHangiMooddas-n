@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Gift, Link2, Check, Trophy } from 'lucide-react';
 import { getReferrals } from '../../services/api';
-import { copyToClipboard, shareToWhatsApp, shareToTelegram } from '../../utils/shareUtils';
+import { copyToClipboard, shareToWhatsApp, shareToTelegram, shareToInstagram } from '../../utils/shareUtils';
 import { track, EVENTS } from '../../utils/analytics';
 
 /**
@@ -70,13 +70,7 @@ export default function ReferralCard() {
           className="flex-1 py-2.5 rounded-xl bg-[#25D366]/15 border border-[#25D366]/25 text-[#25D366] text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-[#25D366]/25 transition-all">
           WhatsApp
         </button>
-        <button onClick={async () => {
-          await copyToClipboard(invite_url);
-          track(EVENTS.SHARE_CLICK, { network: 'instagram', kind: 'referral' });
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-          window.open('https://www.instagram.com', '_blank');
-        }}
+        <button onClick={() => { track(EVENTS.SHARE_CLICK, { network: 'instagram', kind: 'referral' }); shareToInstagram(shareText, invite_url); }}
           className="flex-1 py-2.5 rounded-xl bg-[#E1306C]/15 border border-[#E1306C]/25 text-[#E1306C] text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-[#E1306C]/25 transition-all">
           Instagram
         </button>

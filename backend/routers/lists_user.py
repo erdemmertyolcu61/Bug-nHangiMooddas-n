@@ -162,6 +162,23 @@ async def invite_collaborator(body: CollabInviteBody, list_id: int = Path(..., g
     ok = await cache.invite_collaborator(list_id, user["user_id"], target[0], body.role)
     if not ok:
         raise HTTPException(400, "Davet gönderilemedi")
+
+    # Push Notification: Katkıcı daveti bildirimi gönder
+    try:
+        from backend.services.push_service import send_push_to_user
+        sender = await cache.get_user_by_username_by_id(user["user_id"])
+        sender_name = (sender or {}).get("username") or (sender or {}).get("name") or "Bir arkadaşın"
+        list_details = await cache.get_list_items(list_id, user["user_id"])
+        list_name = list_details.get("name") if list_details else "bir liste"
+        await send_push_to_user(
+            target[0],
+            "Sinemood",
+            f"{sender_name} seni '{list_name}' listesine katkıcı olarak davet etti 🤝",
+            url="/defterim?tab=lists", tag=f"collab-invite-{list_id}",
+        )
+    except Exception:
+        pass
+
     return {"status": "success"}
 
 

@@ -210,3 +210,17 @@ export async function copyToClipboard(text) {
     return true;
   }
 }
+
+export async function shareToInstagram(text, url) {
+  const content = url ? `${text} ${url}`.trim() : text;
+  await copyToClipboard(content);
+  // Give a small delay for clipboard
+  setTimeout(() => {
+    // Try native app scheme first
+    window.location.href = 'instagram://';
+    // Fallback to web if app scheme fails (web will just open a new tab)
+    setTimeout(() => {
+      window.open('https://www.instagram.com/', '_blank');
+    }, 500);
+  }, 100);
+}

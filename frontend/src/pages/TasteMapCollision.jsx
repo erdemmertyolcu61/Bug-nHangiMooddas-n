@@ -14,7 +14,7 @@ import {
   Users, Plus, LogIn, Copy, Check, Swords, Star,
   Ban, RefreshCw, ChevronLeft, Clapperboard, Heart, Quote, Share2, Download,
 } from 'lucide-react';
-import { shareToWhatsApp, shareToTelegram } from '../utils/shareUtils';
+import { shareToWhatsApp, shareToTelegram, shareToInstagram } from '../utils/shareUtils';
 import { useShareableImage } from '../utils/useShareableImage';
 import { track, EVENTS } from '../utils/analytics';
 import useDocumentMeta from '../utils/useDocumentMeta';
@@ -663,6 +663,12 @@ export default function TasteMapCollision() {
                     className="px-4 py-2.5 bg-[#0088cc]/15 border border-[#0088cc]/25 text-[#0088cc] rounded-full text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[#0088cc]/25 transition-all"
                   >
                     Telegram
+                  </button>
+                  <button
+                    onClick={() => { track(EVENTS.SHARE_CLICK, { network: 'instagram', kind: 'collision' }); shareToInstagram(shareText, inviteUrl); }}
+                    className="px-4 py-2.5 bg-[#e1306c]/15 border border-[#e1306c]/25 text-[#e1306c] rounded-full text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[#e1306c]/25 transition-all"
+                  >
+                    Instagram
                   </button>
                   <button
                     onClick={handleDownload}

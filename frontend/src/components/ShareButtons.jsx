@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Link2 } from 'lucide-react';
-import { shareToWhatsApp, shareToTelegram, shareToTwitter, copyToClipboard } from '../utils/shareUtils';
+import { shareToWhatsApp, shareToTelegram, shareToTwitter, shareToInstagram, copyToClipboard } from '../utils/shareUtils';
 import { track, EVENTS } from '../utils/analytics';
 
 /**
- * WhatsApp / Telegram / X / Copy link share buttons.
+ * WhatsApp / Telegram / X / Instagram / Copy link share buttons.
  *
  * Props:
  *  - url: string — share URL
@@ -37,6 +37,9 @@ export default function ShareButtons({ url = '', text = '', className = '', comp
   const tw = forceDark
     ? { backgroundColor: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'rgba(255, 255, 255, 0.8)' }
     : {};
+  const ig = forceDark
+    ? { background: 'linear-gradient(45deg, rgba(240,148,51,0.15) 0%, rgba(230,104,60,0.15) 25%, rgba(220,39,67,0.15) 50%, rgba(204,35,102,0.15) 75%, rgba(188,24,136,0.15) 100%)', border: '1px solid rgba(220,39,67,0.3)', color: '#e1306c' }
+    : {};
 
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
@@ -56,6 +59,16 @@ export default function ShareButtons({ url = '', text = '', className = '', comp
         </svg>
       </button>
 
+      <button onClick={() => { track(EVENTS.SHARE_CLICK, { network: 'instagram' }); shareToInstagram(text, url); }}
+        className={`${btnBase} hover:scale-110 ${forceDark ? '' : 'bg-[#e1306c]/10 hover:bg-[#e1306c]/20 border border-[#e1306c]/20 hover:border-[#e1306c]/40 text-[#e1306c]'}`}
+        style={ig} title="Instagram">
+        <svg width={iconSize + 2} height={iconSize + 2} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+        </svg>
+      </button>
+
       <button onClick={() => { track(EVENTS.SHARE_CLICK, { network: 'twitter' }); shareToTwitter(text, url); }}
         className={`${btnBase} hover:scale-110 ${forceDark ? '' : 'bg-white/10 hover:bg-white/15 border border-white/15 hover:border-white/30 text-white/80 hover:text-white'}`}
         style={tw} title="X (Twitter)">
@@ -63,6 +76,7 @@ export default function ShareButtons({ url = '', text = '', className = '', comp
           <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
         </svg>
       </button>
+
 
       <button onClick={handleCopy}
         className={`${btnBase} hover:scale-110 ${forceDark ? '' : copied ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/50 hover:text-white/80'}`}
