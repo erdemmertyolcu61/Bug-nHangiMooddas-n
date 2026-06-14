@@ -33,7 +33,7 @@ export default function SplashScreen() {
         <motion.div
           key="splash-cinematic"
           initial={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 1.05 }}
+          exit={{ opacity: 0 }}
           transition={{ duration: 0.8, ease: [0.25, 1, 0.5, 1] }}
           className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
           style={{ backgroundColor: '#050302' }} // Çok koyu amber/siyah
@@ -43,7 +43,7 @@ export default function SplashScreen() {
             initial={{ opacity: 0, scale: 0.8, y: '-20%' }}
             animate={{ opacity: 1, scale: 1, y: '0%' }}
             transition={{ duration: 2.5, ease: "easeOut" }}
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[150vw] h-[150vh] pointer-events-none"
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-[200vw] sm:w-[150vw] h-[150vh] pointer-events-none"
             style={{
               background: 'radial-gradient(ellipse at 50% 20%, rgba(255, 191, 0, 0.12) 0%, rgba(255, 150, 50, 0.03) 40%, transparent 70%)',
               filter: 'blur(30px)',
@@ -70,9 +70,10 @@ export default function SplashScreen() {
               className="font-serif font-bold text-transparent bg-clip-text select-none text-center"
               style={{
                 fontSize: 'clamp(32px, 8vmin, 64px)',
-                backgroundImage: 'linear-gradient(180deg, #fbe7c0 0%, #e6b870 45%, #c79248 100%)',
+                backgroundImage: 'linear-gradient(180deg, #ffffff 0%, #ffdf99 45%, #e6a83a 100%)',
                 paddingLeft: '0.35em', // letter-spacing dengesi
-                textShadow: '0px 10px 40px rgba(255, 191, 0, 0.25)'
+                textShadow: '0px 8px 30px rgba(255, 191, 0, 0.4)',
+                WebkitFontSmoothing: 'antialiased'
               }}
             >
               SINEMOOD
@@ -83,7 +84,8 @@ export default function SplashScreen() {
               initial={{ opacity: 0, y: 15, filter: 'blur(5px)' }}
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               transition={{ duration: 1.2, ease: "easeOut", delay: 1.5 }}
-              className="mt-6 font-serif italic text-amber-100/50 tracking-[0.25em] uppercase text-[10px] sm:text-[11px] select-none text-center"
+              className="mt-6 font-serif italic text-amber-100/60 tracking-[0.25em] uppercase text-[10px] sm:text-[11px] select-none text-center"
+              style={{ textShadow: '0px 2px 10px rgba(255, 191, 0, 0.2)' }}
             >
               bugün hangi mooddasın?
             </motion.p>
