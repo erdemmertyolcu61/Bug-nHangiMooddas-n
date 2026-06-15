@@ -256,6 +256,11 @@ MOOD_KEYWORDS = {
     "aşkı", "aşkın", "aşkla", "aşkını", "sevgisi", "sevgiyle", "sevgiyi",
     # Konuya işaret eden sıfatlar
     "felsefi", "derin", "varoluşsal", "sorgulayan",
+    # Duygu durumu — tekil kelimeler ("mutsuzum", "nostaljik")
+    "mutsuz", "mutsuzum", "mutlu", "mutluyum", "heyecanlı", "heyecanlıyım",
+    "nostaljik", "sarsıcı", "motivasyon", "sinirli", "sinirliyim",
+    "enerjik", "stresli", "karamsar", "neşeli", "keyifli", "coşkulu",
+    "endişeli", "tedirgin", "huzursuz", "kederli", "bezgin",
     # Soyut / şiirsel ruh hali
     "melankoli", "melankolik", "umutsuz", "umutsuzum", "umut", "huzur",
     "boşluk", "boşlukta", "daralıyor", "daraldı", "küstüm", "sıkışıyor",
@@ -328,6 +333,18 @@ MOOD_PHRASES = {
     "fena film", "aşırı iyi", "boş film", "kafa boşalt", "kafamı boşalt",
     "dizi gibi film", "akıcı film", "sarıyor", "sarmıyor", "sarar",
     "çerezlik film", "izlemesi keyifli", "izlemesi zevkli",
+    # ── Tekil duygu / sıfat (MOOD_KEYWORDS'ü kaçıran kısa sorgular) ──
+    "mutsuzum", "çok mutluyum", "heyecanlıyım", "nostaljik",
+    "sarsıcı", "motivasyon veren", "beyin yakan", "iç ısıtan",
+    "umut veren", "umut veren filmler", "güzel bi film var mı",
+    "güzel bir film var mı", "güzel film var mı",
+    "izlerken uyuyamayacağım", "başyapıt", "başyapıt niteliğinde",
+    "cult klasik", "kült klasik", "kült film",
+    "sonu sizi şaşırtacak", "sonu şaşırtan", "sonu şaşırtacak",
+    "gerçek hayattan esinlenen", "gerçek olaylara dayanan",
+    "görsel olarak etkileyici", "görsel şölen",
+    "herkesin izlemesi gereken", "ödüllü",
+    "arkadaşlarla izlenecek", "arkadaşla izlenecek",
     # ── Ek İngilizce ifadeler ──
     "something like", "i want a movie about", "show me something",
     "i want something", "give me a movie", "i need a movie",
@@ -513,6 +530,18 @@ GENRE_KEYWORDS = {
     "thriller": [53], "thrill": [53],
     "action movie": [28], "war movie": [10752],
     "romcom": [10749, 35], "rom-com": [10749, 35],
+    # ── Tema kelimeleri → en yakın tür eşlemesi ──
+    "zombi": [27], "zombie": [27], "vampir": [27], "hayalet": [27],
+    "uzay": [878], "robot": [878],
+    "mafya": [80], "gangster": [80], "soygun": [80], "hırsızlık": [80],
+    "dedektif": [80, 9648], "polisiye": [80, 9648], "casusluk": [53],
+    "spor": [18], "boks": [18], "futbol": [18],
+    "dans": [10402], "müzik": [10402],
+    "kıyamet": [878, 28], "felaket": [28], "afet": [28],
+    "intikam": [53, 80],
+    "hapishane": [18, 80], "cezaevi": [18, 80],
+    "okul": [18], "lise": [18],
+    "seyahat": [12], "yolculuk": [12],
 }
 
 # Kelime-sınırı (word-boundary) regex'leri — "savaş" ∉ "yavaş" garantisi.
@@ -589,6 +618,13 @@ LANGUAGE_KEYWORDS = {
     "ispanyol filmi": "es", "ispanyolca": "es",
     "amerikan filmi": "en", "ingiliz filmi": "en",
     "ingilizce": "en",
+    "hint filmi": "hi", "hintçe": "hi", "bollywood": "hi",
+    "meksika filmi": "es", "brezilya filmi": "pt",
+    "iran filmi": "fa", "çin filmi": "zh", "çince": "zh",
+    "rus filmi": "ru", "rusça": "ru",
+    "iskandinav filmi": "sv",
+    "danimarka filmi": "da", "norveç filmi": "no",
+    "arjantin filmi": "es", "yunan filmi": "el",
 }
 
 # Çocuk/aile-güvenli (yaş-uygun) içerik tespiti — bu sorgularda korku/gerilim/
@@ -674,8 +710,13 @@ _LANG_FORMS = {
     "ru": ["rus", "rusca", "rusya", "sovyet", "russian", "soviet"],
     "hi": ["hint", "hintli", "hindistan", "bollywood", "indian"],
     "zh": ["cin", "cinli", "cince", "chinese"],
-    "sv": ["isvec", "isvecli", "swedish"],
+    "sv": ["isvec", "isvecli", "iskandinav", "skandinav", "swedish", "nordic", "scandinavian"],
     "fa": ["iran", "iranli", "farsca", "fars", "iranian", "persian"],
+    "da": ["danimarka", "danimarkali", "danish"],
+    "no": ["norvec", "norvecli", "norwegian"],
+    "pt": ["brezilya", "brezilyali", "portekiz", "portuguese", "brazilian"],
+    "el": ["yunan", "yunanistan", "greek"],
+    "ar": ["arap", "arapca", "arabic"],
 }
 # Daha uzun (spesifik) formlar önce → "guney kore" "kore"den önce denenir.
 _LANG_PATTERNS = sorted(
@@ -839,6 +880,26 @@ _NON_NAME_WORDS = {
     # Platform / servis adları (kişi adı değil)
     "netflix", "amazon", "prime", "mubi", "disney", "hulu", "hbo",
     "blutv", "exxen", "puhu", "gain", "tabii", "youtube", "imdb",
+    # Tema / konu kelimeleri (kişi adı değil)
+    "zombi", "zombie", "vampir", "hayalet", "uzay", "mafya", "gangster",
+    "hapishane", "cezaevi", "okul", "lise", "üniversite", "spor", "futbol",
+    "basketbol", "boks", "dans", "bale", "müzik", "yemek", "mutfak",
+    "seyahat", "yolculuk", "soygun", "hırsızlık", "kıyamet", "mahşer",
+    "felaket", "afet", "hayatta", "kalma", "intikam", "dedektif",
+    "polisiye", "casusluk", "casus", "robot", "yapay", "zeka",
+    "dinozor", "ejderha", "korsan", "denizaltı", "uçak", "tren",
+    "savaşçı", "samuray", "ninja", "gladyatör", "şövalye",
+    # Dil / ülke sıfatları (kişi adı değil)
+    "kore", "japon", "çin", "fransız", "italyan", "alman", "İskandinav",
+    "iskandinav", "hint", "İspanyol", "ispanyol", "meksika", "iran",
+    "rus", "brezilya", "arjantin", "türk", "yunan", "danimarka",
+    "norveç", "isveç", "finlandiya", "avustralya", "kanada",
+    # Dönem / era kelimeleri
+    "eski", "retro", "vintage", "modern",
+    # Betimleyici sıfat / zarf (kişi adı değil)
+    "akıllıca", "güzelce", "derince", "sessizce", "ustalıkla",
+    "yazılmış", "çekilmiş", "yapılmış", "kurgulanmış", "tasarlanmış",
+    "etkileyici", "sarsıcı", "dokunaklı", "heyecanlı", "gerilimli",
     # "X filmi/filmleri" bare ifadesinde takı (PERSON_KEYWORD yolu zaten önce
     # çalışır; bu yalnız bare _looks_like_person_name yolunu korur)
     "filmi", "filmler", "filmleri", "filmini", "filmleriyle", "filmiyle",
@@ -930,7 +991,7 @@ def _looks_like_person_name(text: str) -> bool:
 
 def _fold_keep(s: str) -> str:
     """Aksan-katlama + lowercase, UZUNLUĞU korur (indeks hizalaması için)."""
-    return s.lower().translate(_TR_FOLD)
+    return s.lower().replace(chr(0x0307), "").translate(_TR_FOLD)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1041,6 +1102,14 @@ _FUZZY_STOP_WORDS = _NON_NAME_WORDS | {
     "yavaş", "hızlı", "uzun", "kısa", "büyük", "küçük", "kalın", "ince",
     "soğuk", "sıcak", "sessiz", "gürültülü", "temiz", "kirli",
     "tempolu", "tempoya", "tempo",
+    # Ülke/dil sıfatları — fuzzy kişi düzeltmesine girmesin ("alman"→"altman" engeli)
+    "alman", "kore", "japon", "fransız", "italyan", "hint", "türk",
+    "ispanyol", "meksika", "iran", "rus", "çin", "yunan",
+    "iskandinav", "norveç", "isveç", "danimarka",
+    # Tema kelimeleri — fuzzy genre/kişi düzeltmesine girmesin
+    "zombi", "vampir", "hayalet", "uzay", "mafya", "gangster",
+    "soygun", "dedektif", "polisiye", "casusluk", "robot",
+    "intikam", "kıyamet", "felaket", "afet",
 }
 _FUZZY_STOP_FOLDED = {_fold(w) for w in _FUZZY_STOP_WORDS}
 
@@ -2149,6 +2218,15 @@ class ChatEngine:
                           exclude_genres=genres_excluded,
                           mood_signals=cross_mood,
                           lang_filter=_detect_lang_filter(text))
+
+        # ── Sinyal var ama kişi yok: era/dil/platform → mood ──
+        if (era_constraint or lang_filter or platform_filter) and not genres_wanted:
+            return Intent("mood_recommendation", original_text=text,
+                          platform_filter=platform_filter,
+                          era_constraint=era_constraint,
+                          time_constraint=time_constraint,
+                          genres=genres_wanted, exclude_genres=genres_excluded,
+                          mood_signals=cross_mood, lang_filter=lang_filter)
 
         if _is_short_title_like(text):
             return Intent("exact_movie_search", reference_title=text.strip(),
