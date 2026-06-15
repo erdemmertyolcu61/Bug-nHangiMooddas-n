@@ -590,9 +590,9 @@ async def taste_compatibility(friend_id: int, user: dict = Depends(verify_user))
     return {"score": score, "common_moods": common[:5]}
 
 
-# ─── Haftalık topluluk sorusu ────────────────────────────────────────────────
+# ─── Günlük topluluk sorusu ──────────────────────────────────────────────────
 
-WEEKLY_QUESTIONS = [
+DAILY_QUESTIONS = [
     "Hayatınızda en çok etki bırakan film hangisi?",
     "Bir adada mahsur kalsanız yanınıza alacağınız 3 film?",
     "En çok ağladığınız film sahnesi hangisi?",
@@ -619,41 +619,104 @@ WEEKLY_QUESTIONS = [
     "En iyi 'plot twist' hangi filmde?",
     "Kötü eleştiri alıp sizin çok sevdiğiniz bir film var mı?",
     "Hangi film size yeni bir bakış açısı kazandırdı?",
+    "En iyi romantik komedi filmi sizce hangisi?",
+    "Bir filmi yeniden çekecek olsanız hangisini seçerdiniz?",
+    "Korku filmi sevmeyenlere bile izletin dediğiniz film?",
+    "En etkileyici sinematografiye sahip film?",
+    "Yağmurlu bir günde izlenecek en iyi film?",
+    "Size ilham veren bir film var mı?",
+    "En iyi film serisi sizce hangisi?",
+    "Bir dönem filmi önerecek olsanız hangisi?",
+    "Gece geç saatte izlenecek en iyi film?",
+    "En sevdiğiniz animasyon film?",
+    "Bir filmdeki en unutulmaz sahne sizce hangisi?",
+    "Seyahat etmek istemenize neden olan film?",
+    "En iyi biyografi filmi hangisi?",
+    "İzlerken 'bu gerçek olamaz' dediğiniz film?",
+    "En sevdiğiniz savaş filmi?",
+    "Arkadaşlarınıza en çok önerdiğiniz film?",
+    "Yemek yaparken arka planda açacağınız film?",
+    "En iyi Nolan filmi sizce hangisi?",
+    "Türk sinemasının en iyi komedisi?",
+    "Aile ile izlenecek en iyi film?",
+    "En çok tekrar izlediğiniz sahne hangisi?",
+    "Bir müzikali sevecek olsanız hangisi olurdu?",
+    "En iyi bilim kurgu filmi?",
+    "Size nostalji hissettiren film hangisi?",
+    "En iyi gerilim filmi sizce hangisi?",
+    "Bir film kahramanıyla arkadaş olsanız kim olurdu?",
+    "En iyi Tarantino filmi?",
+    "Kitaptan uyarlanan en iyi film?",
+    "En sevdiğiniz kara film (film noir)?",
+    "Bir belgesel herkesi eğitebilecekse hangisi?",
+    "Stresli bir günde rahatlamak için izlediğiniz film?",
+    "En iyi spor filmi?",
+    "Favori film posteriniz hangisi?",
+    "En çok beklediğiniz yakında çıkacak film?",
+    "Bir yönetmenin tüm filmografisini izlediniz mi? Hangisi?",
+    "En iyi 'heist' (soygun) filmi?",
+    "Sizi en çok düşündüren film?",
+    "Bir film evreninde tatil yapacak olsanız nereye giderdiniz?",
+    "En iyi süper kahraman filmi sizce hangisi?",
+    "Sadece görselleriyle bile etkileyici olan film?",
+    "Dostluk temalı en iyi film?",
+    "Kışın battaniyeye sarılıp izlenecek film?",
+    "En iyi film müziği bestecisi sizce kim?",
+    "Hayatınızı değiştiren bir belgesel var mı?",
+    "Gişe rekorları kırmayı hak eden ama kıramayan film?",
+    "En iyi kadın başrollü film?",
+    "Sinemada izlemenin fark yarattığı bir film?",
+    "En sevdiğiniz klostrofobik (kapalı alan) filmi?",
+    "Bir filmden hayatınıza uyguladığınız ders?",
+    "Yaz tatilinde izlenecek en iyi film?",
+    "En iyi polisiye/dedektif filmi?",
+    "Sizce en iyi 'coming-of-age' filmi hangisi?",
+    "İzledikten sonra araştırma yapmanıza neden olan film?",
+    "En sevdiğiniz fantastik film?",
+    "Bir film setini ziyaret edecek olsanız hangisini seçerdiniz?",
+    "En iyi sessiz film veya diyalogsuz sahne?",
+    "Kahvaltıda izlenebilecek hafif bir film?",
+    "Favori 'road movie'niz hangisi?",
+    "Bir oyuncunun en iyi performansı sizce hangi filmde?",
+    "En iyi mahkeme/adalet filmi?",
+    "İzlerken uyuyakaldığınız ama tekrar denediğiniz film?",
+    "En etkileyici açılış jeneriği olan film?",
+    "2000'lerin en iyi filmi sizce hangisi?",
+    "Sizce en iyi yabancı (İngilizce olmayan) film?",
+    "Hangi film müziğini her duyduğunuzda o sahneyi hatırlarsınız?",
 ]
 
 
-def _current_week_key() -> str:
-    from datetime import datetime, timedelta
-    today = datetime.now()
-    monday = today - timedelta(days=today.weekday())
-    return monday.strftime("%Y-W%U")
+def _current_date_key() -> str:
+    from datetime import datetime
+    return datetime.now().strftime("%Y-%m-%d")
 
 
 @router.get("/community/challenge")
-async def get_weekly_challenge(request: Request):
-    """Bu haftanın topluluk sorusu + cevaplar."""
-    week_key = _current_week_key()
+async def get_daily_challenge(request: Request):
+    """Bugünün topluluk sorusu + cevaplar."""
+    date_key = _current_date_key()
     viewer_id = optional_user_id(request)
 
     async with _db_conn(cache.db_path, user_data=True) as db:
         cur = await db.execute(
-            "SELECT id, question, week_key FROM weekly_challenges WHERE week_key = ?",
-            (week_key,),
+            "SELECT id, question, date_key FROM daily_challenges WHERE date_key = ?",
+            (date_key,),
         )
         row = await cur.fetchone()
 
         if not row:
             import hashlib
-            idx = int(hashlib.md5(week_key.encode()).hexdigest(), 16) % len(WEEKLY_QUESTIONS)
-            question = WEEKLY_QUESTIONS[idx]
+            idx = int(hashlib.md5(date_key.encode()).hexdigest(), 16) % len(DAILY_QUESTIONS)
+            question = DAILY_QUESTIONS[idx]
             await db.execute(
-                "INSERT OR IGNORE INTO weekly_challenges (question, week_key) VALUES (?, ?)",
-                (question, week_key),
+                "INSERT OR IGNORE INTO daily_challenges (question, date_key) VALUES (?, ?)",
+                (question, date_key),
             )
             await db.commit()
             cur = await db.execute(
-                "SELECT id, question, week_key FROM weekly_challenges WHERE week_key = ?",
-                (week_key,),
+                "SELECT id, question, date_key FROM daily_challenges WHERE date_key = ?",
+                (date_key,),
             )
             row = await cur.fetchone()
 
@@ -708,7 +771,7 @@ async def get_weekly_challenge(request: Request):
     return {
         "challenge_id": challenge_id,
         "question": question,
-        "week_key": week_key,
+        "date_key": date_key,
         "responses": responses,
         "response_count": len(responses),
         "my_response": my_response,
@@ -722,16 +785,16 @@ class ChallengeResponseBody(BaseModel):
 
 @router.post("/community/challenge/respond", dependencies=[Depends(rate_limit_strict)])
 async def respond_to_challenge(body: ChallengeResponseBody, user: dict = Depends(verify_user)):
-    """Haftalık soruya film ile cevap ver."""
+    """Günün sorusuna film ile cevap ver."""
     uid = user["user_id"]
-    week_key = _current_week_key()
+    date_key = _current_date_key()
     async with _db_conn(cache.db_path, user_data=True) as db:
         cur = await db.execute(
-            "SELECT id FROM weekly_challenges WHERE week_key = ?", (week_key,)
+            "SELECT id FROM daily_challenges WHERE date_key = ?", (date_key,)
         )
         row = await cur.fetchone()
         if not row:
-            raise HTTPException(404, "Bu haftanın sorusu bulunamadı.")
+            raise HTTPException(404, "Bugünün sorusu bulunamadı.")
         challenge_id = row[0]
         await db.execute(
             """INSERT INTO challenge_responses (challenge_id, user_id, tmdb_id, comment)

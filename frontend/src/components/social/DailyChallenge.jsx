@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Sparkles, Send, Check } from 'lucide-react';
-import { getWeeklyChallenge, respondToChallenge, searchMovies, isLoggedIn } from '../../services/api';
+import { getDailyChallenge, respondToChallenge, searchMovies, isLoggedIn } from '../../services/api';
 import { resolveAvatarUrl } from '../../utils/apiConfig';
 
 function timeAgo(dateStr) {
@@ -13,7 +13,7 @@ function timeAgo(dateStr) {
   return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(d);
 }
 
-export default function WeeklyChallenge() {
+export default function DailyChallenge() {
   const [data, setData] = useState(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -24,7 +24,7 @@ export default function WeeklyChallenge() {
   const loggedIn = isLoggedIn();
 
   useEffect(() => {
-    getWeeklyChallenge().then(setData).catch(() => {});
+    getDailyChallenge().then(setData).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function WeeklyChallenge() {
   return (
     <section className="rounded-2xl bg-gradient-to-br from-amber-900/15 to-transparent border border-amber/15 p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-amber/60">Haftanın Sorusu</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-amber/60">Günün Sorusu</p>
       </div>
 
       <p className="font-serif text-[15px] sm:text-base text-ivory/90 leading-relaxed mb-4">

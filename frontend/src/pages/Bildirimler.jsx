@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, UserPlus, Film, Heart, MessageCircle, ChevronLeft } from 'lucide-react';
-import { getAllNotifications, respondFriendRequest, isLoggedIn } from '../services/api';
+import { Bell, UserPlus, Film, Heart, MessageCircle, ChevronLeft, Users } from 'lucide-react';
+import { getAllNotifications, respondFriendRequest, respondCollabInvite, isLoggedIn } from '../services/api';
 import { resolveAvatarUrl } from '../utils/apiConfig';
 
 function timeAgo(dateStr) {
@@ -19,6 +19,7 @@ const ICONS = {
   movie_recommendation: Film,
   review_like: Heart,
   review_reply: MessageCircle,
+  collab_invite: Users,
 };
 
 const LABELS = {
@@ -26,6 +27,7 @@ const LABELS = {
   movie_recommendation: 'sana film önerdi',
   review_like: 'sözünü beğendi',
   review_reply: 'sözüne yanıt verdi',
+  collab_invite: 'seni bir listeye davet etti',
 };
 
 export default function Bildirimler() {
@@ -42,6 +44,13 @@ export default function Bildirimler() {
     try {
       await respondFriendRequest(requestId, action);
       setResponded((s) => new Set(s).add(requestId));
+    } catch { /* */ }
+  };
+
+  const handleCollabRespond = async (listId, accept) => {
+    try {
+      await respondCollabInvite(listId, accept);
+      setResponded((s) => new Set(s).add(`collab_${listId}`));
     } catch { /* */ }
   };
 
@@ -80,7 +89,9 @@ export default function Bildirimler() {
               const label = LABELS[item.type] || '';
               const from = item.from_user || {};
               const isFriendReq = item.type === 'friend_request';
-              const alreadyResponded = isFriendReq && responded.has(item.request_id);
+              const isCollabInvite = item.type === 'collab_invite';
+              const alreadyResponded = (isFriendReq && responded.has(item.request_id))
+                || (isCollabInvite && responded.has(`collab_${item.list_id}`));
 
               return (
                 <div key={item.id}
@@ -103,8 +114,23 @@ export default function Bildirimler() {
                     {item.movie_title && (
                       <p className="text-[11px] text-amber/50 mt-0.5">{item.movie_title}</p>
                     )}
+                    {item.list_name && (
+                      <p className="text-[11px] text-indigo-400/60 mt-0.5">{item.list_emoji} {item.list_name}</p>
+                    )}
                     <span className="text-[10px] text-white/20">{timeAgo(item.created_at)}</span>
 
+                    {isCollabInvite && !alreadyResponded && (
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => handleCollabRespond(item.list_id, true)}
+                          className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-[11px] font-bold hover:bg-indigo-500/30 transition-all">
+                          Kabul Et
+                        </button>
+                        <button onClick={() => handleCollabRespond(item.list_id, false)}
+                          className="px-3 py-1 rounded-full bg-white/5 text-white/50 text-[11px] font-bold hover:bg-white/10 transition-all">
+                          Reddet
+                        </button>
+                      </div>
+                    )}
                     {isFriendReq && !alreadyResponded && (
                       <div className="flex gap-2 mt-2">
                         <button onClick={() => handleFriendRespond(item.request_id, 'ACCEPT')}

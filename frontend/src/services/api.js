@@ -1055,9 +1055,9 @@ export async function getAllNotifications() {
   return res.json();
 }
 
-// ─── Haftalık challenge ────────────────────────────────────────────────
-export async function getWeeklyChallenge() {
-  return getJson(`${BASE}/community/challenge`, { errorMsg: 'Haftalık soru yüklenemedi' });
+// ─── Günlük challenge ──────────────────────────────────────────────────
+export async function getDailyChallenge() {
+  return getJson(`${BASE}/community/challenge`, { errorMsg: 'Günün sorusu yüklenemedi' });
 }
 
 export async function respondToChallenge(tmdbId, comment = '') {

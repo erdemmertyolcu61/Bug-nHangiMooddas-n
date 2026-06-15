@@ -275,10 +275,17 @@ async def unread_count(user: dict = Depends(get_current_user)):
     uid = user["user_id"]
     share_count = await cache.count_unread_shares(uid)
     request_count = await cache.count_pending_requests(uid)
+    collab_count = 0
+    try:
+        invites = await cache.get_collab_invites(uid)
+        collab_count = len(invites)
+    except Exception:
+        pass
     return {
-        "unread_count": share_count + request_count,
+        "unread_count": share_count + request_count + collab_count,
         "shares": share_count,
         "requests": request_count,
+        "collab_invites": collab_count,
     }
 
 
@@ -882,6 +889,27 @@ async def all_notifications(user: dict = Depends(get_current_user)):
                     "type": "review_reply", "id": f"reply_{r[0]}",
                     "from_user": {"id": r[1], "username": r[2] or "", "avatar": r[3] or ""},
                     "tmdb_id": r[4], "reply_preview": (r[5] or "")[:60],
+                    "created_at": str(r[6] or ""),
+                })
+        except Exception:
+            pass
+
+        # Ortak liste davetleri
+        try:
+            cur = await db.execute(
+                """SELECT lc.list_id, l.name, l.emoji, l.user_id, u.username, u.picture, lc.created_at
+                   FROM list_collaborators lc
+                   JOIN user_lists l ON l.id = lc.list_id
+                   JOIN users u ON u.id = l.user_id
+                   WHERE lc.user_id = ? AND lc.status = 'pending'
+                   ORDER BY lc.created_at DESC LIMIT 10""",
+                (uid,),
+            )
+            for r in await cur.fetchall():
+                items.append({
+                    "type": "collab_invite", "id": f"collab_{r[0]}",
+                    "from_user": {"id": r[3], "username": r[4] or "", "avatar": r[5] or ""},
+                    "list_id": r[0], "list_name": r[1] or "", "list_emoji": r[2] or "",
                     "created_at": str(r[6] or ""),
                 })
         except Exception:

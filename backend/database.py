@@ -811,20 +811,20 @@ class MovieCache:
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_replies_review ON review_replies(review_id)"
             )
-            # weekly_challenges — Haftalık topluluk sorusu
+            # daily_challenges — Günlük topluluk sorusu
             await db.execute("""
-                CREATE TABLE IF NOT EXISTS weekly_challenges (
+                CREATE TABLE IF NOT EXISTS daily_challenges (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     question TEXT NOT NULL,
-                    week_key TEXT NOT NULL UNIQUE,
+                    date_key TEXT NOT NULL UNIQUE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            # challenge_responses — Haftalık soruya verilen film cevapları
+            # challenge_responses — Günün sorusuna verilen film cevapları
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS challenge_responses (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    challenge_id INTEGER NOT NULL REFERENCES weekly_challenges(id),
+                    challenge_id INTEGER NOT NULL REFERENCES daily_challenges(id),
                     user_id INTEGER NOT NULL REFERENCES users(id),
                     tmdb_id INTEGER NOT NULL,
                     comment TEXT,
@@ -1068,15 +1068,15 @@ class MovieCache:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""",
             "CREATE INDEX IF NOT EXISTS idx_replies_review ON review_replies(review_id)",
-            """CREATE TABLE IF NOT EXISTS weekly_challenges (
+            """CREATE TABLE IF NOT EXISTS daily_challenges (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 question TEXT NOT NULL,
-                week_key TEXT NOT NULL UNIQUE,
+                date_key TEXT NOT NULL UNIQUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""",
             """CREATE TABLE IF NOT EXISTS challenge_responses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                challenge_id INTEGER NOT NULL REFERENCES weekly_challenges(id),
+                challenge_id INTEGER NOT NULL REFERENCES daily_challenges(id),
                 user_id INTEGER NOT NULL REFERENCES users(id),
                 tmdb_id INTEGER NOT NULL,
                 comment TEXT,

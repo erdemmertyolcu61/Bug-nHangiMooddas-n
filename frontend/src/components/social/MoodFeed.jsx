@@ -11,7 +11,7 @@ import RecommendMovieSheet from '../RecommendMovieSheet';
 import DailyFilmBanner from '../DailyFilmBanner';
 import TrendingStrip from './TrendingStrip';
 import PeopleDiscovery from './PeopleDiscovery';
-import WeeklyChallenge from './WeeklyChallenge';
+import DailyChallenge from './DailyChallenge';
 import useDocumentMeta from '../../utils/useDocumentMeta';
 
 function timeAgo(dateStr) {
@@ -58,7 +58,7 @@ export default function MoodFeed() {
           <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight">Akış</h1>
         </div>
         <TrendingStrip />
-        <WeeklyChallenge />
+        <DailyChallenge />
         <DailyFilmBanner />
         <PeopleDiscovery loggedIn={false} />
         <div className="flex flex-col items-center justify-center py-10 text-center rounded-2xl bg-[#1a1310] border border-white/[0.05]">
@@ -127,7 +127,7 @@ export default function MoodFeed() {
           <TrendingStrip />
 
           {/* Haftanin Sorusu */}
-          <WeeklyChallenge />
+          <DailyChallenge />
 
           {/* Gunun Filmi — her zaman goster (feed bos olsa bile) */}
           <DailyFilmBanner />
