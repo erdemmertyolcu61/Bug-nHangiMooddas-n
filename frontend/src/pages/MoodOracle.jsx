@@ -3,19 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, Trophy, Share2, Download, RefreshCw,
-  ChevronLeft, Check, X, ArrowRight, Quote, Clock,
+  ChevronLeft, Check, X, ArrowRight, Quote, Clock, Users, Globe2,
 } from 'lucide-react';
 import { MOODS } from '../context/MoodContext';
-import { getMoodOracleRounds, proxyImageUrl } from '../services/api';
+import { getMoodOracleRounds, proxyImageUrl, submitOracleScore, getOracleLeaderboard, isLoggedIn } from '../services/api';
 import { getOracleState, applyResult, rankFor } from '../utils/oracleRank';
 import { shareToWhatsApp, shareToTelegram, shareToInstagram } from '../utils/shareUtils';
 import { useShareableImage } from '../utils/useShareableImage';
 import { track, EVENTS } from '../utils/analytics';
 import useDocumentMeta from '../utils/useDocumentMeta';
-import { CANONICAL_URL } from '../utils/apiConfig';
+import { CANONICAL_URL, resolveAvatarUrl } from '../utils/apiConfig';
 
-const TOTAL = 5;
-const DAILY_KEY = 'fc_oracle_last_played'; // YYYY-MM-DD
+const TOTAL = 7;
+const DAILY_KEY = 'fc_oracle_last_played';
 const moodTitle = (id) => MOODS[id]?.title || id;
 
 function todayStr() {
@@ -53,7 +53,7 @@ export default function MoodOracle() {
     description: "Üstad bu filmi hangi ruh haline koydu? Filmlerin ruhunu okuyup Sinefil rütbeni yükselt. Sinemood'un mini oyunu.",
   });
 
-  const [phase, setPhase] = useState('intro');   // intro | play | result
+  const [phase, setPhase] = useState('intro');
   const [rounds, setRounds] = useState([]);
   const [idx, setIdx] = useState(0);
   const [picked, setPicked] = useState(null);
@@ -62,12 +62,14 @@ export default function MoodOracle() {
   const [error, setError] = useState(false);
   const [summary, setSummary] = useState(null);
   const [countdown, setCountdown] = useState(0);
+  const [leaderboard, setLeaderboard] = useState(null);
+  const [lbTab, setLbTab] = useState('friends');
   const cardRef = useRef(null);
 
   const state = getOracleState();
   const alreadyPlayed = hasPlayedToday();
+  const loggedIn = isLoggedIn();
 
-  // Geri sayım — oyun oynandıysa güncelle
   useEffect(() => {
     if (!alreadyPlayed && phase !== 'result') return;
     setCountdown(getSecondsUntilMidnight());
@@ -90,6 +92,13 @@ export default function MoodOracle() {
     } catch {
       setError(true); setLoading(false);
     }
+  }, []);
+
+  const loadLeaderboard = useCallback(async () => {
+    try {
+      const data = await getOracleLeaderboard();
+      setLeaderboard(data);
+    } catch { setLeaderboard({ global: [], friends: [] }); }
   }, []);
 
   const round = rounds[idx];
@@ -116,8 +125,17 @@ export default function MoodOracle() {
       const s = applyResult(correct, rounds.length || TOTAL);
       setSummary(s);
       track(EVENTS.SURPRISE_VIEW, { kind: 'game_result', correct });
+      if (loggedIn) {
+        submitOracleScore(correct, rounds.length || TOTAL).catch(() => {});
+      }
+      loadLeaderboard();
     }
-  }, [phase, summary, results, rounds.length]);
+  }, [phase, summary, results, rounds.length, loggedIn, loadLeaderboard]);
+
+  // Also load leaderboard on intro if already played
+  useEffect(() => {
+    if (phase === 'intro' && alreadyPlayed) loadLeaderboard();
+  }, [phase, alreadyPlayed, loadLeaderboard]);
 
   const correctCount = results.filter(Boolean).length;
   const shareUrl = `${CANONICAL_URL}/oyun`;
@@ -135,6 +153,8 @@ export default function MoodOracle() {
     track(EVENTS.SHARE_CLICK, { network: 'image', kind: 'game' });
     return share();
   };
+
+  const lbData = leaderboard?.[lbTab] || [];
 
   return (
     <motion.div
@@ -198,12 +218,15 @@ export default function MoodOracle() {
                 <div>
                   <button onClick={start} disabled={loading}
                     className="inline-flex items-center gap-3 px-10 py-5 rounded-full bg-amber text-bg text-xs font-bold uppercase tracking-[0.3em] hover:scale-[1.03] disabled:opacity-50 transition-transform shadow-[0_18px_45px_-12px_rgba(255,191,0,0.5)]">
-                    {loading ? 'Hazırlanıyor...' : 'Oyna'}
+                    {loading ? 'Hazırlanıyor...' : `${TOTAL} Tur — Oyna`}
                     {!loading && <ArrowRight size={16} />}
                   </button>
                 </div>
               )}
               {error && <p className="text-rose-400 text-sm mt-5">Oyun yüklenemedi. Birazdan tekrar dene.</p>}
+
+              {/* Leaderboard on intro when already played */}
+              {alreadyPlayed && leaderboard && <LeaderboardSection lbData={lbData} lbTab={lbTab} setLbTab={setLbTab} loggedIn={loggedIn} />}
             </motion.section>
           )}
 
@@ -217,7 +240,7 @@ export default function MoodOracle() {
                 </span>
                 <div className="flex gap-1.5">
                   {rounds.map((_, i) => (
-                    <div key={i} className={`w-5 h-1 rounded-full transition-colors ${
+                    <div key={i} className={`w-4 h-1 rounded-full transition-colors ${
                       i < results.length ? (results[i] ? 'bg-emerald-500' : 'bg-rose-500') : i === idx ? 'bg-amber/60' : 'bg-fg-subtle/30'
                     }`} />
                   ))}
@@ -301,7 +324,7 @@ export default function MoodOracle() {
             <motion.section key="result"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               className="text-center">
-              {/* ── Paylaşılabilir kart — tüm renkler inline (html2canvas/oklch uyumu) ── */}
+              {/* Shareable card */}
               <div className="max-w-sm mx-auto mb-6">
                 <div
                   ref={cardRef}
@@ -315,7 +338,6 @@ export default function MoodOracle() {
                     overflow: 'hidden',
                   }}
                 >
-                  {/* Arka plan aura */}
                   <div style={{
                     position: 'absolute', top: '-48px', left: '50%', transform: 'translateX(-50%)',
                     width: '160px', height: '160px', borderRadius: '50%',
@@ -343,7 +365,6 @@ export default function MoodOracle() {
                     <p style={{ marginTop: '16px', fontSize: '12px', fontFamily: 'serif', fontStyle: 'italic', color: 'rgba(245,242,235,0.55)' }}>
                       {summary.rank.blurb}
                     </p>
-                    {/* Footer */}
                     <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: 'rgba(255,191,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, color: '#ffbf00' }}>S</div>
@@ -354,7 +375,6 @@ export default function MoodOracle() {
                   </div>
                 </div>
 
-                {/* Güven çubuğu (kart dışında, indirmeye dahil değil) */}
                 <div className="mt-4 px-1">
                   <div className="flex items-center justify-between text-[11px] mb-1.5">
                     <span className="text-fg-subtle flex items-center gap-1.5"><Trophy size={11} className="text-amber/60" /> Üstad'ın Güveni</span>
@@ -373,7 +393,7 @@ export default function MoodOracle() {
                 </div>
               </div>
 
-              {/* Paylaş butonları */}
+              {/* Share buttons */}
               <div className="flex flex-wrap items-center justify-center gap-2 mb-5">
                 <button onClick={handleShareImage} disabled={sharing}
                   className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-ivory/70 hover:text-ivory transition-all disabled:opacity-50">
@@ -391,14 +411,17 @@ export default function MoodOracle() {
                 </button>
               </div>
 
-              {/* Yarın geri gel countdown */}
-              <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-fg/[0.04] border border-default mb-5">
+              {/* Countdown */}
+              <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-fg/[0.04] border border-default mb-6">
                 <Clock size={14} className="text-fg-subtle" />
                 <span className="text-[12px] text-fg-muted">Yeni oyun: </span>
                 <span className="font-mono text-[14px] font-bold text-amber tabular-nums">{formatCountdown(countdown)}</span>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {/* Leaderboard */}
+              {leaderboard && <LeaderboardSection lbData={lbData} lbTab={lbTab} setLbTab={setLbTab} loggedIn={loggedIn} />}
+
+              <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
                 <button onClick={() => navigate('/')}
                   className="flex items-center justify-center gap-2 px-8 py-4 rounded-full border border-default text-fg-subtle text-[11px] font-bold uppercase tracking-[0.25em] hover:text-fg transition-colors">
                   Ana Sayfa
@@ -410,5 +433,74 @@ export default function MoodOracle() {
         </AnimatePresence>
       </main>
     </motion.div>
+  );
+}
+
+
+function LeaderboardSection({ lbData, lbTab, setLbTab, loggedIn }) {
+  return (
+    <div className="mt-8 text-left">
+      <div className="flex items-center gap-3 mb-4">
+        <Trophy size={18} className="text-amber" />
+        <h3 className="text-lg font-serif font-bold">Sıralama</h3>
+      </div>
+
+      {/* Tab toggle */}
+      <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/8 mb-4">
+        <button onClick={() => setLbTab('friends')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${
+            lbTab === 'friends' ? 'bg-amber/15 text-amber border border-amber/25' : 'text-ivory/50 hover:text-ivory/70'
+          }`}>
+          <Users size={13} /> Arkadaşlar
+        </button>
+        <button onClick={() => setLbTab('global')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${
+            lbTab === 'global' ? 'bg-amber/15 text-amber border border-amber/25' : 'text-ivory/50 hover:text-ivory/70'
+          }`}>
+          <Globe2 size={13} /> Topluluk
+        </button>
+      </div>
+
+      {!loggedIn && lbTab === 'friends' ? (
+        <p className="text-center text-[13px] text-ivory/40 font-serif italic py-8">
+          Arkadaş sıralamasını görmek için giriş yap.
+        </p>
+      ) : lbData.length === 0 ? (
+        <p className="text-center text-[13px] text-ivory/40 font-serif italic py-8">
+          {lbTab === 'friends' ? 'Henüz sıralamada arkadaşın yok. Arkadaşlarını davet et!' : 'Henüz kimse oynamadı. İlk sen ol!'}
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {lbData.map((entry, i) => {
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null;
+            return (
+              <div key={entry.user_id}
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-2xl transition-all ${
+                  entry.is_me ? 'bg-amber/8 border border-amber/20' : 'bg-white/[0.03] border border-white/[0.06]'
+                }`}>
+                <span className="w-7 text-center shrink-0">
+                  {medal ? <span className="text-lg">{medal}</span> : <span className="text-[12px] font-bold text-ivory/30">{i + 1}</span>}
+                </span>
+                <span className="w-8 h-8 rounded-full overflow-hidden bg-white/10 shrink-0 ring-1 ring-amber/10">
+                  {entry.avatar
+                    ? <img src={resolveAvatarUrl(entry.avatar)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    : <span className="w-full h-full flex items-center justify-center text-[10px] font-bold text-amber/60">{(entry.username || '?')[0].toUpperCase()}</span>}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-[13px] font-semibold truncate ${entry.is_me ? 'text-amber' : 'text-ivory/90'}`}>
+                    @{entry.username} {entry.is_me && <span className="text-[10px] text-amber/60">(sen)</span>}
+                  </p>
+                  <p className="text-[10px] text-ivory/40">{entry.games} oyun · ort. %{entry.avg_pct}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[15px] font-bold text-amber tabular-nums">{entry.total_correct}</p>
+                  <p className="text-[9px] text-ivory/30 uppercase tracking-wider">doğru</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

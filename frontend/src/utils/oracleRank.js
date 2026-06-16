@@ -7,8 +7,8 @@ const BEST_KEY = 'fc_oracle_best';
 const GAMES_KEY = 'fc_oracle_games';
 
 const START_TRUST = 30;
-const CORRECT_DELTA = 6;
-const WRONG_DELTA = -8;
+const CORRECT_DELTA = 4;
+const WRONG_DELTA = -5;
 
 /** Eşiğe göre rütbe (büyükten küçüğe ilk uyan). */
 const RANKS = [

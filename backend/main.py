@@ -3690,6 +3690,76 @@ async def mood_oracle_rounds(rounds: int = Query(5, ge=1, le=10)):
     return {"rounds": result_rounds, "count": len(result_rounds)}
 
 
+class OracleScoreBody(BaseModel):
+    correct: int = Field(..., ge=0, le=10)
+    total: int = Field(..., ge=1, le=10)
+
+
+@app.post("/api/game/mood-oracle/score", dependencies=[Depends(rate_limit_general)])
+async def submit_oracle_score(body: OracleScoreBody, user: dict = Depends(verify_user)):
+    uid = user["user_id"]
+    from datetime import datetime
+    date_key = datetime.now().strftime("%Y-%m-%d")
+    async with _db_conn(cache.db_path, user_data=True) as db:
+        await db.execute(
+            """INSERT INTO oracle_scores (user_id, correct, total, date_key)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(user_id, date_key) DO UPDATE SET
+                 correct = excluded.correct, total = excluded.total,
+                 created_at = CURRENT_TIMESTAMP""",
+            (uid, body.correct, body.total, date_key),
+        )
+        await db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/game/mood-oracle/leaderboard", dependencies=[Depends(rate_limit_general)])
+async def oracle_leaderboard(request: Request):
+    viewer_id = optional_user_id(request)
+    async with _db_conn(cache.db_path, user_data=True) as db:
+        cur = await db.execute(
+            """SELECT os.user_id, u.username, u.name, u.picture,
+                      SUM(os.correct) as total_correct,
+                      COUNT(os.id) as games_played,
+                      ROUND(AVG(os.correct * 100.0 / os.total), 1) as avg_pct
+               FROM oracle_scores os JOIN users u ON u.id = os.user_id
+               GROUP BY os.user_id
+               ORDER BY total_correct DESC, avg_pct DESC
+               LIMIT 50""",
+        )
+        global_rows = await cur.fetchall()
+
+        friends_rows = []
+        if viewer_id:
+            cur = await db.execute(
+                """SELECT os.user_id, u.username, u.name, u.picture,
+                          SUM(os.correct) as total_correct,
+                          COUNT(os.id) as games_played,
+                          ROUND(AVG(os.correct * 100.0 / os.total), 1) as avg_pct
+                   FROM oracle_scores os JOIN users u ON u.id = os.user_id
+                   WHERE os.user_id = ? OR os.user_id IN (
+                       SELECT CASE WHEN f.user_id = ? THEN f.friend_id ELSE f.user_id END
+                       FROM friendships f
+                       WHERE (f.user_id = ? OR f.friend_id = ?) AND f.status = 'ACCEPTED'
+                   )
+                   GROUP BY os.user_id
+                   ORDER BY total_correct DESC, avg_pct DESC
+                   LIMIT 50""",
+                (viewer_id, viewer_id, viewer_id, viewer_id),
+            )
+            friends_rows = await cur.fetchall()
+
+    def _fmt(rows):
+        return [
+            {"user_id": r[0], "username": r[1] or "", "name": r[2] or "",
+             "avatar": r[3] or "", "total_correct": r[4], "games": r[5],
+             "avg_pct": r[6] or 0, "is_me": bool(viewer_id and r[0] == viewer_id)}
+            for r in rows
+        ]
+
+    return {"global": _fmt(global_rows), "friends": _fmt(friends_rows)}
+
+
 @app.post("/api/recommend/random", dependencies=[Depends(rate_limit_general)])
 async def post_random_recommendation(req: RandomRecommendRequest):
     """Surpriz / random film onerisi. Mood bazli veya genel."""

@@ -874,6 +874,18 @@ class MovieCache:
                 )
             """)
             await db.execute("CREATE INDEX IF NOT EXISTS idx_list_collab_user ON list_collaborators(user_id, status)")
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS oracle_scores (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    correct INTEGER NOT NULL,
+                    total INTEGER NOT NULL,
+                    date_key TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, date_key)
+                )
+            """)
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_oracle_scores_date ON oracle_scores(date_key, correct DESC)")
             await db.commit()
 
     async def _init_turso_user_tables(self):
@@ -1102,6 +1114,16 @@ class MovieCache:
                 PRIMARY KEY (list_id, user_id)
             )""",
             "CREATE INDEX IF NOT EXISTS idx_list_collab_user ON list_collaborators(user_id, status)",
+            """CREATE TABLE IF NOT EXISTS oracle_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                correct INTEGER NOT NULL,
+                total INTEGER NOT NULL,
+                date_key TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, date_key)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_oracle_scores_date ON oracle_scores(date_key, correct DESC)",
         ):
             try:
                 await _turso_client.execute(mig)

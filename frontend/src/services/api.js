@@ -351,10 +351,24 @@ export async function getAwardsToday() {
 }
 
 // ─── Mini Oyun: Mood Kâhini ───
-export async function getMoodOracleRounds(rounds = 5) {
+export async function getMoodOracleRounds(rounds = 7) {
   const res = await fetch(`${BASE}/game/mood-oracle?rounds=${rounds}`);
   if (!res.ok) throw new Error(`Oyun yüklenemedi (${res.status})`);
-  return res.json(); // { rounds: [...], count }
+  return res.json();
+}
+
+export async function submitOracleScore(correct, total) {
+  const res = await fetch(`${BASE}/game/mood-oracle/score`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ correct, total }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getOracleLeaderboard() {
+  return getJson(`${BASE}/game/mood-oracle/leaderboard`, { errorMsg: 'Sıralama yüklenemedi' });
 }
 
 // ─── Web Push ───
