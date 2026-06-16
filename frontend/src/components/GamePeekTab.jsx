@@ -47,7 +47,7 @@ export default function GamePeekTab() {
       whileTap={{ scale: 0.85 }}
       whileHover={{ scale: 1.08 }}
       className="
-        fixed right-4 bottom-[8.5rem] mb-safe z-[95]
+        fixed right-4 bottom-[11.5rem] mb-safe z-[95]
         flex flex-col items-center justify-center
         w-[58px] h-[58px] rounded-[18px]
         bg-gradient-to-br from-violet-500 via-fuchsia-500 to-amber-400
