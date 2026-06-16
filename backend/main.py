@@ -3691,8 +3691,8 @@ async def mood_oracle_rounds(rounds: int = Query(5, ge=1, le=10)):
 
 
 class OracleScoreBody(BaseModel):
-    correct: int = Field(..., ge=0, le=10)
-    total: int = Field(..., ge=1, le=10)
+    correct: int
+    total: int
 
 
 @app.post("/api/game/mood-oracle/score", dependencies=[Depends(rate_limit_general)])
