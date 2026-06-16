@@ -1,27 +1,22 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-const DAILY_KEY = 'fc_oracle_last_played'; // YYYY-MM-DD (MoodOracle ile aynı)
+const DAILY_KEY = 'fc_oracle_last_played';
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const hasPlayedToday = () => {
   try { return localStorage.getItem(DAILY_KEY) === todayStr(); } catch { return false; }
 };
 
-/**
- * Mood Kâhini keşif sekmesi — yalnız mood/keşif ekranında (/discover).
- * Sağ kenardan sarkan küçük bir YARIM ÇEMBER: renkli amber→mor gradyan, ibaresi "?".
- * Günün testi çözülünce kaybolur; gece sıfırlanıp yeni test hazır olunca geri gelir.
- */
 export default function GamePeekTab() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [ready, setReady] = useState(!hasPlayedToday());
+  const [pulse, setPulse] = useState(true);
 
   useEffect(() => {
     const check = () => setReady(!hasPlayedToday());
     check();
-    // Gece sıfırlanmasını ve sekmeler arası değişimi yakala
     const id = setInterval(check, 30000);
     window.addEventListener('storage', check);
     window.addEventListener('oracle-updated', check);
@@ -34,30 +29,76 @@ export default function GamePeekTab() {
     };
   }, [pathname]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setPulse(false), 8000);
+    return () => clearTimeout(t);
+  }, []);
+
   if (pathname !== '/discover' || !ready) return null;
 
   return (
     <motion.button
       onClick={() => navigate('/oyun')}
       aria-label="Mini oyun: Mood Kâhini"
-      initial={{ x: 6, opacity: 0 }}
-      animate={{ x: [4, 0, 4], opacity: 1 }}
-      exit={{ x: 16, opacity: 0 }}
-      transition={{ x: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }, opacity: { duration: 0.5 } }}
-      whileTap={{ scale: 0.92 }}
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 1.2 }}
+      whileTap={{ scale: 0.85 }}
+      whileHover={{ scale: 1.08 }}
       className="
-        group fixed right-0 top-[44%] z-[95]
-        flex items-center justify-center
-        w-7 h-14 pl-1
-        rounded-l-full border border-r-0 border-white/25
-        bg-gradient-to-br from-amber-500 via-orange-500 to-purple-600 text-white
-        shadow-[0_8px_24px_-6px_rgba(168,85,247,0.6)]
-        hover:w-9 transition-[width] duration-300
+        fixed right-4 bottom-[8.5rem] mb-safe z-[95]
+        flex flex-col items-center justify-center
+        w-[58px] h-[58px] rounded-[18px]
+        bg-gradient-to-br from-violet-500 via-fuchsia-500 to-amber-400
+        shadow-[0_6px_28px_-4px_rgba(168,85,247,0.55),0_2px_8px_rgba(0,0,0,0.3)]
+        border border-white/20
+        cursor-pointer select-none
+        overflow-visible
       "
     >
-      {/* Yumuşak nabız hâlesi */}
-      <span className="pointer-events-none absolute inset-0 rounded-l-full bg-white/25 opacity-0 group-hover:opacity-100 animate-pulse" style={{ mixBlendMode: 'overlay' }} />
-      <span className="text-[17px] font-black leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">?</span>
+      {/* Outer glow ring */}
+      <span className="pointer-events-none absolute -inset-1 rounded-[22px] border-2 border-violet-400/40 animate-[ping_3s_ease-in-out_infinite]" />
+
+      {/* Shimmer overlay */}
+      <span
+        className="pointer-events-none absolute inset-0 rounded-[18px] overflow-hidden"
+        style={{ mixBlendMode: 'overlay' }}
+      >
+        <span className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent translate-x-[-100%] animate-[shimmer_3s_ease-in-out_infinite]" />
+      </span>
+
+      {/* Crystal ball emoji */}
+      <span className="text-[26px] leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] relative z-10">
+        🔮
+      </span>
+
+      {/* "Oyna" label */}
+      <AnimatePresence>
+        {pulse && (
+          <motion.span
+            initial={{ opacity: 0, y: 4, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ delay: 2, duration: 0.4 }}
+            className="
+              absolute -top-7 left-1/2 -translate-x-1/2
+              px-2.5 py-0.5 rounded-full
+              bg-white text-[10px] font-extrabold text-violet-600
+              shadow-[0_2px_10px_rgba(0,0,0,0.15)]
+              whitespace-nowrap
+            "
+          >
+            Oyna!
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45 rounded-[1px]" />
+          </motion.span>
+        )}
+      </AnimatePresence>
+
+      {/* Notification dot */}
+      <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-red-500 border-2 border-[var(--color-bg)] shadow-[0_0_6px_rgba(239,68,68,0.6)]">
+        <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-75" />
+      </span>
     </motion.button>
   );
 }
