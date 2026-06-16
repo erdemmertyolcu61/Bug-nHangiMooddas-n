@@ -1,5 +1,4 @@
 import { useRef, useEffect, useCallback } from 'react';
-import lottie from 'lottie-web';
 
 /**
  * Animasyonlu beğen / beğenme kontrolü (Lottie).
@@ -32,19 +31,23 @@ export default function ReactionControl({ reaction = null, onChange, readOnly = 
   useEffect(() => {
     if (!containerRef.current) return;
     reduceMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const anim = lottie.loadAnimation({
-      container: containerRef.current,
-      renderer: 'svg',
-      loop: false,
-      autoplay: false,
-      path: '/lottie/reaction.json',
-    });
-    animRef.current = anim;
-    anim.addEventListener('DOMLoaded', () => {
-      anim.goToAndStop(frameFor(reaction), true);
+    let anim;
+    import('lottie-web').then(({ default: lottie }) => {
+      if (!containerRef.current) return;
+      anim = lottie.loadAnimation({
+        container: containerRef.current,
+        renderer: 'svg',
+        loop: false,
+        autoplay: false,
+        path: '/lottie/reaction.json',
+      });
+      animRef.current = anim;
+      anim.addEventListener('DOMLoaded', () => {
+        anim.goToAndStop(frameFor(reaction), true);
+      });
     });
     return () => {
-      anim.destroy();
+      if (anim) anim.destroy();
       animRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

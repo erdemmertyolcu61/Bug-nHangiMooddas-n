@@ -2,7 +2,11 @@
  * Share utilities — html2canvas capture + platform share helpers.
  */
 
-import html2canvas from 'html2canvas';
+let _html2canvasP;
+function getHtml2Canvas() {
+  if (!_html2canvasP) _html2canvasP = import('html2canvas').then(m => m.default);
+  return _html2canvasP;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // Tailwind v4 → html2canvas uyumu
@@ -100,6 +104,7 @@ export async function captureElementAsBlob(element, opts = {}) {
     if (document.fonts?.ready) await document.fonts.ready;
   } catch { /* sessiz */ }
 
+  const html2canvas = await getHtml2Canvas();
   const canvas = await html2canvas(element, {
     backgroundColor: '#111111',
     scale: 2,

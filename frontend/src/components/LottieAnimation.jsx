@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, memo } from 'react';
-import lottie from 'lottie-web';
 
 /**
  * Reusable Lottie Animation bileşeni.
@@ -37,44 +36,50 @@ function LottieAnimation({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Mevcut animasyonu temizle
     if (animRef.current) {
       animRef.current.destroy();
       animRef.current = null;
     }
 
-    const config = {
-      container: containerRef.current,
-      renderer,
-      loop,
-      autoplay,
-      rendererSettings: { preserveAspectRatio },
-      ...(animationData ? { animationData } : { path }),
-    };
+    let anim;
+    let cancelled = false;
 
-    const anim = lottie.loadAnimation(config);
-    animRef.current = anim;
+    import('lottie-web').then(({ default: lottie }) => {
+      if (cancelled || !containerRef.current) return;
 
-    anim.setSpeed(speed);
+      const config = {
+        container: containerRef.current,
+        renderer,
+        loop,
+        autoplay,
+        rendererSettings: { preserveAspectRatio },
+        ...(animationData ? { animationData } : { path }),
+      };
 
-    if (onComplete) {
-      anim.addEventListener('complete', onComplete);
-    }
-    if (onLoopComplete) {
-      anim.addEventListener('loopComplete', onLoopComplete);
-    }
-    if (onAnimRef) {
-      onAnimRef(anim);
-    }
+      anim = lottie.loadAnimation(config);
+      animRef.current = anim;
 
-    // prefers-reduced-motion desteği
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (mq.matches) {
-      anim.goToAndStop(anim.totalFrames - 1, true);
-    }
+      anim.setSpeed(speed);
+
+      if (onComplete) {
+        anim.addEventListener('complete', onComplete);
+      }
+      if (onLoopComplete) {
+        anim.addEventListener('loopComplete', onLoopComplete);
+      }
+      if (onAnimRef) {
+        onAnimRef(anim);
+      }
+
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      if (mq.matches) {
+        anim.goToAndStop(anim.totalFrames - 1, true);
+      }
+    });
 
     return () => {
-      anim.destroy();
+      cancelled = true;
+      if (anim) anim.destroy();
       animRef.current = null;
     };
   }, [path, animationData, loop, autoplay, speed, renderer, preserveAspectRatio]);
