@@ -37,6 +37,7 @@ export default function CustomListsPanel({ user }) {
   const [showCollabPanel, setShowCollabPanel] = useState(false);
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState('');
 
   const loadFriends = useCallback(async () => {
     if (!user) return;
@@ -120,15 +121,18 @@ export default function CustomListsPanel({ user }) {
     } catch {}
   };
 
-  const handleInviteCollab = async (username) => {
-    const uname = (username || inviteUsername).trim();
+  const handleInviteCollab = async () => {
+    const uname = inviteUsername.trim();
     if (!uname || !openList || inviteBusy) return;
     setInviteBusy(true);
+    setInviteSuccess('');
     try {
       await inviteCollaborator(openList.id, uname);
+      setInviteSuccess(uname);
       setInviteUsername('');
       const c = await getListCollaborators(openList.id);
       setCollabUsers(c.collaborators || []);
+      setTimeout(() => setInviteSuccess(''), 3000);
     } catch {}
     finally { setInviteBusy(false); }
   };
@@ -239,7 +243,7 @@ export default function CustomListsPanel({ user }) {
                        f.name?.toLowerCase().includes(inviteUsername.toLowerCase())) &&
                       !collabUsers.some(c => c.username === f.username || c.user_id === f.id)
                     ).map(f => (
-                      <button key={f.id} onClick={() => handleInviteCollab(f.username)}
+                      <button key={f.id} onClick={() => setInviteUsername(f.username)}
                         className="w-full px-4 py-2.5 text-left text-xs text-ivory/80 hover:bg-ivory/5 flex items-center gap-2 transition-colors first:rounded-t-2xl last:rounded-b-2xl cursor-pointer">
                         {f.avatar ? (
                           <img src={f.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
@@ -257,10 +261,18 @@ export default function CustomListsPanel({ user }) {
                 )}
               </div>
               <button onClick={handleInviteCollab} disabled={inviteBusy || !inviteUsername.trim()}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-indigo-500/15 border border-indigo-400/30 text-indigo-300 text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-500/25 disabled:opacity-40 transition-all w-full sm:w-auto shrink-0 cursor-pointer">
-                {inviteBusy ? <Loader2 size={13} className="animate-spin" /> : <><UserPlus size={13} /> Davet Et</>}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[12px] font-bold uppercase tracking-wider hover:bg-indigo-500/30 disabled:opacity-40 transition-all w-full sm:w-auto shrink-0 cursor-pointer">
+                {inviteBusy ? <Loader2 size={14} className="animate-spin" /> : <><UserPlus size={14} /> Davet Et</>}
               </button>
             </div>
+            {inviteSuccess && (
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <Check size={14} className="text-emerald-400 shrink-0" />
+                <p className="text-[12px] text-emerald-400/90 font-medium">
+                  <span className="font-bold">@{inviteSuccess}</span> davet edildi! Bildirim gönderildi.
+                </p>
+              </div>
+            )}
             {collabUsers.length > 0 && (
               <div className="space-y-2">
                 {collabUsers.map(c => (
