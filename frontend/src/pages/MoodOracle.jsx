@@ -247,7 +247,7 @@ export default function MoodOracle() {
                 </div>
               </div>
 
-              <div className="flex gap-4 sm:gap-5 p-4 sm:p-5 rounded-3xl bg-surface border border-default mb-6">
+              <div className="flex gap-4 sm:gap-5 p-4 sm:p-5 rounded-3xl bg-surface border border-default mb-6 shrink-0">
                 <div className="w-24 sm:w-28 shrink-0 aspect-[2/3] rounded-xl overflow-hidden bg-surface-2 ring-1 ring-white/10">
                   {round.film.poster_url
                     ? <img src={proxyImageUrl(round.film.poster_url)} alt={round.film.title} className="w-full h-full object-cover" crossOrigin="anonymous" />
@@ -262,7 +262,7 @@ export default function MoodOracle() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3 shrink-0">
                 {round.options.map((id) => {
                   const m = MOODS[id];
                   const Icon = m?.icon;
@@ -291,7 +291,7 @@ export default function MoodOracle() {
                 {revealed && (
                   <motion.div
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                    className="mt-5 p-5 rounded-2xl bg-black/20 border border-amber/15 relative">
+                    className="mt-5 p-5 rounded-2xl bg-black/20 border border-amber/15 relative shrink-0">
                     <Quote size={15} className="text-amber/40 absolute top-4 right-4" />
                     <p className={`text-[10px] font-bold uppercase tracking-[0.3em] mb-2 ${
                       results[idx] ? 'text-emerald-400/80' : 'text-rose-400/80'

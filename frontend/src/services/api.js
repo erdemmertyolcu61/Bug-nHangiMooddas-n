@@ -24,7 +24,9 @@ async function getJson(url, { errorMsg, signal, dedup = true } = {}) {
   if (canDedup && _inflightGets.has(url)) return _inflightGets.get(url);
 
   const run = (async () => {
-    const res = await fetch(url, signal ? { signal } : undefined);
+    const opts = signal ? { signal } : {};
+    opts.headers = { ...authHeaders() };
+    const res = await fetch(url, opts);
     if (!res.ok) throw new Error(errorMsg ? `${errorMsg} (${res.status})` : `İstek başarısız (${res.status})`);
     return res.json();
   })();
