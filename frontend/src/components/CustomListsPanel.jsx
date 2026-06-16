@@ -133,7 +133,11 @@ export default function CustomListsPanel({ user }) {
       const c = await getListCollaborators(openList.id);
       setCollabUsers(c.collaborators || []);
       setTimeout(() => setInviteSuccess(''), 3000);
-    } catch {}
+    } catch (err) {
+      const msg = err?.response?.data?.detail || err?.message || 'Davet gönderilemedi';
+      setInviteSuccess('');
+      alert(msg);
+    }
     finally { setInviteBusy(false); }
   };
 
@@ -232,7 +236,7 @@ export default function CustomListsPanel({ user }) {
                   onKeyDown={e => e.key === 'Enter' && handleInviteCollab()}
                   placeholder="Arkadaşının kullanıcı adı"
                   className="w-full px-4 py-2.5 bg-ivory/5 border border-ivory/10 rounded-full text-sm text-ivory placeholder:text-ivory/30 focus:outline-none focus:border-indigo-400/40" />
-                {inviteUsername.trim() && friends.filter(f =>
+                {inviteUsername.trim() && !friends.some(f => f.username === inviteUsername.trim()) && friends.filter(f =>
                   (f.username?.toLowerCase().includes(inviteUsername.toLowerCase()) ||
                    f.name?.toLowerCase().includes(inviteUsername.toLowerCase())) &&
                   !collabUsers.some(c => c.username === f.username || c.user_id === f.id)
