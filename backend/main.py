@@ -657,6 +657,14 @@ async def lifespan(app: FastAPI):
                         logger.info("[WeeklyPush] Pazar 19:00 haftalik rapor push gonderildi: %s", week_key)
             except Exception as e:
                 logger.warning("[DailyPush] Scheduler hatasi: %s", e)
+
+            # ── Düello oda temizliği (her 60s) ──
+            try:
+                from backend.routers.quiz import cleanup_stale_rooms
+                await cleanup_stale_rooms()
+            except Exception as e:
+                logger.debug("[QuizCleanup] %s", e)
+
             await asyncio.sleep(60)
 
     asyncio.create_task(_daily_push_scheduler())
@@ -705,6 +713,8 @@ from backend.routers.admin import router as admin_router
 app.include_router(admin_router)
 from backend.routers.community import router as community_router
 app.include_router(community_router)
+from backend.routers.quiz import router as quiz_router
+app.include_router(quiz_router)
 
 # ── Statik dosyalar: Avatar yüklemeleri ──
 import os

@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useMood } from '../context/MoodContext';
-import { ChevronLeft, Send, RefreshCw, Brain, Clock, TrendingUp, Gem, Mic, MicOff } from 'lucide-react';
+import { ChevronLeft, Send, RefreshCw, Brain, Clock, TrendingUp, Gem, Mic, MicOff, Swords, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { postConfusedRecommendation, proxyImageUrl, addToWatchlist, toggleWatched } from '../services/api';
 import OptimizedImage from '../components/OptimizedImage';
@@ -12,6 +12,7 @@ import LottieAnimation from '../components/LottieAnimation';
 import { track, EVENTS } from '../utils/analytics';
 import useDocumentMeta from '../utils/useDocumentMeta';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
+import { DuelloContent } from './QuizDuello';
 
 const QUICK_MOODS = [
   {
@@ -72,14 +73,42 @@ const FEEDBACK_BUTTONS = [
   { label: "Az Bilinen", refine: "less_known", icon: Gem },
 ];
 
+const TABS = [
+  { id: 'filmoner', label: 'Film Öner', icon: Brain },
+  { id: 'duello', label: 'Sinema Düello', icon: Swords },
+];
+
 export default function KafanMiKarisik() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { selectMood } = useMood();
 
+  const tabParam = searchParams.get('tab');
+  const roomParam = searchParams.get('room');
+  const [activeTab, setActiveTab] = useState(tabParam === 'duello' ? 'duello' : 'filmoner');
+
+  useEffect(() => {
+    if (tabParam === 'duello' && activeTab !== 'duello') setActiveTab('duello');
+    else if (tabParam !== 'duello' && activeTab === 'duello') { /* keep local state */ }
+  }, [tabParam]);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    if (tabId === 'duello') {
+      setSearchParams({ tab: 'duello' }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  };
+
   useDocumentMeta({
-    title: 'Kafan Mı Karışık? İçini Dök, Film Bul | Sinemood',
-    description: 'Ne hissettiğini yaz, Üstad ruh haline göre tam sana göre filmi bulsun. Kararsız kaldığın geceler için.',
+    title: activeTab === 'duello'
+      ? 'Sinema Düello | Sinemood'
+      : 'Kafan Mı Karışık? İçini Dök, Film Bul | Sinemood',
+    description: activeTab === 'duello'
+      ? 'Arkadaşınla 1v1 film bilgi yarışması! 10 soruda en iyi sinefil kim?'
+      : 'Ne hissettiğini yaz, Üstad ruh haline göre tam sana göre filmi bulsun. Kararsız kaldığın geceler için.',
   });
 
   const [text, setText] = useState('');
@@ -262,9 +291,42 @@ export default function KafanMiKarisik() {
             </div>
           </div>
         </div>
+
+        {/* Tabs */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex gap-1">
+            {TABS.map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`flex items-center gap-2 px-5 py-3 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${
+                    isActive
+                      ? 'border-[#ffbf00] text-[#ffbf00]'
+                      : 'border-transparent text-[#f5f2eb]/40 hover:text-[#f5f2eb]/70'
+                  }`}
+                >
+                  <Icon size={14} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10 pb-nav">
+
+        {/* ─── DUELLO TAB ─── */}
+        {activeTab === 'duello' && (
+          <DuelloContent initialRoomId={roomParam || null} />
+        )}
+
+        {/* ─── FILM ÖNER TAB ─── */}
+        {activeTab === 'filmoner' && (<>
+
         {/* Input area — show when no result and not loading */}
         {!result && !loading && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
@@ -539,6 +601,7 @@ export default function KafanMiKarisik() {
             </motion.div>
           )}
         </AnimatePresence>
+        </>)}
       </main>
 
       {/* Film Detail Modal — opens in-place, no navigation away */}

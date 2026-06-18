@@ -373,6 +373,100 @@ export async function getOracleLeaderboard() {
   return getJson(`${BASE}/game/mood-oracle/leaderboard`, { errorMsg: 'Sıralama yüklenemedi' });
 }
 
+// ─── Sinema Düello ───
+export async function getDuelloCategories() {
+  return getJson(`${BASE}/game/quiz/categories`, { errorMsg: 'Kategoriler yüklenemedi' });
+}
+
+export async function createDuelloRoom(opponentId, categories) {
+  const res = await fetch(`${BASE}/game/quiz/rooms`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ opponent_id: opponentId, categories }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Oda oluşturulamadı (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function getDuelloState(roomId) {
+  const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function joinDuelloRoom(roomId) {
+  const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}/join`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Odaya katılınamadı');
+  }
+  return res.json();
+}
+
+export async function setDuelloReady(roomId) {
+  const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}/ready`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function startDuello(roomId) {
+  const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}/start`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Oyun başlatılamadı');
+  }
+  return res.json();
+}
+
+export async function submitDuelloAnswer(roomId, questionIndex, selectedAnswer) {
+  const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}/answer`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question_index: questionIndex, selected_answer: selectedAnswer }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getDuelloResults(roomId) {
+  return getJson(`${BASE}/game/quiz/rooms/${roomId}/results`, { errorMsg: 'Sonuçlar yüklenemedi' });
+}
+
+export async function leaveDuelloRoom(roomId) {
+  const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}/leave`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getDuelloStats() {
+  return getJson(`${BASE}/game/quiz/stats`, { errorMsg: 'İstatistikler yüklenemedi' });
+}
+
+export async function getDuelloHistory(limit = 20) {
+  return getJson(`${BASE}/game/quiz/history?limit=${limit}`, { errorMsg: 'Geçmiş yüklenemedi' });
+}
+
+export async function checkDuelloPendingInvite() {
+  return getJson(`${BASE}/game/quiz/pending-invite`, { errorMsg: 'Davet kontrolü başarısız' });
+}
+
 // ─── Web Push ───
 export async function getPushPublicKey() {
   const res = await fetch(`${BASE}/push/public-key`);

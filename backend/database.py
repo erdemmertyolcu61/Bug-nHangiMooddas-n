@@ -886,6 +886,84 @@ class MovieCache:
                 )
             """)
             await db.execute("CREATE INDEX IF NOT EXISTS idx_oracle_scores_date ON oracle_scores(date_key, correct DESC)")
+
+            # ── Sinema Düello tabloları ──
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS quiz_rooms (
+                    id TEXT PRIMARY KEY,
+                    creator_id INTEGER NOT NULL REFERENCES users(id),
+                    opponent_id INTEGER REFERENCES users(id),
+                    categories TEXT NOT NULL DEFAULT '[]',
+                    status TEXT NOT NULL DEFAULT 'WAITING'
+                        CHECK (status IN ('WAITING','READY','PLAYING','FINISHED','ABANDONED')),
+                    creator_ready INTEGER NOT NULL DEFAULT 0,
+                    opponent_ready INTEGER NOT NULL DEFAULT 0,
+                    current_question INTEGER NOT NULL DEFAULT -1,
+                    question_started_at TEXT,
+                    winner_id INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    finished_at TIMESTAMP
+                )
+            """)
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_quiz_rooms_creator ON quiz_rooms(creator_id, status)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_quiz_rooms_opponent ON quiz_rooms(opponent_id, status)")
+
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS quiz_questions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    room_id TEXT NOT NULL REFERENCES quiz_rooms(id),
+                    question_index INTEGER NOT NULL,
+                    question_type TEXT NOT NULL,
+                    category_slug TEXT NOT NULL,
+                    tmdb_id INTEGER NOT NULL,
+                    question_text TEXT NOT NULL,
+                    correct_answer TEXT NOT NULL,
+                    options TEXT NOT NULL,
+                    hint_image TEXT,
+                    extra_data TEXT,
+                    UNIQUE(room_id, question_index)
+                )
+            """)
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_quiz_questions_room ON quiz_questions(room_id)")
+
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS quiz_answers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    room_id TEXT NOT NULL REFERENCES quiz_rooms(id),
+                    question_index INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    selected_answer TEXT,
+                    is_correct INTEGER NOT NULL DEFAULT 0,
+                    elapsed_ms INTEGER NOT NULL DEFAULT 30000,
+                    score INTEGER NOT NULL DEFAULT 0,
+                    answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(room_id, question_index, user_id)
+                )
+            """)
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_quiz_answers_room ON quiz_answers(room_id, user_id)")
+
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS quiz_stats (
+                    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+                    games_played INTEGER NOT NULL DEFAULT 0,
+                    games_won INTEGER NOT NULL DEFAULT 0,
+                    total_score INTEGER NOT NULL DEFAULT 0,
+                    best_score INTEGER NOT NULL DEFAULT 0,
+                    win_streak INTEGER NOT NULL DEFAULT 0,
+                    best_streak INTEGER NOT NULL DEFAULT 0,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS movie_credits_cache (
+                    tmdb_id INTEGER PRIMARY KEY,
+                    director TEXT,
+                    cast_json TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             await db.commit()
 
     async def _init_turso_user_tables(self):
@@ -1124,6 +1202,68 @@ class MovieCache:
                 UNIQUE(user_id, date_key)
             )""",
             "CREATE INDEX IF NOT EXISTS idx_oracle_scores_date ON oracle_scores(date_key, correct DESC)",
+            # ── Sinema Düello tabloları ──
+            """CREATE TABLE IF NOT EXISTS quiz_rooms (
+                id TEXT PRIMARY KEY,
+                creator_id INTEGER NOT NULL REFERENCES users(id),
+                opponent_id INTEGER REFERENCES users(id),
+                categories TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL DEFAULT 'WAITING'
+                    CHECK (status IN ('WAITING','READY','PLAYING','FINISHED','ABANDONED')),
+                creator_ready INTEGER NOT NULL DEFAULT 0,
+                opponent_ready INTEGER NOT NULL DEFAULT 0,
+                current_question INTEGER NOT NULL DEFAULT -1,
+                question_started_at TEXT,
+                winner_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                finished_at TIMESTAMP
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_quiz_rooms_creator ON quiz_rooms(creator_id, status)",
+            "CREATE INDEX IF NOT EXISTS idx_quiz_rooms_opponent ON quiz_rooms(opponent_id, status)",
+            """CREATE TABLE IF NOT EXISTS quiz_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                room_id TEXT NOT NULL REFERENCES quiz_rooms(id),
+                question_index INTEGER NOT NULL,
+                question_type TEXT NOT NULL,
+                category_slug TEXT NOT NULL,
+                tmdb_id INTEGER NOT NULL,
+                question_text TEXT NOT NULL,
+                correct_answer TEXT NOT NULL,
+                options TEXT NOT NULL,
+                hint_image TEXT,
+                extra_data TEXT,
+                UNIQUE(room_id, question_index)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_quiz_questions_room ON quiz_questions(room_id)",
+            """CREATE TABLE IF NOT EXISTS quiz_answers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                room_id TEXT NOT NULL REFERENCES quiz_rooms(id),
+                question_index INTEGER NOT NULL,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                selected_answer TEXT,
+                is_correct INTEGER NOT NULL DEFAULT 0,
+                elapsed_ms INTEGER NOT NULL DEFAULT 30000,
+                score INTEGER NOT NULL DEFAULT 0,
+                answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(room_id, question_index, user_id)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_quiz_answers_room ON quiz_answers(room_id, user_id)",
+            """CREATE TABLE IF NOT EXISTS quiz_stats (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id),
+                games_played INTEGER NOT NULL DEFAULT 0,
+                games_won INTEGER NOT NULL DEFAULT 0,
+                total_score INTEGER NOT NULL DEFAULT 0,
+                best_score INTEGER NOT NULL DEFAULT 0,
+                win_streak INTEGER NOT NULL DEFAULT 0,
+                best_streak INTEGER NOT NULL DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS movie_credits_cache (
+                tmdb_id INTEGER PRIMARY KEY,
+                director TEXT,
+                cast_json TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
         ):
             try:
                 await _turso_client.execute(mig)
