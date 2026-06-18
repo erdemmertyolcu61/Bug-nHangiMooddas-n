@@ -104,7 +104,7 @@ function DuelloIntro({ onCreateRoom }) {
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 text-amber">
           <Swords size={28} />
-          <h1 className="text-2xl font-bold">Sinema Düello</h1>
+          <h1 className="text-2xl font-bold">SineQuiz</h1>
         </div>
         <p className="text-sm text-amber/60">Arkadaşını seç, kategorileri belirle, düelloya başla!</p>
       </div>
@@ -584,22 +584,22 @@ function DuelloResults({ roomId, onPlayAgain, onGoHome }) {
   );
 }
 
-// ─── EMBEDDABLE DUELLO CONTENT ────────────────────────────────────────────
+// ─── ANA SAYFA ─────────────────────────────────────────────────────────────
 
-export function DuelloContent({ initialRoomId = null }) {
+export default function QuizDuello() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const roomParam = searchParams.get('room');
 
-  const [phase, setPhase] = useState(initialRoomId ? 'lobby' : 'intro');
-  const [roomId, setRoomId] = useState(initialRoomId);
+  useDocumentMeta({
+    title: 'SineQuiz | Sinemood',
+    description: 'Arkadaşınla 1v1 film bilgi yarışması! 10 soruda en iyi sinefil kim?',
+  });
+
+  const [phase, setPhase] = useState(roomParam ? 'lobby' : 'intro');
+  const [roomId, setRoomId] = useState(roomParam || null);
   const [startingGame, setStartingGame] = useState(false);
   const [joinError, setJoinError] = useState('');
-
-  useEffect(() => {
-    if (initialRoomId && initialRoomId !== roomId) {
-      setRoomId(initialRoomId);
-      setPhase('lobby');
-    }
-  }, [initialRoomId]);
 
   const isPlaying = phase === 'lobby' || phase === 'playing';
   const { state: roomState, error: pollError, refetch } = useDuelloPoll(
@@ -607,10 +607,10 @@ export function DuelloContent({ initialRoomId = null }) {
   );
 
   useEffect(() => {
-    if (initialRoomId && phase === 'lobby' && !roomState) {
+    if (roomParam && phase === 'lobby' && !roomState) {
       (async () => {
         try {
-          await joinDuelloRoom(initialRoomId);
+          await joinDuelloRoom(roomParam);
         } catch (e) {
           if (!e.message?.includes('Kendi odana')) {
             setJoinError(e.message);
@@ -618,7 +618,7 @@ export function DuelloContent({ initialRoomId = null }) {
         }
       })();
     }
-  }, [initialRoomId]);
+  }, [roomParam]);
 
   useEffect(() => {
     if (!roomState) return;
@@ -635,7 +635,7 @@ export function DuelloContent({ initialRoomId = null }) {
   const handleCreateRoom = (newRoomId) => {
     setRoomId(newRoomId);
     setPhase('lobby');
-    window.history.replaceState({}, '', `/kafan-mi-karisik?tab=duello&room=${newRoomId}`);
+    window.history.replaceState({}, '', `/sinequiz?room=${newRoomId}`);
   };
 
   const handleReady = async () => {
@@ -657,7 +657,7 @@ export function DuelloContent({ initialRoomId = null }) {
     await leaveDuelloRoom(roomId);
     setRoomId(null);
     setPhase('intro');
-    window.history.replaceState({}, '', '/kafan-mi-karisik?tab=duello');
+    window.history.replaceState({}, '', '/sinequiz');
   };
 
   const handleAnswer = async (questionIndex, answer) => {
@@ -671,111 +671,110 @@ export function DuelloContent({ initialRoomId = null }) {
   const handlePlayAgain = () => {
     setRoomId(null);
     setPhase('intro');
-    window.history.replaceState({}, '', '/kafan-mi-karisik?tab=duello');
+    window.history.replaceState({}, '', '/sinequiz');
   };
 
   if (!isLoggedIn()) {
     return (
-      <div className="max-w-md mx-auto px-4 pt-12 text-center space-y-4">
-        <Swords className="mx-auto text-amber/40" size={48} />
-        <h2 className="text-lg font-bold text-amber">Giriş Gerekli</h2>
-        <p className="text-sm text-amber/50">Sinema Düello oynamak için giriş yapmalısın.</p>
+      <div className="min-h-screen bg-[#120d0b] text-[#f5f2eb]">
+        <div className="max-w-md mx-auto px-4 pt-20 text-center space-y-4">
+          <Swords className="mx-auto text-amber/40" size={48} />
+          <h2 className="text-lg font-bold text-amber">Giriş Gerekli</h2>
+          <p className="text-sm text-amber/50">SineQuiz oynamak için giriş yapmalısın.</p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-6 py-2 rounded-xl bg-amber-900/30 border border-amber/30 text-amber text-sm"
+          >
+            Ana Sayfaya Dön
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-md mx-auto">
-      {phase !== 'intro' && phase !== 'playing' && (
-        <button
-          onClick={handleLeave}
-          className="mb-4 flex items-center gap-1 text-xs text-amber/40 hover:text-amber/70 transition-colors"
-        >
-          <ChevronLeft size={14} />
-          Odadan Ayrıl
-        </button>
-      )}
-
-      {joinError && (
-        <div className="mb-4 p-3 rounded-xl bg-red-900/20 border border-red-500/30 text-red-400 text-xs text-center">
-          {joinError}
-        </div>
-      )}
-
-      <AnimatePresence mode="wait">
-        {phase === 'intro' && (
-          <motion.div
-            key="intro"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      className="min-h-screen bg-[#120d0b] text-[#f5f2eb] pb-32"
+    >
+      <div className="max-w-md mx-auto px-4 pt-6">
+        {phase !== 'playing' && (
+          <button
+            onClick={() => phase === 'intro' ? navigate(-1) : handleLeave()}
+            className="mb-4 flex items-center gap-1 text-xs text-amber/40 hover:text-amber/70 transition-colors"
           >
-            <DuelloIntro onCreateRoom={handleCreateRoom} />
-          </motion.div>
+            <ChevronLeft size={14} />
+            {phase === 'intro' ? 'Geri' : 'Odadan Ayrıl'}
+          </button>
         )}
 
-        {phase === 'lobby' && (
-          <motion.div
-            key="lobby"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <DuelloLobby
-              roomState={roomState}
-              onReady={handleReady}
-              onStart={handleStart}
-              onLeave={handleLeave}
-            />
-          </motion.div>
+        {joinError && (
+          <div className="mb-4 p-3 rounded-xl bg-red-900/20 border border-red-500/30 text-red-400 text-xs text-center">
+            {joinError}
+          </div>
         )}
 
-        {phase === 'playing' && roomState && (
-          <motion.div
-            key="playing"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <DuelloGame
-              roomState={roomState}
-              onAnswer={handleAnswer}
-            />
-          </motion.div>
-        )}
+        <AnimatePresence mode="wait">
+          {phase === 'intro' && (
+            <motion.div
+              key="intro"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <DuelloIntro onCreateRoom={handleCreateRoom} />
+            </motion.div>
+          )}
 
-        {phase === 'results' && (
-          <motion.div
-            key="results"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <DuelloResults
-              roomId={roomId}
-              onPlayAgain={handlePlayAgain}
-              onGoHome={() => navigate('/kafan-mi-karisik')}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          {phase === 'lobby' && (
+            <motion.div
+              key="lobby"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <DuelloLobby
+                roomState={roomState}
+                onReady={handleReady}
+                onStart={handleStart}
+                onLeave={handleLeave}
+              />
+            </motion.div>
+          )}
+
+          {phase === 'playing' && roomState && (
+            <motion.div
+              key="playing"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <DuelloGame
+                roomState={roomState}
+                onAnswer={handleAnswer}
+              />
+            </motion.div>
+          )}
+
+          {phase === 'results' && (
+            <motion.div
+              key="results"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <DuelloResults
+                roomId={roomId}
+                onPlayAgain={handlePlayAgain}
+                onGoHome={() => navigate('/')}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
-}
-
-// ─── REDIRECT WRAPPER (eski /duello route'u için) ─────────────────────────
-
-export default function QuizDuello() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const roomParam = searchParams.get('room');
-
-  useEffect(() => {
-    const url = roomParam
-      ? `/kafan-mi-karisik?tab=duello&room=${roomParam}`
-      : '/kafan-mi-karisik?tab=duello';
-    navigate(url, { replace: true });
-  }, []);
-
-  return null;
 }

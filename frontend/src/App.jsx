@@ -163,7 +163,8 @@ function AppContent() {
             <Route path="/gunun-filmi" element={<DailyFilm />} />
             <Route path="/gizlilik" element={<Gizlilik />} />
             <Route path="/oyun" element={<MoodOracle />} />
-            <Route path="/duello" element={<QuizDuello />} />
+            <Route path="/sinequiz" element={<QuizDuello />} />
+            <Route path="/duello" element={<Navigate to="/sinequiz" replace />} />
             <Route path="/feed" element={<MoodFeed />} />
 
             {/* Fallback */}

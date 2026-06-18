@@ -11,7 +11,7 @@ export default function GameBubble() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  if (pathname === '/oyun') return null;
+  if (pathname === '/oyun' || pathname === '/sinequiz') return null;
 
   return (
     <button

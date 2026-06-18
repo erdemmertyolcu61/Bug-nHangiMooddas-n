@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Clapperboard, Compass, BookMarked, Brain, Activity } from 'lucide-react';
+import { Clapperboard, Compass, BookMarked, Swords, Activity } from 'lucide-react';
 
 const NAV_ITEMS = [
   { label: 'Moodlar', icon: Clapperboard, path: '/', match: (p) => p === '/' || p === '/discover' },
-  { label: 'Ruh Halim', icon: Brain, path: null, match: (p) => false },
+  { label: 'SineQuiz', icon: Swords, path: '/sinequiz', match: (p) => p === '/sinequiz' },
   { label: 'Akış', icon: Activity, path: '/feed', match: (p) => p === '/feed' },
   { label: 'Kafan mı Karışık?', icon: Compass, path: '/kafan-mi-karisik', match: (p) => p === '/kafan-mi-karisik' },
   { label: 'Defterim', icon: BookMarked, path: '/defterim', match: (p) => p === '/defterim' },
@@ -20,15 +20,6 @@ export default function BottomNav() {
   const path = location.pathname;
 
   const handlePress = (item) => {
-    if (item.label === 'Ruh Halim') {
-      sessionStorage.setItem('open_mood_quiz', '1');
-      if (path === '/' || path === '/moodlar') {
-        window.dispatchEvent(new CustomEvent('open-mood-quiz'));
-      } else {
-        navigate('/');
-      }
-      return;
-    }
     navigate(item.path);
   };
 
