@@ -130,8 +130,6 @@ export default function CustomListsPanel({ user }) {
       await inviteCollaborator(openList.id, uname);
       setInviteSuccess(uname);
       setInviteUsername('');
-      const c = await getListCollaborators(openList.id);
-      setCollabUsers(c.collaborators || []);
       setTimeout(() => setInviteSuccess(''), 3000);
     } catch (err) {
       const msg = err?.response?.data?.detail || err?.message || 'Davet gönderilemedi';
@@ -139,6 +137,10 @@ export default function CustomListsPanel({ user }) {
       alert(msg);
     }
     finally { setInviteBusy(false); }
+    try {
+      const c = await getListCollaborators(openList.id);
+      setCollabUsers(c.collaborators || []);
+    } catch {}
   };
 
   const handleRemoveCollab = async (targetUserId) => {
@@ -235,37 +237,37 @@ export default function CustomListsPanel({ user }) {
                 <input value={inviteUsername} onChange={e => setInviteUsername(e.target.value.slice(0, 30))}
                   onKeyDown={e => e.key === 'Enter' && handleInviteCollab()}
                   placeholder="Arkadaşının kullanıcı adı"
-                  className="w-full px-4 py-2.5 bg-ivory/5 border border-ivory/10 rounded-full text-sm text-ivory placeholder:text-ivory/30 focus:outline-none focus:border-indigo-400/40" />
+                  className="w-full px-4 py-2.5 bg-surface-2 border border-default rounded-full text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent/40" />
                 {inviteUsername.trim() && !friends.some(f => f.username === inviteUsername.trim()) && friends.filter(f =>
                   (f.username?.toLowerCase().includes(inviteUsername.toLowerCase()) ||
                    f.name?.toLowerCase().includes(inviteUsername.toLowerCase())) &&
                   !collabUsers.some(c => c.username === f.username || c.user_id === f.id)
                 ).length > 0 && (
-                  <div className="absolute left-0 right-0 mt-1 bg-bg border border-ivory/15 rounded-2xl shadow-xl max-h-48 overflow-y-auto z-50 divide-y divide-ivory/5">
+                  <div className="absolute left-0 right-0 mt-1 bg-surface border border-default rounded-2xl shadow-xl max-h-48 overflow-y-auto z-50 divide-y divide-default">
                     {friends.filter(f =>
                       (f.username?.toLowerCase().includes(inviteUsername.toLowerCase()) ||
                        f.name?.toLowerCase().includes(inviteUsername.toLowerCase())) &&
                       !collabUsers.some(c => c.username === f.username || c.user_id === f.id)
                     ).map(f => (
                       <button key={f.id} onClick={() => setInviteUsername(f.username)}
-                        className="w-full px-4 py-2.5 text-left text-xs text-ivory/80 hover:bg-ivory/5 flex items-center gap-2 transition-colors first:rounded-t-2xl last:rounded-b-2xl cursor-pointer">
+                        className="w-full px-4 py-2.5 text-left text-xs text-fg-muted hover:bg-surface-2 flex items-center gap-2 transition-colors first:rounded-t-2xl last:rounded-b-2xl cursor-pointer">
                         {f.avatar ? (
                           <img src={f.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
                         ) : (
-                          <div className="w-6 h-6 rounded-full bg-ivory/10 flex items-center justify-center text-[9px] font-bold text-ivory/60 shrink-0">{(f.username || '').slice(0, 2).toUpperCase()}</div>
+                          <div className="w-6 h-6 rounded-full bg-surface-2 flex items-center justify-center text-[9px] font-bold text-fg-subtle shrink-0">{(f.username || '').slice(0, 2).toUpperCase()}</div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-ivory truncate">@{f.username}</p>
-                          {f.name && <p className="text-[10px] text-ivory/40 truncate">{f.name}</p>}
+                          <p className="font-semibold text-fg truncate">@{f.username}</p>
+                          {f.name && <p className="text-[10px] text-fg-subtle truncate">{f.name}</p>}
                         </div>
-                        <UserPlus size={12} className="text-indigo-400/60 shrink-0" />
+                        <UserPlus size={12} className="text-accent/60 shrink-0" />
                       </button>
                     ))}
                   </div>
                 )}
               </div>
               <button onClick={handleInviteCollab} disabled={inviteBusy || !inviteUsername.trim()}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[12px] font-bold uppercase tracking-wider hover:bg-indigo-500/30 disabled:opacity-40 transition-all w-full sm:w-auto shrink-0 cursor-pointer">
+                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-accent-soft border border-accent/30 text-accent-strong text-[12px] font-bold uppercase tracking-wider hover:bg-accent-soft/80 disabled:opacity-40 transition-all w-full sm:w-auto shrink-0 cursor-pointer">
                 {inviteBusy ? <Loader2 size={14} className="animate-spin" /> : <><UserPlus size={14} /> Davet Et</>}
               </button>
             </div>
@@ -280,16 +282,16 @@ export default function CustomListsPanel({ user }) {
             {collabUsers.length > 0 && (
               <div className="space-y-2">
                 {collabUsers.map(c => (
-                  <div key={c.user_id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-ivory/[0.04]">
+                  <div key={c.user_id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-surface-2/50">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm font-medium text-ivory truncate">@{c.username || c.name}</span>
+                      <span className="text-sm font-medium text-fg truncate">@{c.username || c.name}</span>
                       <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
                         c.status === 'accepted' ? 'bg-emerald-500/15 text-emerald-400' :
                         c.status === 'pending' ? 'bg-amber/15 text-amber' : 'bg-white/5 text-ivory/40'
                       }`}>{c.status === 'accepted' ? 'Aktif' : c.status === 'pending' ? 'Bekliyor' : 'Reddetti'}</span>
                     </div>
                     <button onClick={() => handleRemoveCollab(c.user_id)}
-                      className="text-ivory/30 hover:text-rose-300 transition-colors cursor-pointer">
+                      className="text-fg-subtle hover:text-rose-500 transition-colors cursor-pointer">
                       <X size={14} />
                     </button>
                   </div>
@@ -297,7 +299,7 @@ export default function CustomListsPanel({ user }) {
               </div>
             )}
             {collabUsers.length === 0 && (
-              <p className="text-[11px] text-ivory/40 italic">Henüz katkıcı yok. Arkadaşının kullanıcı adını yazıp davet et.</p>
+              <p className="text-[11px] text-fg-subtle italic">Henüz katkıcı yok. Arkadaşının kullanıcı adını yazıp davet et.</p>
             )}
           </div>
         )}

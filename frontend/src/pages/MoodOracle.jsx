@@ -291,7 +291,7 @@ export default function MoodOracle() {
                 {revealed && (
                   <motion.div
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                    className="mt-5 p-5 rounded-2xl bg-black/20 border border-amber/15 relative shrink-0">
+                    className="mt-5 p-5 rounded-2xl bg-surface-2 border border-accent/15 relative shrink-0">
                     <Quote size={15} className="text-amber/40 absolute top-4 right-4" />
                     <p className={`text-[10px] font-bold uppercase tracking-[0.3em] mb-2 ${
                       results[idx] ? 'text-emerald-400/80' : 'text-rose-400/80'
