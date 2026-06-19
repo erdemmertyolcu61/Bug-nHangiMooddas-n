@@ -9,7 +9,7 @@ import {
   getDuelloCategories, createDuelloRoom, getDuelloState,
   joinDuelloRoom, setDuelloReady, startDuello,
   submitDuelloAnswer, getDuelloResults, leaveDuelloRoom,
-  proxyImageUrl, isLoggedIn,
+  isLoggedIn,
 } from '../services/api';
 import useDuelloPoll from '../hooks/useDuelloPoll';
 import { resolveAvatarUrl } from '../utils/apiConfig';
@@ -367,9 +367,9 @@ function DuelloGame({ roomState, onAnswer }) {
     );
   }
 
-  const isBlurPoster = question.extra_data?.blur;
   const timerPct = (timeLeft / QUESTION_TIME) * 100;
   const timerColor = timeLeft > 10 ? 'text-green-400' : timeLeft > 5 ? 'text-yellow-400' : 'text-red-400';
+  const movieName = question.extra_data?.movie;
 
   return (
     <div className="space-y-4">
@@ -394,7 +394,7 @@ function DuelloGame({ roomState, onAnswer }) {
           }`}
           initial={false}
           animate={{ width: `${timerPct}%` }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.3 }}
         />
       </div>
 
@@ -405,29 +405,37 @@ function DuelloGame({ roomState, onAnswer }) {
           {timeLeft}s
         </div>
         {opponent_answered && !my_answer && (
-          <span className="text-xs text-amber/40 animate-pulse">Rakip cevapladı!</span>
+          <motion.span
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="text-xs text-amber/40 animate-pulse"
+          >
+            Rakip cevapladı!
+          </motion.span>
         )}
       </div>
 
-      {/* Soru görseli */}
-      {question.hint_image && (
-        <div className="flex justify-center">
-          <img
-            src={proxyImageUrl(question.hint_image)}
-            alt=""
-            className={`rounded-xl border border-amber/15 max-h-48 object-contain ${isBlurPoster ? 'blur-lg hover:blur-md transition-all duration-1000' : ''}`}
-            style={isBlurPoster ? {
-              filter: `blur(${Math.max(2, timeLeft * 0.6)}px)`,
-              transition: 'filter 1s ease',
-            } : {}}
-          />
-        </div>
+      {/* Film referansı */}
+      {movieName && my_answer && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center text-[10px] text-amber/30 uppercase tracking-wider"
+        >
+          Film: {movieName}
+        </motion.div>
       )}
 
       {/* Soru metni */}
-      <p className="text-center text-amber font-medium text-sm leading-relaxed whitespace-pre-line">
+      <motion.p
+        key={question.index}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="text-center text-amber font-medium text-sm leading-relaxed whitespace-pre-line"
+      >
         {question.text}
-      </p>
+      </motion.p>
 
       {/* Seçenekler */}
       <div className="grid grid-cols-1 gap-2">
@@ -435,17 +443,17 @@ function DuelloGame({ roomState, onAnswer }) {
           const isSelected = selected === option || my_answer?.selected === option;
           const isCorrect = my_answer && option === my_answer.selected && my_answer.is_correct;
           const isWrong = my_answer && option === my_answer.selected && !my_answer.is_correct;
-          const showCorrectHighlight = my_answer && !my_answer.is_correct && option === question.options.find(
-            o => my_answer.correct_answer ? o === my_answer.correct_answer : false
-          );
 
           return (
             <motion.button
               key={`${question.index}-${i}`}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2, delay: i * 0.05 }}
               onClick={() => handleSelect(option)}
               disabled={!!my_answer || !!selected || timeLeft <= 0}
               whileTap={!my_answer && !selected && timeLeft > 0 ? { scale: 0.97 } : {}}
-              className={`w-full px-4 py-3 rounded-xl border text-sm text-left transition-all ${
+              className={`w-full px-4 py-3 rounded-xl border text-sm text-left transition-colors duration-200 ${
                 isCorrect
                   ? 'border-green-500 bg-green-500/20 text-green-300'
                   : isWrong
@@ -634,7 +642,7 @@ export default function QuizDuello() {
 
   const isPlaying = phase === 'lobby' || phase === 'playing';
   const { state: roomState, error: pollError, refetch } = useDuelloPoll(
-    roomId, isPlaying, phase === 'playing' ? 2500 : 3500
+    roomId, isPlaying, phase === 'playing' ? 1500 : 2000
   );
 
   useEffect(() => {

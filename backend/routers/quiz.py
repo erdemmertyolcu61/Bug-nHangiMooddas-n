@@ -126,7 +126,9 @@ async def _get_credits(tmdb_id: int) -> dict:
         return {"director": "", "cast": []}
 
 
-# ─── Soru Üretim Motoru ─────────────────────────────────────────────────────
+# ─── Soru Üretim Motoru (Trivia tabanlı) ────────────────────────────────────
+
+from backend.data.quiz_trivia import TRIVIA_QUESTIONS
 
 async def _fetch_films_for_category(cat_slug: str, limit: int = 60) -> list:
     """Kategoriye göre movie_repository'den film çek."""
@@ -218,107 +220,70 @@ async def _fetch_films_for_category(cat_slug: str, limit: int = 60) -> list:
     ]
 
 
-QUESTION_TYPES = [
-    "mood_guess", "director_match", "year_guess",
-    "cast_id", "plot_match", "rating_range", "poster_recognize",
-]
+def _generate_questions_from_trivia(categories: list[str]) -> list[dict]:
+    """Trivia veritabanından 10 soru seç: ilk 3 kategoriden 3'er, 4. kategoriden 1."""
+    by_cat: dict[str, list] = {}
+    for q in TRIVIA_QUESTIONS:
+        by_cat.setdefault(q["category"], []).append(q)
 
-
-async def _generate_questions(categories: list[str]) -> list[dict]:
-    """10 soru üret: ilk 3 kategoriden 3'er, rastgele kategoriden 1."""
-    all_films_by_cat: dict[str, list] = {}
-    for cat_slug in categories:
-        films = await _fetch_films_for_category(cat_slug, limit=80)
-        if films:
-            all_films_by_cat[cat_slug] = films
-
-    if not all_films_by_cat:
-        raise HTTPException(status_code=500, detail="Yeterli film bulunamadı")
-
-    all_films_flat = []
-    for films in all_films_by_cat.values():
-        all_films_flat.extend(films)
-
-    all_directors = set()
-    all_actors = set()
-    all_titles = set()
-    for f in all_films_flat:
-        all_titles.add(f["title"])
-
-    distribution = []
-    for i, cat_slug in enumerate(categories[:3]):
-        distribution.extend([(cat_slug, 3)])
+    distribution = [(cat, 3) for cat in categories[:3]]
     if len(categories) > 3:
         distribution.append((categories[3], 1))
 
     questions = []
-    used_tmdb_ids = set()
-    type_counts: dict[str, int] = {}
+    used_indices = set()
 
     for cat_slug, count in distribution:
-        cat_films = all_films_by_cat.get(cat_slug, [])
-        if not cat_films:
+        pool = by_cat.get(cat_slug, [])
+        if not pool:
             continue
-
-        random.shuffle(cat_films)
-
-        generated = 0
-        for film in cat_films:
-            if generated >= count:
+        random.shuffle(pool)
+        added = 0
+        for trivia in pool:
+            if added >= count:
                 break
-            if film["tmdb_id"] in used_tmdb_ids:
+            idx = id(trivia)
+            if idx in used_indices:
                 continue
+            used_indices.add(idx)
 
-            available_types = [
-                t for t in QUESTION_TYPES
-                if type_counts.get(t, 0) < 2
-            ]
-            if not available_types:
-                available_types = QUESTION_TYPES[:]
+            options = [trivia["correct"]] + trivia["wrong"][:3]
+            random.shuffle(options)
 
-            random.shuffle(available_types)
-
-            q = None
-            for qtype in available_types:
-                q = await _build_question(
-                    qtype, film, cat_slug, all_films_flat, used_tmdb_ids,
-                    all_directors, all_actors,
-                )
-                if q:
-                    type_counts[qtype] = type_counts.get(qtype, 0) + 1
-                    break
-
-            if q:
-                questions.append(q)
-                used_tmdb_ids.add(film["tmdb_id"])
-                generated += 1
+            questions.append({
+                "question_type": "trivia",
+                "category_slug": cat_slug,
+                "tmdb_id": 0,
+                "question_text": trivia["question"],
+                "correct_answer": trivia["correct"],
+                "options": json.dumps(options, ensure_ascii=False),
+                "hint_image": None,
+                "extra_data": json.dumps({"movie": trivia.get("movie", "")}, ensure_ascii=False),
+            })
+            added += 1
 
     while len(questions) < QUESTIONS_PER_GAME:
-        remaining_films = [
-            f for cat_films in all_films_by_cat.values()
-            for f in cat_films
-            if f["tmdb_id"] not in used_tmdb_ids
+        all_remaining = [
+            t for t in TRIVIA_QUESTIONS
+            if id(t) not in used_indices
         ]
-        if not remaining_films:
-            break
-        film = random.choice(remaining_films)
-        cat_slug = categories[0]
-        available_types = [t for t in QUESTION_TYPES if type_counts.get(t, 0) < 3]
-        if not available_types:
-            available_types = QUESTION_TYPES[:]
-        random.shuffle(available_types)
-        for qtype in available_types:
-            q = await _build_question(
-                qtype, film, cat_slug, all_films_flat, used_tmdb_ids,
-                all_directors, all_actors,
-            )
-            if q:
-                questions.append(q)
-                used_tmdb_ids.add(film["tmdb_id"])
-                type_counts[qtype] = type_counts.get(qtype, 0) + 1
-                break
-        else:
-            used_tmdb_ids.add(film["tmdb_id"])
+        if not all_remaining:
+            all_remaining = list(TRIVIA_QUESTIONS)
+            used_indices.clear()
+        trivia = random.choice(all_remaining)
+        used_indices.add(id(trivia))
+        options = [trivia["correct"]] + trivia["wrong"][:3]
+        random.shuffle(options)
+        questions.append({
+            "question_type": "trivia",
+            "category_slug": trivia["category"],
+            "tmdb_id": 0,
+            "question_text": trivia["question"],
+            "correct_answer": trivia["correct"],
+            "options": json.dumps(options, ensure_ascii=False),
+            "hint_image": None,
+            "extra_data": json.dumps({"movie": trivia.get("movie", "")}, ensure_ascii=False),
+        })
 
     random.shuffle(questions)
 
@@ -326,210 +291,6 @@ async def _generate_questions(categories: list[str]) -> list[dict]:
         q["question_index"] = i
 
     return questions[:QUESTIONS_PER_GAME]
-
-
-async def _build_question(
-    qtype: str, film: dict, cat_slug: str,
-    all_films: list, used_ids: set,
-    all_directors: set, all_actors: set,
-) -> Optional[dict]:
-    """Tek bir soru üret. Başarısızsa None döndürür."""
-    tmdb_id = film["tmdb_id"]
-    title = film["title"]
-    year = (film.get("release_date") or "")[:4]
-    poster = film.get("poster_url", "")
-    overview = (film.get("overview") or "")[:200]
-    rating = film.get("vote_average", 0)
-    mood_id = film.get("mood_id", "")
-
-    other_films = [
-        f for f in all_films
-        if f["tmdb_id"] != tmdb_id and f["tmdb_id"] not in used_ids
-    ]
-
-    base = {
-        "question_type": qtype,
-        "category_slug": cat_slug,
-        "tmdb_id": tmdb_id,
-        "hint_image": None,
-        "extra_data": None,
-    }
-
-    if qtype == "mood_guess":
-        if not mood_id or mood_id not in MOOD_ID_LABELS:
-            return None
-        correct = MOOD_ID_LABELS[mood_id]
-        distractors = [v for k, v in MOOD_ID_LABELS.items() if k != mood_id]
-        random.shuffle(distractors)
-        options = [correct] + distractors[:3]
-        random.shuffle(options)
-        return {
-            **base,
-            "question_text": f'"{title}" filmi hangi ruh haline ait?',
-            "correct_answer": correct,
-            "options": json.dumps(options, ensure_ascii=False),
-            "hint_image": poster,
-        }
-
-    elif qtype == "director_match":
-        credits = await _get_credits(tmdb_id)
-        director = credits.get("director", "")
-        if not director:
-            return None
-        all_directors.add(director)
-        distractor_dirs = list(all_directors - {director})
-        if len(distractor_dirs) < 3:
-            for of in other_films[:20]:
-                oc = await _get_credits(of["tmdb_id"])
-                d = oc.get("director", "")
-                if d and d != director:
-                    distractor_dirs.append(d)
-                    all_directors.add(d)
-                if len(distractor_dirs) >= 6:
-                    break
-        if len(distractor_dirs) < 3:
-            return None
-        random.shuffle(distractor_dirs)
-        options = [director] + distractor_dirs[:3]
-        random.shuffle(options)
-        return {
-            **base,
-            "question_text": f'"{title}" filminin yönetmeni kimdir?',
-            "correct_answer": director,
-            "options": json.dumps(options, ensure_ascii=False),
-            "hint_image": poster,
-        }
-
-    elif qtype == "year_guess":
-        if not year or not year.isdigit():
-            return None
-        y = int(year)
-        offsets = [-4, -2, 2, 4]
-        random.shuffle(offsets)
-        distractors = []
-        for off in offsets:
-            dy = str(y + off)
-            if dy not in distractors and dy != year:
-                distractors.append(dy)
-            if len(distractors) == 3:
-                break
-        if len(distractors) < 3:
-            return None
-        options = [year] + distractors
-        random.shuffle(options)
-        return {
-            **base,
-            "question_text": f'"{title}" filmi hangi yılda vizyona girdi?',
-            "correct_answer": year,
-            "options": json.dumps(options, ensure_ascii=False),
-            "hint_image": poster,
-        }
-
-    elif qtype == "cast_id":
-        credits = await _get_credits(tmdb_id)
-        cast = credits.get("cast", [])
-        if not cast:
-            return None
-        correct_actor = cast[0]["name"]
-        all_actors.add(correct_actor)
-        for a in cast:
-            all_actors.add(a["name"])
-        distractor_actors = list(all_actors - {correct_actor})
-        if len(distractor_actors) < 3:
-            for of in other_films[:15]:
-                oc = await _get_credits(of["tmdb_id"])
-                for a in oc.get("cast", []):
-                    if a["name"] != correct_actor:
-                        distractor_actors.append(a["name"])
-                        all_actors.add(a["name"])
-                if len(distractor_actors) >= 6:
-                    break
-        film_actor_names = {a["name"] for a in cast}
-        distractor_actors = [a for a in distractor_actors if a not in film_actor_names]
-        if len(distractor_actors) < 3:
-            return None
-        random.shuffle(distractor_actors)
-        options = [correct_actor] + distractor_actors[:3]
-        random.shuffle(options)
-        return {
-            **base,
-            "question_text": f'Aşağıdaki oyunculardan hangisi "{title}" filminde rol almıştır?',
-            "correct_answer": correct_actor,
-            "options": json.dumps(options, ensure_ascii=False),
-            "hint_image": poster,
-        }
-
-    elif qtype == "plot_match":
-        if not overview or len(overview) < 30:
-            return None
-        distractor_titles = [
-            f["title"] for f in other_films
-            if f["title"] != title and f.get("overview") and len(f["overview"]) > 30
-        ]
-        if len(distractor_titles) < 3:
-            return None
-        random.shuffle(distractor_titles)
-        options = [title] + distractor_titles[:3]
-        random.shuffle(options)
-        display_overview = overview[:150]
-        if len(overview) > 150:
-            display_overview = display_overview.rsplit(" ", 1)[0] + "..."
-        return {
-            **base,
-            "question_text": f"Hangi filmin konusu bu?\n\n\"{display_overview}\"",
-            "correct_answer": title,
-            "options": json.dumps(options, ensure_ascii=False),
-        }
-
-    elif qtype == "rating_range":
-        if not rating or rating < 1:
-            return None
-        r = round(rating, 1)
-        if r >= 8.5:
-            ranges = ["7.0 – 7.9", "8.0 – 8.4", "8.5 – 9.0", "9.0 – 10.0"]
-            correct = "8.5 – 9.0" if r < 9.0 else "9.0 – 10.0"
-        elif r >= 8.0:
-            ranges = ["6.5 – 7.4", "7.5 – 7.9", "8.0 – 8.4", "8.5 – 9.0"]
-            correct = "8.0 – 8.4"
-        elif r >= 7.0:
-            ranges = ["5.5 – 6.4", "6.5 – 6.9", "7.0 – 7.4", "7.5 – 8.0"]
-            correct = "7.0 – 7.4" if r < 7.5 else "7.5 – 8.0"
-        elif r >= 6.0:
-            ranges = ["4.5 – 5.4", "5.5 – 5.9", "6.0 – 6.4", "6.5 – 7.0"]
-            correct = "6.0 – 6.4" if r < 6.5 else "6.5 – 7.0"
-        else:
-            ranges = ["3.0 – 4.4", "4.5 – 5.4", "5.5 – 5.9", "6.0 – 6.5"]
-            correct = "4.5 – 5.4" if r >= 4.5 else "3.0 – 4.4"
-        return {
-            **base,
-            "question_text": f'"{title}" filminin IMDb puanı hangi aralıkta?',
-            "correct_answer": correct,
-            "options": json.dumps(ranges, ensure_ascii=False),
-            "hint_image": poster,
-        }
-
-    elif qtype == "poster_recognize":
-        if not poster:
-            return None
-        distractor_titles = [
-            f["title"] for f in other_films
-            if f["title"] != title and f.get("poster_url")
-        ]
-        if len(distractor_titles) < 3:
-            return None
-        random.shuffle(distractor_titles)
-        options = [title] + distractor_titles[:3]
-        random.shuffle(options)
-        return {
-            **base,
-            "question_text": "Bu poster hangi filme ait?",
-            "correct_answer": title,
-            "options": json.dumps(options, ensure_ascii=False),
-            "hint_image": poster,
-            "extra_data": json.dumps({"blur": True}, ensure_ascii=False),
-        }
-
-    return None
 
 
 # ─── Soru İlerleme / Timer Yönetimi ─────────────────────────────────────────
@@ -917,7 +678,7 @@ async def start_game(room_id: str, user: dict = Depends(verify_user)):
             raise HTTPException(status_code=400, detail="Oyun zaten başladı")
 
         categories = json.loads(room["categories"]) if isinstance(room["categories"], str) else room["categories"]
-        questions = await _generate_questions(categories)
+        questions = _generate_questions_from_trivia(categories)
 
         if len(questions) < QUESTIONS_PER_GAME:
             raise HTTPException(
