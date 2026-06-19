@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Swords, Trophy, Users, Check, X, ChevronLeft, Clock,
-  Loader2, Crown, Zap, ArrowRight, RotateCcw,
+  Loader2, Crown, ArrowRight, RotateCcw,
 } from 'lucide-react';
 import {
   getDuelloCategories, createDuelloRoom, getDuelloState,
@@ -158,26 +158,24 @@ function DuelloIntro({ onCreateRoom, onJoinRoom }) {
             <button
               key={cat.slug}
               onClick={() => toggleCat(cat.slug)}
-              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all ${
+              className={`px-3 py-2.5 rounded-xl border text-sm transition-all ${
                 selectedCats.includes(cat.slug)
                   ? 'border-amber bg-amber/15 text-amber font-medium'
                   : 'border-amber/15 bg-surface-2/30 text-fg-muted hover:border-amber/40'
               }`}
             >
-              <span>{cat.emoji}</span>
               <span className="truncate">{cat.label}</span>
             </button>
           ))}
           <button
             key="rastgele"
             onClick={() => toggleCat("rastgele")}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all ${
+            className={`px-3 py-2.5 rounded-xl border text-sm transition-all ${
               selectedCats.includes("rastgele")
                 ? 'border-amber bg-amber/15 text-amber font-medium'
                 : 'border-amber/15 bg-surface-2/30 text-fg-muted hover:border-amber/40'
             }`}
           >
-            <span>🎲</span>
             <span className="truncate">Rastgele</span>
           </button>
         </div>
@@ -288,7 +286,7 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
       <div className="flex flex-wrap justify-center gap-2">
         {(categories || []).map((cat, i) => (
           <span key={i} className="px-2 py-1 rounded-lg bg-amber-900/20 border border-amber/15 text-xs text-amber/70">
-            {cat.emoji} {cat.label}
+            {cat.label}
           </span>
         ))}
       </div>
@@ -298,23 +296,24 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
         {opponent && (
           <button
             onClick={onReady}
-            className={`w-full py-3 rounded-2xl font-bold transition-all ${
+            className={`w-full py-3.5 rounded-2xl font-bold transition-all active:scale-[0.97] ${
               (is_creator ? creator_ready : opponent_ready)
-                ? 'bg-green-600/80 text-white'
-                : 'bg-amber-900/30 border border-amber/30 text-amber hover:bg-amber-900/50'
+                ? 'bg-green-600/80 text-white shadow-[0_4px_16px_rgba(34,197,94,0.25)]'
+                : 'bg-amber-900/30 border border-amber/30 text-amber hover:bg-amber-900/50 hover:shadow-[0_4px_16px_rgba(245,158,11,0.15)] active:bg-amber-900/60'
             }`}
           >
-            {(is_creator ? creator_ready : opponent_ready) ? '✓ Hazırım' : 'Hazır Ol'}
+            {(is_creator ? creator_ready : opponent_ready) ? 'Hazırım' : 'Hazır Ol'}
           </button>
         )}
 
         {is_creator && bothReady && (
           <button
             onClick={onStart}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-bold
-                       hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all flex items-center justify-center gap-2"
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-bold
+                       shadow-[0_4px_20px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.4)]
+                       active:scale-[0.97] active:shadow-[0_2px_10px_rgba(245,158,11,0.2)] transition-all"
           >
-            <Zap size={18} /> Düelloyu Başlat!
+            Düelloyu Başlat
           </button>
         )}
 
