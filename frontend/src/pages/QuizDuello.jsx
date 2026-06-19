@@ -329,6 +329,7 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
 
 function DuelloGame({ roomState, onAnswer }) {
   const [displayState, setDisplayState] = useState(roomState);
+  const [localFeedback, setLocalFeedback] = useState(null);
   const feedbackUntil = useRef(0);
 
   useEffect(() => {
@@ -336,17 +337,23 @@ function DuelloGame({ roomState, onAnswer }) {
     const serverQ = roomState?.current_question;
     const displayQ = displayState?.current_question;
     const advanced = serverQ !== displayQ || (roomState?.status === 'FINISHED' && displayState?.status !== 'FINISHED');
+    const hasFeedback = displayState?.my_answer || localFeedback;
 
-    if (advanced && displayState?.my_answer && now < feedbackUntil.current) {
+    if (advanced && hasFeedback && now < feedbackUntil.current) {
       const remaining = feedbackUntil.current - now;
-      const timer = setTimeout(() => setDisplayState(roomState), remaining);
+      const timer = setTimeout(() => {
+        setLocalFeedback(null);
+        setDisplayState(roomState);
+      }, remaining);
       return () => clearTimeout(timer);
     }
 
+    setLocalFeedback(null);
     setDisplayState(roomState);
   }, [roomState]);
 
-  const { question, my_answer, opponent_answered, scores, current_question, total_questions } = displayState || {};
+  const { question, opponent_answered, scores, current_question, total_questions } = displayState || {};
+  const my_answer = displayState?.my_answer || localFeedback;
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME);
   const [selected, setSelected] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -359,6 +366,7 @@ function DuelloGame({ roomState, onAnswer }) {
       lastQIdx.current = question.index;
       setSelected(null);
       setSubmitting(false);
+      setLocalFeedback(null);
       const serverRemaining = Math.ceil((question.time_remaining_ms || QUESTION_TIME * 1000) / 1000);
       setTimeLeft(Math.min(QUESTION_TIME, Math.max(0, serverRemaining)));
     }
@@ -384,10 +392,17 @@ function DuelloGame({ roomState, onAnswer }) {
     setSubmitting(true);
     clearInterval(timerRef.current);
     try {
-      await onAnswer(question.index, option);
+      const result = await onAnswer(question.index, option);
+      if (result) {
+        setLocalFeedback({
+          selected: option,
+          is_correct: result.is_correct,
+          score: result.score,
+          correct_answer: result.correct_answer,
+        });
+      }
       feedbackUntil.current = Date.now() + 1500;
     } catch {
-      // network error — allow retry
       setSelected(null);
     } finally {
       setSubmitting(false);
@@ -480,9 +495,12 @@ function DuelloGame({ roomState, onAnswer }) {
       {/* Seçenekler */}
       <div className="grid grid-cols-1 gap-2">
         {(question.options || []).map((option, i) => {
-          const isSelected = selected === option || my_answer?.selected === option;
-          const isCorrect = my_answer && option === my_answer.selected && my_answer.is_correct;
-          const isWrong = my_answer && option === my_answer.selected && !my_answer.is_correct;
+          const correctAnswer = my_answer?.correct_answer;
+          const isMyPick = my_answer && option === my_answer.selected;
+          const isCorrectAnswer = my_answer && correctAnswer && option === correctAnswer;
+          const isCorrect = isMyPick && my_answer.is_correct;
+          const isWrong = isMyPick && !my_answer.is_correct;
+          const isSelected = selected === option || isMyPick;
 
           return (
             <motion.button
@@ -494,7 +512,7 @@ function DuelloGame({ roomState, onAnswer }) {
               disabled={!!my_answer || !!selected || timeLeft <= 0}
               whileTap={!my_answer && !selected && timeLeft > 0 ? { scale: 0.97 } : {}}
               className={`w-full px-4 py-3 rounded-xl border text-sm text-left transition-colors duration-200 ${
-                isCorrect
+                isCorrect || (isCorrectAnswer && !isMyPick)
                   ? 'border-emerald bg-emerald text-emerald font-medium'
                   : isWrong
                     ? 'border-red-400 bg-rose text-red-400 font-medium'
@@ -505,7 +523,7 @@ function DuelloGame({ roomState, onAnswer }) {
             >
               <div className="flex items-center justify-between">
                 <span>{option}</span>
-                {isCorrect && <Check size={16} className="text-emerald" />}
+                {(isCorrect || (isCorrectAnswer && !isMyPick)) && <Check size={16} className="text-emerald" />}
                 {isWrong && <X size={16} className="text-red-400" />}
               </div>
             </motion.button>
@@ -530,6 +548,75 @@ function DuelloGame({ roomState, onAnswer }) {
           )}
         </motion.div>
       )}
+    </div>
+  );
+}
+
+// ─── TRANSITION: Son soru → Sonuç geçiş animasyonu ────────────────────────
+
+function GameEndTransition({ scores, onComplete }) {
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 3200);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-16 space-y-8">
+      <motion.div
+        initial={{ scale: 0, rotate: -180 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 12, duration: 0.6 }}
+      >
+        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-500/20 to-amber-600/10 border-2 border-amber/30 flex items-center justify-center">
+          <Trophy className="text-amber" size={48} />
+        </div>
+      </motion.div>
+
+      <motion.h2
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.5 }}
+        className="text-2xl font-bold text-amber tracking-wide"
+      >
+        Oyun Bitti!
+      </motion.h2>
+
+      {scores && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+          className="flex items-center gap-6"
+        >
+          <div className="text-center">
+            <div className="text-3xl font-bold text-amber">{scores.me || 0}</div>
+            <div className="text-xs text-amber/50 mt-1">Sen</div>
+          </div>
+          <div className="text-amber/20 text-lg font-bold">–</div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-amber/60">{scores.opponent || 0}</div>
+            <div className="text-xs text-amber/50 mt-1">Rakip</div>
+          </div>
+        </motion.div>
+      )}
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.5, duration: 0.5 }}
+        className="flex items-center gap-2 text-xs text-amber/40"
+      >
+        <Loader2 className="animate-spin" size={14} />
+        Sonuçlar yükleniyor...
+      </motion.div>
+
+      {/* decorative shimmer lines */}
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ delay: 0.3, duration: 0.8, ease: 'easeOut' }}
+        className="w-48 h-px bg-gradient-to-r from-transparent via-amber/30 to-transparent"
+      />
     </div>
   );
 }
@@ -680,9 +767,9 @@ export default function QuizDuello() {
   const [startingGame, setStartingGame] = useState(false);
   const [joinError, setJoinError] = useState('');
 
-  const isPlaying = phase === 'lobby' || phase === 'playing';
+  const isPolling = phase === 'lobby' || phase === 'playing' || phase === 'transition';
   const { state: roomState, error: pollError, refetch } = useDuelloPoll(
-    roomId, isPlaying, phase === 'playing' ? 1500 : 2000
+    roomId, isPolling, phase === 'playing' ? 1500 : 2000
   );
 
   useEffect(() => {
@@ -703,9 +790,9 @@ export default function QuizDuello() {
     if (!roomState) return;
     if (roomState.status === 'PLAYING' && phase !== 'playing') {
       setPhase('playing');
-    } else if (roomState.status === 'FINISHED' && phase !== 'results') {
+    } else if (roomState.status === 'FINISHED' && phase !== 'results' && phase !== 'transition') {
       if (phase === 'playing') {
-        setTimeout(() => setPhase('results'), 2500);
+        setPhase('transition');
       } else {
         setPhase('results');
       }
@@ -789,7 +876,7 @@ export default function QuizDuello() {
       className="min-h-screen bg-bg text-ivory pb-32"
     >
       <div className="max-w-md mx-auto px-4 pt-6">
-        {phase !== 'playing' && (
+        {phase !== 'playing' && phase !== 'transition' && (
           <button
             onClick={() => phase === 'intro' ? navigate(-1) : handleLeave()}
             className="mb-4 flex items-center gap-1 text-xs text-amber/40 hover:text-amber/70 transition-colors"
@@ -839,7 +926,8 @@ export default function QuizDuello() {
               key="playing"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
             >
               <DuelloGame
                 roomState={roomState}
@@ -848,12 +936,28 @@ export default function QuizDuello() {
             </motion.div>
           )}
 
+          {phase === 'transition' && (
+            <motion.div
+              key="transition"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 0.4 }}
+            >
+              <GameEndTransition
+                scores={roomState?.scores}
+                onComplete={() => setPhase('results')}
+              />
+            </motion.div>
+          )}
+
           {phase === 'results' && (
             <motion.div
               key="results"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             >
               <DuelloResults
                 roomId={roomId}
