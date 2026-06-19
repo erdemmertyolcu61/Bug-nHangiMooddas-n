@@ -324,22 +324,28 @@ async def _check_advance_question(db, room: dict) -> dict:
     next_q = q_idx + 1
     if next_q >= QUESTIONS_PER_GAME:
         winner_id = await _compute_winner(db, room["id"], room["creator_id"], room["opponent_id"])
-        await db.execute(
+        res = await db.execute(
             """UPDATE quiz_rooms SET status = 'FINISHED', current_question = ?,
-               winner_id = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ?""",
-            (q_idx, winner_id, room["id"]),
+               winner_id = ?, finished_at = CURRENT_TIMESTAMP
+               WHERE id = ? AND current_question = ?""",
+            (q_idx, winner_id, room["id"], q_idx),
         )
         await db.commit()
+        if res.rowcount == 0:
+            return await _get_room(db, room["id"])
         await _update_stats(db, room["id"], room["creator_id"], room["opponent_id"], winner_id)
         room["status"] = "FINISHED"
         room["winner_id"] = winner_id
     else:
         new_started = _now_iso()
-        await db.execute(
-            "UPDATE quiz_rooms SET current_question = ?, question_started_at = ? WHERE id = ?",
-            (next_q, new_started, room["id"]),
+        res = await db.execute(
+            """UPDATE quiz_rooms SET current_question = ?, question_started_at = ?
+               WHERE id = ? AND current_question = ?""",
+            (next_q, new_started, room["id"], q_idx),
         )
         await db.commit()
+        if res.rowcount == 0:
+            return await _get_room(db, room["id"])
         room["current_question"] = next_q
         room["question_started_at"] = new_started
 

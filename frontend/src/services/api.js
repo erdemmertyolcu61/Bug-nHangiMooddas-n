@@ -435,13 +435,17 @@ export async function startDuello(roomId) {
 }
 
 export async function submitDuelloAnswer(roomId, questionIndex, selectedAnswer) {
-  const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}/answer`, {
-    method: 'POST',
-    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question_index: questionIndex, selected_answer: selectedAnswer }),
-  });
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}/answer`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_index: questionIndex, selected_answer: selectedAnswer }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function getDuelloResults(roomId) {

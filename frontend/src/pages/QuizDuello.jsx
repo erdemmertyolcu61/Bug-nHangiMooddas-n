@@ -329,29 +329,22 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
 
 function DuelloGame({ roomState, onAnswer }) {
   const [displayState, setDisplayState] = useState(roomState);
-  const latestRoomRef = useRef(roomState);
-  const transitionTimer = useRef(null);
-
-  latestRoomRef.current = roomState;
+  const feedbackUntil = useRef(0);
 
   useEffect(() => {
-    if (transitionTimer.current) return;
-
+    const now = Date.now();
     const serverQ = roomState?.current_question;
     const displayQ = displayState?.current_question;
     const advanced = serverQ !== displayQ || (roomState?.status === 'FINISHED' && displayState?.status !== 'FINISHED');
 
-    if (advanced && displayState?.my_answer) {
-      transitionTimer.current = setTimeout(() => {
-        transitionTimer.current = null;
-        setDisplayState(latestRoomRef.current);
-      }, 1500);
-    } else {
-      setDisplayState(roomState);
+    if (advanced && displayState?.my_answer && now < feedbackUntil.current) {
+      const remaining = feedbackUntil.current - now;
+      const timer = setTimeout(() => setDisplayState(roomState), remaining);
+      return () => clearTimeout(timer);
     }
-  }, [roomState]);
 
-  useEffect(() => () => { clearTimeout(transitionTimer.current); }, []);
+    setDisplayState(roomState);
+  }, [roomState]);
 
   const { question, my_answer, opponent_answered, scores, current_question, total_questions } = displayState || {};
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME);
@@ -369,7 +362,7 @@ function DuelloGame({ roomState, onAnswer }) {
       const serverRemaining = Math.ceil((question.time_remaining_ms || QUESTION_TIME * 1000) / 1000);
       setTimeLeft(Math.min(QUESTION_TIME, Math.max(0, serverRemaining)));
     }
-  }, [question]);
+  }, [question?.index]);
 
   useEffect(() => {
     if (my_answer || !question) return;
@@ -390,8 +383,15 @@ function DuelloGame({ roomState, onAnswer }) {
     setSelected(option);
     setSubmitting(true);
     clearInterval(timerRef.current);
-    await onAnswer(question.index, option);
-    setSubmitting(false);
+    try {
+      await onAnswer(question.index, option);
+      feedbackUntil.current = Date.now() + 1500;
+    } catch {
+      // network error — allow retry
+      setSelected(null);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!question) {
@@ -751,9 +751,8 @@ export default function QuizDuello() {
 
   const handleAnswer = async (questionIndex, answer) => {
     const result = await submitDuelloAnswer(roomId, questionIndex, answer);
-    if (result) {
-      setTimeout(refetch, 300);
-    }
+    if (!result) throw new Error('submit failed');
+    setTimeout(refetch, 300);
     return result;
   };
 
