@@ -65,13 +65,21 @@ async def _user_info(user_id: int) -> dict:
             "name": u.get("name", ""), "avatar": u.get("picture")}
 
 
+_ROOM_COLS = [
+    "id", "creator_id", "opponent_id", "categories", "status",
+    "creator_ready", "opponent_ready", "current_question",
+    "question_started_at", "winner_id", "created_at", "finished_at",
+]
+
 async def _get_room(db, room_id: str) -> dict:
-    cur = await db.execute("SELECT * FROM quiz_rooms WHERE id = ?", (room_id,))
+    cur = await db.execute(
+        f"SELECT {', '.join(_ROOM_COLS)} FROM quiz_rooms WHERE id = ?",
+        (room_id,),
+    )
     row = await cur.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Oda bulunamadı")
-    cols = [d[0] for d in cur.description]
-    return dict(zip(cols, row))
+    return dict(zip(_ROOM_COLS, row))
 
 
 async def _get_credits(tmdb_id: int) -> dict:
@@ -618,12 +626,15 @@ async def _update_stats(db, room_id: str, creator_id: int, opponent_id: int, win
         won = 1 if uid == winner_id else 0
         game_score = game_scores.get(uid, 0)
 
-        cur2 = await db.execute("SELECT * FROM quiz_stats WHERE user_id = ?", (uid,))
+        cur2 = await db.execute(
+            "SELECT user_id, games_played, games_won, total_score, best_score, win_streak, best_streak FROM quiz_stats WHERE user_id = ?",
+            (uid,),
+        )
         existing = await cur2.fetchone()
 
         if existing:
-            cols = [d[0] for d in cur2.description]
-            stats = dict(zip(cols, existing))
+            _sc = ["user_id", "games_played", "games_won", "total_score", "best_score", "win_streak", "best_streak"]
+            stats = dict(zip(_sc, existing))
             new_played = stats["games_played"] + 1
             new_won = stats["games_won"] + won
             new_total = stats["total_score"] + game_score
@@ -1143,7 +1154,10 @@ async def get_stats(user: dict = Depends(verify_user)):
     me = user["user_id"]
 
     async with _db_conn(cache.db_path, user_data=True) as db:
-        cur = await db.execute("SELECT * FROM quiz_stats WHERE user_id = ?", (me,))
+        cur = await db.execute(
+            "SELECT user_id, games_played, games_won, total_score, best_score, win_streak, best_streak FROM quiz_stats WHERE user_id = ?",
+            (me,),
+        )
         row = await cur.fetchone()
 
         if not row:
@@ -1154,8 +1168,8 @@ async def get_stats(user: dict = Depends(verify_user)):
                 "win_rate": 0,
             }
 
-        cols = [d[0] for d in cur.description]
-        stats = dict(zip(cols, row))
+        stat_cols = ["user_id", "games_played", "games_won", "total_score", "best_score", "win_streak", "best_streak"]
+        stats = dict(zip(stat_cols, row))
         stats["win_rate"] = round(
             (stats["games_won"] / stats["games_played"] * 100)
             if stats["games_played"] > 0 else 0
