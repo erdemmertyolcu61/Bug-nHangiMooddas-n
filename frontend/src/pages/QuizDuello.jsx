@@ -9,7 +9,7 @@ import {
   getDuelloCategories, createDuelloRoom, getDuelloState,
   joinDuelloRoom, setDuelloReady, startDuello,
   submitDuelloAnswer, getDuelloResults, leaveDuelloRoom,
-  getFriends, proxyImageUrl, isLoggedIn,
+  proxyImageUrl, isLoggedIn,
 } from '../services/api';
 import useDuelloPoll from '../hooks/useDuelloPoll';
 import { resolveAvatarUrl } from '../utils/apiConfig';
@@ -43,25 +43,23 @@ function AvatarCircle({ user, size = 40 }) {
   );
 }
 
-// ─── INTRO: Arkadaş seçimi + kategori seçimi ──────────────────────────────
+// ─── INTRO: Oda oluştur veya koda katıl ──────────────────────────────────
 
-function DuelloIntro({ onCreateRoom }) {
-  const [friends, setFriends] = useState([]);
+function DuelloIntro({ onCreateRoom, onJoinRoom }) {
   const [categories, setCategories] = useState([]);
-  const [selectedFriend, setSelectedFriend] = useState(null);
   const [selectedCats, setSelectedCats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
-  const [friendSearch, setFriendSearch] = useState('');
+  const [joinCode, setJoinCode] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
-        const [fr, cats] = await Promise.all([getFriends(), getDuelloCategories()]);
-        setFriends(fr?.friends || []);
+        const cats = await getDuelloCategories();
         setCategories(cats?.categories || []);
-      } catch { setError('Veriler yüklenemedi'); }
+      } catch { setError('Kategoriler yüklenemedi'); }
       setLoading(false);
     })();
   }, []);
@@ -73,11 +71,11 @@ function DuelloIntro({ onCreateRoom }) {
   };
 
   const handleCreate = async () => {
-    if (!selectedFriend || selectedCats.length !== 3) return;
+    if (selectedCats.length !== 3) return;
     setCreating(true);
     setError('');
     try {
-      const res = await createDuelloRoom(selectedFriend.id, selectedCats);
+      const res = await createDuelloRoom(selectedCats);
       onCreateRoom(res.room_id);
     } catch (e) {
       setError(e.message || 'Oda oluşturulamadı');
@@ -85,10 +83,19 @@ function DuelloIntro({ onCreateRoom }) {
     }
   };
 
-  const filteredFriends = friends.filter(f =>
-    !friendSearch || (f.name || '').toLowerCase().includes(friendSearch.toLowerCase())
-    || (f.username || '').toLowerCase().includes(friendSearch.toLowerCase())
-  );
+  const handleJoin = async () => {
+    const code = joinCode.trim().toUpperCase();
+    if (code.length < 4) return;
+    setJoining(true);
+    setError('');
+    try {
+      await joinDuelloRoom(code);
+      onJoinRoom(code);
+    } catch (e) {
+      setError(e.message || 'Odaya katılınamadı');
+      setJoining(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -106,49 +113,38 @@ function DuelloIntro({ onCreateRoom }) {
           <Swords size={28} />
           <h1 className="text-2xl font-bold">SineQuiz</h1>
         </div>
-        <p className="text-sm text-amber/60">Arkadaşını seç, kategorileri belirle, düelloya başla!</p>
+        <p className="text-sm text-amber/60">Oda kur veya arkadaşının kodunu gir!</p>
       </div>
 
-      {/* Arkadaş Seçimi */}
+      {/* Oda Koduna Katıl */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-amber/80 uppercase tracking-wider">Rakibini Seç</h2>
-        {friends.length === 0 ? (
-          <div className="bg-amber-900/10 border border-amber/20 rounded-2xl p-4 text-center text-amber/50 text-sm">
-            Henüz arkadaşın yok. Profil sayfasından arkadaş ekle!
-          </div>
-        ) : (
-          <>
-            {friends.length > 4 && (
-              <input
-                type="text"
-                placeholder="Arkadaş ara..."
-                value={friendSearch}
-                onChange={e => setFriendSearch(e.target.value)}
-                className="w-full bg-black/30 border border-amber/20 rounded-xl px-3 py-2 text-sm text-amber placeholder:text-amber/30 focus:outline-none focus:border-amber/50"
-              />
-            )}
-            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-              {filteredFriends.map(f => (
-                <button
-                  key={f.id}
-                  onClick={() => setSelectedFriend(f)}
-                  className={`flex items-center gap-2 p-2 rounded-xl border transition-all text-left ${
-                    selectedFriend?.id === f.id
-                      ? 'border-amber bg-amber/15 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
-                      : 'border-amber/15 bg-black/20 hover:border-amber/40'
-                  }`}
-                >
-                  <AvatarCircle user={f} size={32} />
-                  <div className="min-w-0">
-                    <div className="text-xs font-medium text-amber truncate">{f.name || f.username}</div>
-                    <div className="text-[10px] text-amber/40 truncate">@{f.username}</div>
-                  </div>
-                  {selectedFriend?.id === f.id && <Check size={14} className="text-amber ml-auto flex-shrink-0" />}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        <h2 className="text-sm font-semibold text-amber/80 uppercase tracking-wider">Oda Koduna Katıl</h2>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Oda kodu gir..."
+            value={joinCode}
+            onChange={e => setJoinCode(e.target.value.toUpperCase())}
+            maxLength={8}
+            className="flex-1 bg-black/30 border border-amber/20 rounded-xl px-4 py-3 text-sm text-amber font-mono font-bold tracking-[0.3em] text-center uppercase placeholder:text-amber/30 placeholder:tracking-normal placeholder:font-normal focus:outline-none focus:border-amber/50"
+            onKeyDown={e => { if (e.key === 'Enter') handleJoin(); }}
+          />
+          <button
+            onClick={handleJoin}
+            disabled={joinCode.trim().length < 4 || joining}
+            className="px-5 py-3 rounded-xl bg-amber-600 text-black font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:bg-amber-500 transition-all flex items-center gap-1.5"
+          >
+            {joining ? <Loader2 className="animate-spin" size={16} /> : <ArrowRight size={16} />}
+            Katıl
+          </button>
+        </div>
+      </div>
+
+      {/* Ayırıcı */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-amber/15" />
+        <span className="text-xs text-amber/30 font-bold uppercase">veya oda kur</span>
+        <div className="flex-1 h-px bg-amber/15" />
       </div>
 
       {/* Kategori Seçimi */}
@@ -178,16 +174,16 @@ function DuelloIntro({ onCreateRoom }) {
 
       {error && <p className="text-red-400 text-xs text-center">{error}</p>}
 
-      {/* Başlat Butonu */}
+      {/* Oda Kur Butonu */}
       <button
         onClick={handleCreate}
-        disabled={!selectedFriend || selectedCats.length !== 3 || creating}
+        disabled={selectedCats.length !== 3 || creating}
         className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-bold
                    disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]
                    transition-all flex items-center justify-center gap-2"
       >
         {creating ? <Loader2 className="animate-spin" size={18} /> : <Swords size={18} />}
-        {creating ? 'Oda kuruluyor...' : 'Düello Daveti Gönder'}
+        {creating ? 'Oda kuruluyor...' : 'Oda Kur'}
       </button>
     </div>
   );
@@ -195,20 +191,55 @@ function DuelloIntro({ onCreateRoom }) {
 
 // ─── LOBBY: Bekleme odası ──────────────────────────────────────────────────
 
-function DuelloLobby({ roomState, onReady, onStart, onLeave }) {
-  if (!roomState) return null;
-  const { creator, opponent, creator_ready, opponent_ready, is_creator, categories, status } = roomState;
+function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
+  if (!roomState) {
+    return (
+      <div className="space-y-6 text-center">
+        <div className="space-y-1">
+          <Swords className="mx-auto text-amber" size={32} />
+          <h2 className="text-xl font-bold text-amber">Oda Kuruluyor</h2>
+        </div>
+        {roomId && (
+          <div className="space-y-2">
+            <p className="text-xs text-amber/50">Oda kodunu arkadaşınla paylaş</p>
+            <div className="inline-block bg-black/40 border-2 border-amber/40 rounded-2xl px-8 py-4">
+              <span className="text-3xl font-mono font-bold text-amber tracking-[0.4em]">{roomId}</span>
+            </div>
+          </div>
+        )}
+        <div className="flex items-center justify-center gap-2 text-amber/40">
+          <Loader2 className="animate-spin" size={16} />
+          <span className="text-sm">Bağlanıyor...</span>
+        </div>
+        <button onClick={onLeave} className="text-xs text-amber/30 hover:text-amber/60 transition-colors">
+          Odadan Ayrıl
+        </button>
+      </div>
+    );
+  }
+
+  const { creator, opponent, creator_ready, opponent_ready, is_creator, categories } = roomState;
   const bothReady = creator_ready && opponent_ready;
 
   return (
     <div className="space-y-6 text-center">
       <div className="space-y-1">
         <Swords className="mx-auto text-amber" size={32} />
-        <h2 className="text-xl font-bold text-amber">Düello Odası</h2>
+        <h2 className="text-xl font-bold text-amber">SineQuiz Odası</h2>
         <p className="text-xs text-amber/50">
           {!opponent ? 'Rakip bekleniyor...' : bothReady ? 'İki oyuncu da hazır!' : 'Hazır olunca butona bas'}
         </p>
       </div>
+
+      {/* Oda Kodu */}
+      {roomId && (
+        <div className="space-y-1">
+          <p className="text-[10px] text-amber/40 uppercase tracking-wider">Oda Kodu</p>
+          <div className="inline-block bg-black/40 border-2 border-amber/40 rounded-2xl px-6 py-3">
+            <span className="text-2xl font-mono font-bold text-amber tracking-[0.4em]">{roomId}</span>
+          </div>
+        </div>
+      )}
 
       {/* Oyuncular */}
       <div className="flex items-center justify-center gap-6">
@@ -638,6 +669,12 @@ export default function QuizDuello() {
     window.history.replaceState({}, '', `/sinequiz?room=${newRoomId}`);
   };
 
+  const handleJoinRoom = (code) => {
+    setRoomId(code);
+    setPhase('lobby');
+    window.history.replaceState({}, '', `/sinequiz?room=${code}`);
+  };
+
   const handleReady = async () => {
     await setDuelloReady(roomId);
     refetch();
@@ -725,7 +762,7 @@ export default function QuizDuello() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              <DuelloIntro onCreateRoom={handleCreateRoom} />
+              <DuelloIntro onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} />
             </motion.div>
           )}
 
@@ -737,6 +774,7 @@ export default function QuizDuello() {
               exit={{ opacity: 0, y: -20 }}
             >
               <DuelloLobby
+                roomId={roomId}
                 roomState={roomState}
                 onReady={handleReady}
                 onStart={handleStart}

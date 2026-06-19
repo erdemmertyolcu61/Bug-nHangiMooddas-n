@@ -378,11 +378,13 @@ export async function getDuelloCategories() {
   return getJson(`${BASE}/game/quiz/categories`, { errorMsg: 'Kategoriler yüklenemedi' });
 }
 
-export async function createDuelloRoom(opponentId, categories) {
+export async function createDuelloRoom(categories, opponentId = null) {
+  const body = { categories };
+  if (opponentId) body.opponent_id = opponentId;
   const res = await fetch(`${BASE}/game/quiz/rooms`, {
     method: 'POST',
     headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ opponent_id: opponentId, categories }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

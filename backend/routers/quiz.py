@@ -31,7 +31,7 @@ ROOM_EXPIRE_MINUTES = 10
 
 class CreateRoomBody(BaseModel):
     categories: list[str] = Field(..., min_length=3, max_length=3)
-    opponent_id: int
+    opponent_id: Optional[int] = None
 
 class AnswerBody(BaseModel):
     question_index: int
@@ -663,16 +663,12 @@ async def list_categories():
 
 @router.post("/rooms")
 async def create_room(body: CreateRoomBody, user: dict = Depends(verify_user)):
-    """Oda oluştur. 3 kategori seç, 1 rastgele eklenir."""
+    """Oda oluştur. 3 kategori seç, 1 rastgele eklenir. Oda kodu döner."""
     me = user["user_id"]
     opponent_id = body.opponent_id
 
-    if opponent_id == me:
+    if opponent_id and opponent_id == me:
         raise HTTPException(status_code=400, detail="Kendinle oynayamazsın")
-
-    is_friend = await cache.are_friends(me, opponent_id)
-    if not is_friend:
-        raise HTTPException(status_code=403, detail="Sadece arkadaşlarınla oynayabilirsin")
 
     for cat in body.categories:
         if cat not in QUIZ_CATEGORIES:
@@ -682,7 +678,7 @@ async def create_room(body: CreateRoomBody, user: dict = Depends(verify_user)):
     random_cat = random.choice(remaining) if remaining else body.categories[0]
     all_cats = list(body.categories) + [random_cat]
 
-    room_id = uuid.uuid4().hex[:8]
+    room_id = uuid.uuid4().hex[:6].upper()
 
     async with _db_conn(cache.db_path, user_data=True) as db:
         await db.execute(
@@ -692,19 +688,20 @@ async def create_room(body: CreateRoomBody, user: dict = Depends(verify_user)):
         )
         await db.commit()
 
-    try:
-        from backend.services.push_service import send_push_to_user
-        sender = await cache.get_user_by_username_by_id(me)
-        sender_name = (sender or {}).get("username") or (sender or {}).get("name") or "Biri"
-        await send_push_to_user(
-            opponent_id,
-            "Sinema Düello",
-            f"{sender_name} seni Sinema Düello'ya davet ediyor!",
-            url=f"/duello?room={room_id}",
-            tag=f"quiz-invite-{room_id}",
-        )
-    except Exception:
-        pass
+    if opponent_id:
+        try:
+            from backend.services.push_service import send_push_to_user
+            sender = await cache.get_user_by_username_by_id(me)
+            sender_name = (sender or {}).get("username") or (sender or {}).get("name") or "Biri"
+            await send_push_to_user(
+                opponent_id,
+                "SineQuiz",
+                f"{sender_name} seni SineQuiz'e davet ediyor! Oda kodu: {room_id}",
+                url=f"/sinequiz?room={room_id}",
+                tag=f"quiz-invite-{room_id}",
+            )
+        except Exception:
+            pass
 
     return {
         "room_id": room_id,
@@ -721,7 +718,7 @@ async def poll_room(room_id: str, user: dict = Depends(verify_user)):
     async with _db_conn(cache.db_path, user_data=True) as db:
         room = await _get_room(db, room_id)
 
-        if me not in (room["creator_id"], room["opponent_id"]):
+        if me != room["creator_id"] and me != room.get("opponent_id"):
             raise HTTPException(status_code=403, detail="Bu odada değilsin")
 
         if room["status"] == "PLAYING":
@@ -824,7 +821,7 @@ async def poll_room(room_id: str, user: dict = Depends(verify_user)):
 
 @router.post("/rooms/{room_id}/join")
 async def join_room(room_id: str, user: dict = Depends(verify_user)):
-    """Rakip odaya katılır."""
+    """Oda kodunu bilen herkes katılabilir."""
     me = user["user_id"]
 
     async with _db_conn(cache.db_path, user_data=True) as db:
@@ -832,10 +829,10 @@ async def join_room(room_id: str, user: dict = Depends(verify_user)):
 
         if room["status"] != "WAITING":
             raise HTTPException(status_code=400, detail="Oda artık katılıma açık değil")
-        if room["opponent_id"] and room["opponent_id"] != me:
-            raise HTTPException(status_code=403, detail="Bu oda sana ait değil")
         if room["creator_id"] == me:
-            raise HTTPException(status_code=400, detail="Kendi odana katılamazsın")
+            return {"ok": True, "status": "WAITING"}
+        if room["opponent_id"] and room["opponent_id"] != me:
+            raise HTTPException(status_code=400, detail="Odada zaten bir rakip var")
 
         await db.execute(
             "UPDATE quiz_rooms SET opponent_id = ? WHERE id = ?",
