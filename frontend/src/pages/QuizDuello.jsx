@@ -410,7 +410,7 @@ function DuelloGame({ roomState, onAnswer }) {
   return (
     <div className="space-y-3">
       {/* Header: skor + süre + soru */}
-      <div className="sticky top-0 z-10 -mx-4 px-4 pt-2 pb-3 bg-bg/95 backdrop-blur-sm border-b border-white/5">
+      <div className="sticky top-0 z-10 -mx-4 px-4 pt-10 pb-3 bg-bg/95 backdrop-blur-sm border-b border-white/5">
         {/* Skorlar */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 min-w-0">
