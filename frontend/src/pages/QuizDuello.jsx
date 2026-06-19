@@ -408,47 +408,52 @@ function DuelloGame({ roomState, onAnswer }) {
   const movieName = question.extra_data?.movie;
 
   return (
-    <div className="space-y-4">
-      {/* Header: skor + soru sayacı */}
-      <div className="flex items-center justify-between text-xs sm:text-sm px-1">
-        <div className="text-fg-muted whitespace-nowrap">
-          Siz: <span className="text-fg font-bold">{scores?.me || 0}</span>
+    <div className="space-y-3">
+      {/* Header: skor + süre + soru */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 pt-2 pb-3 bg-bg/95 backdrop-blur-sm border-b border-white/5">
+        {/* Skorlar */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs text-fg-muted">Siz</span>
+            <span className="text-lg font-bold text-amber tabular-nums">{scores?.me || 0}</span>
+          </div>
+          <div className="text-xs text-fg-subtle font-medium px-2 py-0.5 rounded-full bg-surface-2/40">
+            {(current_question || 0) + 1} / {total_questions || TOTAL_QUESTIONS}
+          </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg font-bold text-fg tabular-nums">{scores?.opponent || 0}</span>
+            <span className="text-xs text-fg-muted">Rakip</span>
+          </div>
         </div>
-        <div className="text-fg font-medium whitespace-nowrap px-2">
-          Soru: {(current_question || 0) + 1} / {total_questions || TOTAL_QUESTIONS}
-        </div>
-        <div className="text-fg-muted whitespace-nowrap">
-          Rakip: <span className="text-fg font-bold">{scores?.opponent || 0}</span>
-        </div>
-      </div>
 
-      {/* Timer bar */}
-      <div className="relative h-1.5 bg-surface-2/50 rounded-full overflow-hidden">
-        <motion.div
-          className={`absolute inset-y-0 left-0 rounded-full ${
-            timeLeft > 10 ? 'bg-green-500' : timeLeft > 5 ? 'bg-yellow-500' : 'bg-red-500'
-          }`}
-          initial={false}
-          animate={{ width: `${timerPct}%` }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
-
-      {/* Timer + rakip durumu */}
-      <div className="flex items-center justify-between">
-        <div className={`flex items-center gap-1 text-sm font-mono font-bold ${timerColor}`}>
-          <Clock size={14} />
-          {timeLeft}s
+        {/* Timer bar */}
+        <div className="relative h-1.5 bg-surface-2/50 rounded-full overflow-hidden">
+          <motion.div
+            className={`absolute inset-y-0 left-0 rounded-full ${
+              timeLeft > 10 ? 'bg-green-500' : timeLeft > 5 ? 'bg-yellow-500' : 'bg-red-500'
+            }`}
+            initial={false}
+            animate={{ width: `${timerPct}%` }}
+            transition={{ duration: 0.3 }}
+          />
         </div>
-        {opponent_answered && !my_answer && (
-          <motion.span
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-xs text-fg-subtle animate-pulse"
-          >
-            Rakip cevapladı!
-          </motion.span>
-        )}
+
+        {/* Timer sayacı + rakip durumu */}
+        <div className="flex items-center justify-between mt-1.5">
+          <div className={`flex items-center gap-1 text-sm font-mono font-bold ${timerColor}`}>
+            <Clock size={14} />
+            {timeLeft}s
+          </div>
+          {opponent_answered && !my_answer && (
+            <motion.span
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-xs text-fg-subtle animate-pulse"
+            >
+              Rakip cevapladı!
+            </motion.span>
+          )}
+        </div>
       </div>
 
       {/* Film referansı */}
