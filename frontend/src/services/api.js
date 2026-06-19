@@ -448,6 +448,24 @@ export async function submitDuelloAnswer(roomId, questionIndex, selectedAnswer) 
   }
 }
 
+export async function useDuelloJoker(roomId, questionIndex, jokerType) {
+  try {
+    const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}/joker`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_index: questionIndex, joker_type: jokerType }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Joker kullanılamadı');
+    }
+    return res.json();
+  } catch (err) {
+    throw err;
+  }
+}
+
+
 export async function getDuelloResults(roomId) {
   return getJson(`${BASE}/game/quiz/rooms/${roomId}/results`, { errorMsg: 'Sonuçlar yüklenemedi' });
 }

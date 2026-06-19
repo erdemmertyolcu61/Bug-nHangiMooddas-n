@@ -894,6 +894,7 @@ class MovieCache:
                     creator_id INTEGER NOT NULL REFERENCES users(id),
                     opponent_id INTEGER REFERENCES users(id),
                     categories TEXT NOT NULL DEFAULT '[]',
+                    player_jokers TEXT DEFAULT '{}',
                     status TEXT NOT NULL DEFAULT 'WAITING'
                         CHECK (status IN ('WAITING','READY','PLAYING','FINISHED','ABANDONED')),
                     creator_ready INTEGER NOT NULL DEFAULT 0,
@@ -907,6 +908,11 @@ class MovieCache:
             """)
             await db.execute("CREATE INDEX IF NOT EXISTS idx_quiz_rooms_creator ON quiz_rooms(creator_id, status)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_quiz_rooms_opponent ON quiz_rooms(opponent_id, status)")
+
+            try:
+                await db.execute("ALTER TABLE quiz_rooms ADD COLUMN player_jokers TEXT DEFAULT '{}'")
+            except Exception:
+                logger.warning("[DB] ALTER quiz_rooms ADD player_jokers failed (likely exists)")
 
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS quiz_questions (

@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Swords, Trophy, Users, Check, X, ChevronLeft, Clock,
+  Swords, Trophy, Users, Check, X, ChevronLeft, Clock, Zap, Snowflake, Dices, Scissors,
   Loader2, Crown, ArrowRight, RotateCcw,
 } from 'lucide-react';
 import {
   getDuelloCategories, createDuelloRoom, getDuelloState,
   joinDuelloRoom, setDuelloReady, startDuello,
   submitDuelloAnswer, getDuelloResults, leaveDuelloRoom,
-  isLoggedIn,
+  isLoggedIn, useDuelloJoker,
 } from '../services/api';
 import useDuelloPoll from '../hooks/useDuelloPoll';
 import { resolveAvatarUrl } from '../utils/apiConfig';
@@ -352,11 +352,13 @@ function DuelloGame({ roomState, onAnswer }) {
     setDisplayState(roomState);
   }, [roomState]);
 
-  const { question, opponent_answered, scores, current_question, total_questions } = displayState || {};
+  const { question, opponent_answered, scores, current_question, total_questions, player_jokers, my_streak, room_id } = displayState || {};
   const my_answer = displayState?.my_answer || localFeedback;
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME);
   const [selected, setSelected] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [eliminatedOptions, setEliminatedOptions] = useState([]);
+  const [jokerLoading, setJokerLoading] = useState(false);
   const timerRef = useRef(null);
   const lastQIdx = useRef(-1);
 
@@ -366,6 +368,7 @@ function DuelloGame({ roomState, onAnswer }) {
       lastQIdx.current = question.index;
       setSelected(null);
       setSubmitting(false);
+      setEliminatedOptions([]);
       setLocalFeedback(null);
       const serverRemaining = Math.ceil((question.time_remaining_ms || QUESTION_TIME * 1000) / 1000);
       setTimeLeft(Math.min(QUESTION_TIME, Math.max(0, serverRemaining)));
@@ -400,12 +403,35 @@ function DuelloGame({ roomState, onAnswer }) {
           score: result.score,
           correct_answer: result.correct_answer,
         });
+        if (result.is_correct || player_jokers?.double_chance !== question.index) {
+          feedbackUntil.current = Date.now() + 1500;
+        } else {
+          // Çifte şans hakkı var ve yanlış bildi, feedback süresi bekleme, tekrar seçilebilir olsun
+          setSelected(null);
+        }
       }
-      feedbackUntil.current = Date.now() + 1500;
     } catch {
       setSelected(null);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleJoker = async (jokerType) => {
+    if (jokerLoading || !question || timeLeft <= 0 || my_answer) return;
+    setJokerLoading(true);
+    try {
+      const res = await useDuelloJoker(room_id, question.index, jokerType);
+      if (jokerType === 'fifty_fifty' && res.eliminated) {
+        setEliminatedOptions(res.eliminated);
+      } else if (jokerType === 'freeze_time') {
+        setTimeLeft(prev => prev + 10);
+      }
+      // double_chance backend taraflı sessizce handle ediliyor
+    } catch (e) {
+      console.error("Joker hatası:", e);
+    } finally {
+      setJokerLoading(false);
     }
   };
 
@@ -481,6 +507,59 @@ function DuelloGame({ roomState, onAnswer }) {
         </motion.div>
       )}
 
+      {/* Jokers & Streak */}
+      <div className="flex items-center justify-between px-2">
+        {/* Streak */}
+        <div className="flex items-center gap-1.5">
+          <Zap size={16} className={my_streak >= 2 ? "text-amber animate-pulse" : "text-amber/40"} />
+          <span className={`text-xs font-bold ${my_streak >= 2 ? "text-amber" : "text-fg-subtle"}`}>
+            Seri: {my_streak || 0} {my_streak >= 2 && <span className="text-amber/80 text-[10px] ml-1">(x1.5 Puan)</span>}
+          </span>
+        </div>
+
+        {/* Jokerler */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleJoker('fifty_fifty')}
+            disabled={my_answer || jokerLoading || timeLeft <= 0 || (player_jokers?.fifty_fifty !== undefined)}
+            className={`p-1.5 rounded-lg border transition-all flex items-center justify-center
+              ${player_jokers?.fifty_fifty !== undefined
+                ? 'border-white/5 bg-surface-2/20 text-fg-muted opacity-50'
+                : 'border-amber/30 bg-amber-900/30 text-amber hover:bg-amber-900/50'
+              }`}
+            title="Yarı Yarıya (%50)"
+          >
+            <Scissors size={14} />
+          </button>
+          
+          <button
+            onClick={() => handleJoker('freeze_time')}
+            disabled={my_answer || jokerLoading || timeLeft <= 0 || (player_jokers?.freeze_time !== undefined)}
+            className={`p-1.5 rounded-lg border transition-all flex items-center justify-center
+              ${player_jokers?.freeze_time !== undefined
+                ? 'border-white/5 bg-surface-2/20 text-fg-muted opacity-50'
+                : 'border-blue-500/30 bg-blue-900/30 text-blue-400 hover:bg-blue-900/50'
+              }`}
+            title="Zamanı Dondur (+10s)"
+          >
+            <Snowflake size={14} />
+          </button>
+
+          <button
+            onClick={() => handleJoker('double_chance')}
+            disabled={my_answer || jokerLoading || timeLeft <= 0 || (player_jokers?.double_chance !== undefined)}
+            className={`p-1.5 rounded-lg border transition-all flex items-center justify-center
+              ${player_jokers?.double_chance !== undefined
+                ? 'border-white/5 bg-surface-2/20 text-fg-muted opacity-50'
+                : 'border-emerald/30 bg-emerald-900/30 text-emerald hover:bg-emerald-900/50'
+              }`}
+            title="Çifte Şans"
+          >
+            <Dices size={14} />
+          </button>
+        </div>
+      </div>
+
       {/* Soru metni */}
       <motion.p
         key={question.index}
@@ -502,6 +581,11 @@ function DuelloGame({ roomState, onAnswer }) {
           const isWrong = isMyPick && !my_answer.is_correct;
           const isSelected = selected === option || isMyPick;
 
+          const isEliminated = eliminatedOptions.includes(option);
+
+          const isDoubleChanceActive = my_answer && !my_answer.is_correct && player_jokers?.double_chance === question.index;
+          const isDisabled = (!!my_answer && !isDoubleChanceActive) || !!selected || timeLeft <= 0 || isEliminated;
+
           return (
             <motion.button
               key={`${question.index}-${i}`}
@@ -509,9 +593,10 @@ function DuelloGame({ roomState, onAnswer }) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.2, delay: i * 0.05 }}
               onClick={() => handleSelect(option)}
-              disabled={!!my_answer || !!selected || timeLeft <= 0}
-              whileTap={!my_answer && !selected && timeLeft > 0 ? { scale: 0.97 } : {}}
+              disabled={isDisabled}
+              whileTap={!isDisabled ? { scale: 0.97 } : {}}
               className={`w-full px-4 py-3 rounded-xl border text-sm text-left transition-colors duration-200 ${
+                isEliminated ? 'opacity-20 pointer-events-none' :
                 isCorrect || (isCorrectAnswer && !isMyPick)
                   ? 'border-emerald bg-emerald text-emerald font-medium'
                   : isWrong
