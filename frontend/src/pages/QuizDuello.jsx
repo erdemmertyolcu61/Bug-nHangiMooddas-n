@@ -330,26 +330,29 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
 
 function DuelloGame({ roomState, onAnswer }) {
   const [displayState, setDisplayState] = useState(roomState);
-  const [delaying, setDelaying] = useState(false);
-  const latestRoomState = useRef(roomState);
-  latestRoomState.current = roomState;
+  const latestRoomRef = useRef(roomState);
+  const transitionTimer = useRef(null);
+
+  latestRoomRef.current = roomState;
 
   useEffect(() => {
-    if (delaying) return;
-    const isNextQuestion = roomState?.current_question !== displayState?.current_question;
-    const isFinished = roomState?.status === 'FINISHED';
+    if (transitionTimer.current) return;
 
-    if ((isNextQuestion || isFinished) && displayState?.my_answer) {
-      setDelaying(true);
-      const timer = setTimeout(() => {
-        setDisplayState(latestRoomState.current);
-        setDelaying(false);
+    const serverQ = roomState?.current_question;
+    const displayQ = displayState?.current_question;
+    const advanced = serverQ !== displayQ || (roomState?.status === 'FINISHED' && displayState?.status !== 'FINISHED');
+
+    if (advanced && displayState?.my_answer) {
+      transitionTimer.current = setTimeout(() => {
+        transitionTimer.current = null;
+        setDisplayState(latestRoomRef.current);
       }, 1500);
-      return () => clearTimeout(timer);
     } else {
       setDisplayState(roomState);
     }
-  }, [roomState, displayState?.my_answer, delaying]);
+  }, [roomState]);
+
+  useEffect(() => () => { clearTimeout(transitionTimer.current); }, []);
 
   const { question, my_answer, opponent_answered, scores, current_question, total_questions } = displayState || {};
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME);
