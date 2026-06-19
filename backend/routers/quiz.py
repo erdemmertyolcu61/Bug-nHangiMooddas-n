@@ -30,7 +30,7 @@ ROOM_EXPIRE_MINUTES = 10
 # ─── Pydantic Models ────────────────────────────────────────────────────────
 
 class CreateRoomBody(BaseModel):
-    categories: list[str] = Field(..., min_length=3, max_length=3)
+    categories: list[str] = Field(..., min_length=1, max_length=3)
     opponent_id: Optional[int] = None
 
 class AnswerBody(BaseModel):
@@ -443,12 +443,15 @@ async def create_room(body: CreateRoomBody, user: dict = Depends(verify_user)):
         raise HTTPException(status_code=400, detail="Kendinle oynayamazsın")
 
     for cat in body.categories:
-        if cat not in QUIZ_CATEGORIES:
+        if cat != "rastgele" and cat not in QUIZ_CATEGORIES:
             raise HTTPException(status_code=400, detail=f"Geçersiz kategori: {cat}")
 
-    remaining = [k for k in QUIZ_CATEGORIES if k not in body.categories]
-    random_cat = random.choice(remaining) if remaining else body.categories[0]
-    all_cats = list(body.categories) + [random_cat]
+    all_cats = list(body.categories)
+    if "rastgele" in all_cats:
+        all_cats.remove("rastgele")
+        remaining = [k for k in QUIZ_CATEGORIES if k not in all_cats]
+        if remaining:
+            all_cats.append(random.choice(remaining))
 
     room_id = uuid.uuid4().hex[:6].upper()
 

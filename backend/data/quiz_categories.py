@@ -29,6 +29,14 @@ QUIZ_CATEGORIES = {
         "label": "Klasik & Kült",
         "emoji": "📽️",
     },
+    "bilim_kurgu": {
+        "label": "Bilim Kurgu & Fantastik",
+        "emoji": "👽",
+    },
+    "animasyon": {
+        "label": "Animasyon",
+        "emoji": "🧸",
+    },
 }
 
 MOOD_ID_LABELS = {

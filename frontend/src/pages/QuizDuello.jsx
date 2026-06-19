@@ -71,7 +71,7 @@ function DuelloIntro({ onCreateRoom, onJoinRoom }) {
   };
 
   const handleCreate = async () => {
-    if (selectedCats.length !== 3) return;
+    if (selectedCats.length === 0 || selectedCats.length > 3) return;
     setCreating(true);
     setError('');
     try {
@@ -150,7 +150,7 @@ function DuelloIntro({ onCreateRoom, onJoinRoom }) {
       {/* Kategori Seçimi */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-amber/80 uppercase tracking-wider">3 Kategori Seç</h2>
+          <h2 className="text-sm font-semibold text-amber/80 uppercase tracking-wider">1-3 Kategori Seç</h2>
           <span className="text-xs text-amber/40">{selectedCats.length}/3</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -168,8 +168,19 @@ function DuelloIntro({ onCreateRoom, onJoinRoom }) {
               <span className="truncate">{cat.label}</span>
             </button>
           ))}
+          <button
+            key="rastgele"
+            onClick={() => toggleCat("rastgele")}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all ${
+              selectedCats.includes("rastgele")
+                ? 'border-amber bg-amber/15 text-amber font-medium'
+                : 'border-amber/15 bg-surface-2/30 text-fg-muted hover:border-amber/40'
+            }`}
+          >
+            <span>🎲</span>
+            <span className="truncate">Rastgele</span>
+          </button>
         </div>
-        <p className="text-[10px] text-amber/30 text-center">+ 1 rastgele kategori otomatik eklenir</p>
       </div>
 
       {error && <p className="text-red-400 text-xs text-center">{error}</p>}
@@ -177,7 +188,7 @@ function DuelloIntro({ onCreateRoom, onJoinRoom }) {
       {/* Oda Kur Butonu */}
       <button
         onClick={handleCreate}
-        disabled={selectedCats.length !== 3 || creating}
+        disabled={selectedCats.length === 0 || selectedCats.length > 3 || creating}
         className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-bold
                    disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]
                    transition-all flex items-center justify-center gap-2"

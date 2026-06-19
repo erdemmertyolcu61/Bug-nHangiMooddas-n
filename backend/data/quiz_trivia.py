@@ -179,4 +179,46 @@ TRIVIA_QUESTIONS = [
     {"question": "Donnie Darko filminde Donnie'ye görünen yaratığın adı nedir?", "correct": "Frank", "wrong": ["Harvey", "George", "Walter"], "category": "klasik", "movie": "Donnie Darko"},
     {"question": "Black Swan filminde Nina hangi balede başrol alır?", "correct": "Kuğu Gölü", "wrong": ["Fındıkkıran", "Giselle", "Uyuyan Güzel"], "category": "klasik", "movie": "Black Swan"},
     {"question": "The Breakfast Club filminde öğrenciler neden ceza alır?", "correct": "Cumartesi günü okulda kalmak zorundadırlar", "wrong": ["Okulu asmışlardır", "Kavga etmişlerdir", "Sınıfta kalmışlardır"], "category": "klasik", "movie": "The Breakfast Club"},
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # BİLİM KURGU & FANTASTİK 👽
+    # ═══════════════════════════════════════════════════════════════════════
+    {"question": "Star Wars serisinde Darth Vader'ın asıl adı nedir?", "correct": "Anakin Skywalker", "wrong": ["Luke Skywalker", "Ben Solo", "Obi-Wan Kenobi"], "category": "bilim_kurgu", "movie": "Star Wars"},
+    {"question": "Interstellar filminde astronotlar hangi gezegene gitmek için solucan deliğini kullanırlar?", "correct": "Satürn (yakını)", "wrong": ["Mars", "Jüpiter", "Alpha Centauri"], "category": "bilim_kurgu", "movie": "Interstellar"},
+    {"question": "The Matrix filminde Neo'ya hapları sunan karakter kimdir?", "correct": "Morpheus", "wrong": ["Trinity", "Agent Smith", "Oracle"], "category": "bilim_kurgu", "movie": "The Matrix"},
+    {"question": "Avatar filmindeki yerli halkın adı nedir?", "correct": "Na'vi", "wrong": ["Klingon", "Ewok", "Vulcan"], "category": "bilim_kurgu", "movie": "Avatar"},
+    {"question": "Terminator 2: Judgment Day filminde T-1000 neyden yapılmıştır?", "correct": "Sıvı metal", "wrong": ["Titanyum", "Plastik", "Çelik"], "category": "bilim_kurgu", "movie": "Terminator 2"},
+    {"question": "Geleceğe Dönüş filminde zaman makinesi hangi hıza ulaşmalıdır?", "correct": "88 mil/saat", "wrong": ["100 mil/saat", "60 mil/saat", "120 mil/saat"], "category": "bilim_kurgu", "movie": "Back to the Future"},
+    {"question": "Blade Runner 2049 filminde K karakterini kim canlandırmıştır?", "correct": "Ryan Gosling", "wrong": ["Harrison Ford", "Jared Leto", "Joaquin Phoenix"], "category": "bilim_kurgu", "movie": "Blade Runner 2049"},
+    {"question": "Marslı (The Martian) filminde Mark Watney Mars'ta ne yetiştirir?", "correct": "Patates", "wrong": ["Havuç", "Mısır", "Domates"], "category": "bilim_kurgu", "movie": "The Martian"},
+    {"question": "Alien (Yaratık) filminde yaratığın asidik olan sıvısı nedir?", "correct": "Kanı", "wrong": ["Tükürüğü", "Gözyaşı", "Teri"], "category": "bilim_kurgu", "movie": "Alien"},
+    {"question": "Yüzüklerin Efendisi filminde Orta Dünya'da kaç Yüzük cüce krallarına verilmiştir?", "correct": "7", "wrong": ["9", "3", "1"], "category": "bilim_kurgu", "movie": "The Lord of the Rings"},
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # ANİMASYON 🧸
+    # ═══════════════════════════════════════════════════════════════════════
+    {"question": "Toy Story (Oyuncak Hikayesi) filminde Buzz Lightyear'ın ünlü repliği nedir?", "correct": "Sonsuzluğa ve ötesine!", "wrong": ["Asla pes etme!", "Yıldızlara doğru!", "Gelecek bizimdir!"], "category": "animasyon", "movie": "Toy Story"},
+    {"question": "Kayıp Balık Nemo filminde Dory'nin kısa süreli hafıza kaybı vardır. Hangi adresi hatırlar?", "correct": "P. Sherman, 42 Wallaby Way, Sydney", "wrong": ["J. Smith, 12 Ocean Drive, Miami", "M. Johnson, 7 Coral Reef, Hawaii", "A. Brown, 99 Shell Beach, Bahamas"], "category": "animasyon", "movie": "Finding Nemo"},
+    {"question": "Shrek filminde Shrek'in en yakın arkadaşı kimdir?", "correct": "Eşek", "wrong": ["Çizmeli Kedi", "Gingy", "Fiona"], "category": "animasyon", "movie": "Shrek"},
+    {"question": "Karlar Ülkesi (Frozen) filminde Elsa'nın kız kardeşinin adı nedir?", "correct": "Anna", "wrong": ["Ariel", "Rapunzel", "Belle"], "category": "animasyon", "movie": "Frozen"},
+    {"question": "Ters Yüz (Inside Out) filminde Riley'nin zihnindeki duygulardan hangisi liderdir?", "correct": "Neşe (Joy)", "wrong": ["Üzüntü (Sadness)", "Öfke (Anger)", "Korku (Fear)"], "category": "animasyon", "movie": "Inside Out"},
+    {"question": "Ratatouille filminde Remy adlı farenin hayali nedir?", "correct": "Şef olmak", "wrong": ["Şarkıcı olmak", "Gezgin olmak", "Ressam olmak"], "category": "animasyon", "movie": "Ratatouille"},
+    {"question": "Aslan Kral (The Lion King) filminde Simba'nın babasının adı nedir?", "correct": "Mufasa", "wrong": ["Scar", "Rafiki", "Zazu"], "category": "animasyon", "movie": "The Lion King"},
+    {"question": "İnanılmaz Aile (The Incredibles) filminde ailenin en küçük üyesinin gücü nedir?", "correct": "Şekil değiştirme ve çeşitli süper güçler", "wrong": ["Görünmezlik", "Hız", "Güç"], "category": "animasyon", "movie": "The Incredibles"},
+    {"question": "Yukarı Bak (Up) filminde Carl Fredricksen evini balonlarla nereye uçurur?", "correct": "Cennet Şelaleleri (Paradise Falls)", "wrong": ["Büyük Kanyon", "Everest Dağı", "Niagara Şelaleleri"], "category": "animasyon", "movie": "Up"},
+    {"question": "Vol-i (WALL-E) filminde WALL-E'nin aşık olduğu robotun adı nedir?", "correct": "EVE", "wrong": ["AUTO", "M-O", "PR-T"], "category": "animasyon", "movie": "WALL-E"},
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # DİĞER KATEGORİLERE EK
+    # ═══════════════════════════════════════════════════════════════════════
+    {"question": "Harry Potter filminde Harry'nin baykuşunun adı nedir?", "correct": "Hedwig", "wrong": ["Errol", "Pigwidgeon", "Fawkes"], "category": "seri", "movie": "Harry Potter"},
+    {"question": "Matrix Reloaded filminde Neo kiminle dövüşürken yüzlerce kopya ile karşılaşır?", "correct": "Ajan Smith", "wrong": ["Morpheus", "Merovingian", "Keymaker"], "category": "seri", "movie": "The Matrix Reloaded"},
+    {"question": "Ayla filminde Ayla'yı bulan Türk askerinin rütbesi nedir?", "correct": "Astsubay", "wrong": ["Teğmen", "Yüzbaşı", "Er"], "category": "turk", "movie": "Ayla"},
+    {"question": "G.O.R.A filminde Arif'in mesleği nedir?", "correct": "Tüccar/Halıcı", "wrong": ["Aşçı", "Polis", "Öğretmen"], "category": "turk", "movie": "G.O.R.A."},
+    {"question": "Yüzüklerin Efendisi: Kralın Dönüşü filmi kaç Oscar kazanmıştır?", "correct": "11", "wrong": ["9", "10", "12"], "category": "odullu", "movie": "The Lord of the Rings: The Return of the King"},
+    {"question": "Parazit filmi hangi dilde En İyi Film Oscar'ını kazanan ilk yapımdır?", "correct": "Korece", "wrong": ["Japonca", "İspanyolca", "Fransızca"], "category": "odullu", "movie": "Parasite"},
+    {"question": "Zor Ölüm (Die Hard) filminde Hans Gruber'ı kim canlandırmıştır?", "correct": "Alan Rickman", "wrong": ["Bruce Willis", "Gary Oldman", "Christoph Waltz"], "category": "aksiyon", "movie": "Die Hard"},
+    {"question": "Terminator filminde Sarah Connor'ı kim öldürmeye çalışır?", "correct": "T-800", "wrong": ["T-1000", "T-X", "Rev-9"], "category": "aksiyon", "movie": "The Terminator"},
+    {"question": "The Mask (Maske) filminde maskeyi takan Stanley Ipkiss'in köpeğinin adı nedir?", "correct": "Milo", "wrong": ["Max", "Buddy", "Buster"], "category": "komedi", "movie": "The Mask"},
+    {"question": "Ucuz Roman (Pulp Fiction) filminde Mia Wallace ve Vincent Vega nerede dans ederler?", "correct": "Jack Rabbit Slim's", "wrong": ["Diner", "Club Silencio", "The Blue Oyster"], "category": "klasik", "movie": "Pulp Fiction"},
 ]
