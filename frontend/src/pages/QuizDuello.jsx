@@ -329,7 +329,27 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
 // ─── GAME: Aktif quiz ──────────────────────────────────────────────────────
 
 function DuelloGame({ roomState, onAnswer }) {
-  const { question, my_answer, opponent_answered, scores, current_question, total_questions } = roomState;
+  const [displayState, setDisplayState] = useState(roomState);
+  const [delaying, setDelaying] = useState(false);
+
+  useEffect(() => {
+    if (delaying) return;
+    const isNextQuestion = roomState?.current_question !== displayState?.current_question;
+    const isFinished = roomState?.status === 'FINISHED';
+    
+    if ((isNextQuestion || isFinished) && displayState?.my_answer) {
+      setDelaying(true);
+      const timer = setTimeout(() => {
+        setDisplayState(roomState);
+        setDelaying(false);
+      }, 2500);
+      return () => clearTimeout(timer);
+    } else {
+      setDisplayState(roomState);
+    }
+  }, [roomState, displayState?.my_answer, delaying]);
+
+  const { question, my_answer, opponent_answered, scores, current_question, total_questions } = displayState || {};
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME);
   const [selected, setSelected] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -385,20 +405,20 @@ function DuelloGame({ roomState, onAnswer }) {
   return (
     <div className="space-y-4">
       {/* Header: skor + soru sayacı */}
-      <div className="flex items-center justify-between text-xs">
-        <div className="text-amber/60">
-          <span className="text-amber font-bold">{scores?.me || 0}</span> puan
+      <div className="flex items-center justify-between text-xs sm:text-sm px-1">
+        <div className="text-fg-muted whitespace-nowrap">
+          Siz: <span className="text-fg font-bold">{scores?.me || 0}</span>
         </div>
-        <div className="text-amber/80 font-medium">
-          {(current_question || 0) + 1} / {total_questions || TOTAL_QUESTIONS}
+        <div className="text-fg font-medium whitespace-nowrap px-2">
+          Soru: {(current_question || 0) + 1} / {total_questions || TOTAL_QUESTIONS}
         </div>
-        <div className="text-amber/60">
-          Rakip: <span className="font-bold">{scores?.opponent || 0}</span>
+        <div className="text-fg-muted whitespace-nowrap">
+          Rakip: <span className="text-fg font-bold">{scores?.opponent || 0}</span>
         </div>
       </div>
 
       {/* Timer bar */}
-      <div className="relative h-1.5 bg-amber-900/20 rounded-full overflow-hidden">
+      <div className="relative h-1.5 bg-surface-2/50 rounded-full overflow-hidden">
         <motion.div
           className={`absolute inset-y-0 left-0 rounded-full ${
             timeLeft > 10 ? 'bg-green-500' : timeLeft > 5 ? 'bg-yellow-500' : 'bg-red-500'
@@ -419,7 +439,7 @@ function DuelloGame({ roomState, onAnswer }) {
           <motion.span
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-xs text-amber/40 animate-pulse"
+            className="text-xs text-fg-subtle animate-pulse"
           >
             Rakip cevapladı!
           </motion.span>
@@ -431,7 +451,7 @@ function DuelloGame({ roomState, onAnswer }) {
         <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center text-[10px] text-amber/30 uppercase tracking-wider"
+          className="text-center text-[10px] text-fg-subtle uppercase tracking-wider"
         >
           Film: {movieName}
         </motion.div>
@@ -443,7 +463,7 @@ function DuelloGame({ roomState, onAnswer }) {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="text-center text-amber font-medium text-sm leading-relaxed whitespace-pre-line"
+        className="text-center text-fg font-medium text-sm sm:text-base leading-relaxed whitespace-pre-line"
       >
         {question.text}
       </motion.p>
@@ -466,17 +486,17 @@ function DuelloGame({ roomState, onAnswer }) {
               whileTap={!my_answer && !selected && timeLeft > 0 ? { scale: 0.97 } : {}}
               className={`w-full px-4 py-3 rounded-xl border text-sm text-left transition-colors duration-200 ${
                 isCorrect
-                  ? 'border-green-500 bg-green-500/20 text-green-300'
+                  ? 'border-emerald bg-emerald text-emerald font-medium'
                   : isWrong
-                    ? 'border-red-500 bg-red-500/20 text-red-300'
+                    ? 'border-red-400 bg-rose text-red-400 font-medium'
                     : isSelected
-                      ? 'border-amber bg-amber/20 text-amber'
-                      : 'border-amber/15 bg-surface-2/30 text-fg-muted hover:border-amber/40 hover:bg-amber-900/10'
+                      ? 'border-amber bg-amber/20 text-fg'
+                      : 'border-white/10 bg-surface-2/30 text-fg-muted hover:border-white/20 hover:bg-surface-2'
               } disabled:cursor-default`}
             >
               <div className="flex items-center justify-between">
                 <span>{option}</span>
-                {isCorrect && <Check size={16} className="text-green-400" />}
+                {isCorrect && <Check size={16} className="text-emerald" />}
                 {isWrong && <X size={16} className="text-red-400" />}
               </div>
             </motion.button>
@@ -489,15 +509,15 @@ function DuelloGame({ roomState, onAnswer }) {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`text-center text-sm py-2 rounded-xl ${
-            my_answer.is_correct ? 'text-green-400' : 'text-red-400'
+          className={`text-center text-sm py-2 rounded-xl font-medium ${
+            my_answer.is_correct ? 'text-emerald' : 'text-red-400'
           }`}
         >
           {my_answer.is_correct
             ? `Doğru! +${my_answer.score} puan`
             : 'Yanlış!'}
           {!opponent_answered && (
-            <span className="block text-xs text-amber/40 mt-1">Rakip bekleniyor...</span>
+            <span className="block text-xs text-fg-subtle mt-1 font-normal">Rakip bekleniyor...</span>
           )}
         </motion.div>
       )}
@@ -675,7 +695,11 @@ export default function QuizDuello() {
     if (roomState.status === 'PLAYING' && phase !== 'playing') {
       setPhase('playing');
     } else if (roomState.status === 'FINISHED' && phase !== 'results') {
-      setPhase('results');
+      if (phase === 'playing') {
+        setTimeout(() => setPhase('results'), 2500);
+      } else {
+        setPhase('results');
+      }
     } else if (roomState.status === 'ABANDONED') {
       setPhase('intro');
       setRoomId(null);
