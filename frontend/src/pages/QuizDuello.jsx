@@ -331,18 +331,20 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
 function DuelloGame({ roomState, onAnswer }) {
   const [displayState, setDisplayState] = useState(roomState);
   const [delaying, setDelaying] = useState(false);
+  const latestRoomState = useRef(roomState);
+  latestRoomState.current = roomState;
 
   useEffect(() => {
     if (delaying) return;
     const isNextQuestion = roomState?.current_question !== displayState?.current_question;
     const isFinished = roomState?.status === 'FINISHED';
-    
+
     if ((isNextQuestion || isFinished) && displayState?.my_answer) {
       setDelaying(true);
       const timer = setTimeout(() => {
-        setDisplayState(roomState);
+        setDisplayState(latestRoomState.current);
         setDelaying(false);
-      }, 2500);
+      }, 1500);
       return () => clearTimeout(timer);
     } else {
       setDisplayState(roomState);
