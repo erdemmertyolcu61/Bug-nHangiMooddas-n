@@ -680,13 +680,17 @@ async def create_room(body: CreateRoomBody, user: dict = Depends(verify_user)):
 
     room_id = uuid.uuid4().hex[:6].upper()
 
-    async with _db_conn(cache.db_path, user_data=True) as db:
-        await db.execute(
-            """INSERT INTO quiz_rooms (id, creator_id, opponent_id, categories, status)
-               VALUES (?, ?, ?, ?, 'WAITING')""",
-            (room_id, me, opponent_id, json.dumps(all_cats)),
-        )
-        await db.commit()
+    try:
+        async with _db_conn(cache.db_path, user_data=True) as db:
+            await db.execute(
+                """INSERT INTO quiz_rooms (id, creator_id, opponent_id, categories, status)
+                   VALUES (?, ?, ?, ?, 'WAITING')""",
+                (room_id, me, opponent_id, json.dumps(all_cats)),
+            )
+            await db.commit()
+    except Exception as e:
+        logger.exception("create_room DB error for user=%s: %s", me, e)
+        raise HTTPException(status_code=500, detail=f"Oda oluşturulurken hata: {e}")
 
     if opponent_id:
         try:
@@ -715,108 +719,114 @@ async def poll_room(room_id: str, user: dict = Depends(verify_user)):
     """Oda durumunu poll et. Oyun sırasında 2.5s aralıkla çağrılır."""
     me = user["user_id"]
 
-    async with _db_conn(cache.db_path, user_data=True) as db:
-        room = await _get_room(db, room_id)
+    try:
+        async with _db_conn(cache.db_path, user_data=True) as db:
+            room = await _get_room(db, room_id)
 
-        if me != room["creator_id"] and me != room.get("opponent_id"):
-            raise HTTPException(status_code=403, detail="Bu odada değilsin")
+            if me != room["creator_id"] and me != room.get("opponent_id"):
+                raise HTTPException(status_code=403, detail="Bu odada değilsin")
 
-        if room["status"] == "PLAYING":
-            room = await _check_advance_question(db, room)
+            if room["status"] == "PLAYING":
+                room = await _check_advance_question(db, room)
 
-        is_creator = me == room["creator_id"]
-        categories = json.loads(room["categories"]) if isinstance(room["categories"], str) else room["categories"]
+            is_creator = me == room["creator_id"]
+            categories = json.loads(room["categories"]) if isinstance(room["categories"], str) else room["categories"]
 
-        cat_labels = []
-        for cs in categories:
-            cat_def = QUIZ_CATEGORIES.get(cs)
-            cat_labels.append({
-                "slug": cs,
-                "label": cat_def["label"] if cat_def else cs,
-                "emoji": cat_def["emoji"] if cat_def else "",
-            })
+            cat_labels = []
+            for cs in categories:
+                cat_def = QUIZ_CATEGORIES.get(cs)
+                cat_labels.append({
+                    "slug": cs,
+                    "label": cat_def["label"] if cat_def else cs,
+                    "emoji": cat_def["emoji"] if cat_def else "",
+                })
 
-        response = {
-            "room_id": room_id,
-            "status": room["status"],
-            "creator": await _user_info(room["creator_id"]),
-            "opponent": await _user_info(room["opponent_id"]) if room["opponent_id"] else None,
-            "creator_ready": bool(room["creator_ready"]),
-            "opponent_ready": bool(room["opponent_ready"]),
-            "categories": cat_labels,
-            "is_creator": is_creator,
-        }
+            response = {
+                "room_id": room_id,
+                "status": room["status"],
+                "creator": await _user_info(room["creator_id"]),
+                "opponent": await _user_info(room["opponent_id"]) if room["opponent_id"] else None,
+                "creator_ready": bool(room["creator_ready"]),
+                "opponent_ready": bool(room["opponent_ready"]),
+                "categories": cat_labels,
+                "is_creator": is_creator,
+            }
 
-        if room["status"] == "PLAYING":
-            q_idx = room["current_question"]
-            cur = await db.execute(
-                """SELECT question_type, question_text, options, hint_image, extra_data
-                   FROM quiz_questions WHERE room_id = ? AND question_index = ?""",
-                (room_id, q_idx),
-            )
-            q_row = await cur.fetchone()
+            if room["status"] == "PLAYING":
+                q_idx = room["current_question"]
+                cur = await db.execute(
+                    """SELECT question_type, question_text, options, hint_image, extra_data
+                       FROM quiz_questions WHERE room_id = ? AND question_index = ?""",
+                    (room_id, q_idx),
+                )
+                q_row = await cur.fetchone()
 
-            started_at = room.get("question_started_at", "")
-            time_remaining = QUESTION_TIME_MS
-            if started_at:
-                started_ms = int(datetime.fromisoformat(started_at).timestamp() * 1000)
-                time_remaining = max(0, QUESTION_TIME_MS - (_now_ms() - started_ms))
+                started_at = room.get("question_started_at", "")
+                time_remaining = QUESTION_TIME_MS
+                if started_at:
+                    started_ms = int(datetime.fromisoformat(started_at).timestamp() * 1000)
+                    time_remaining = max(0, QUESTION_TIME_MS - (_now_ms() - started_ms))
 
-            question_data = None
-            if q_row:
-                question_data = {
-                    "index": q_idx,
-                    "type": q_row[0],
-                    "text": q_row[1],
-                    "options": json.loads(q_row[2]),
-                    "hint_image": q_row[3],
-                    "extra_data": json.loads(q_row[4]) if q_row[4] else None,
-                    "time_remaining_ms": time_remaining,
-                }
+                question_data = None
+                if q_row:
+                    question_data = {
+                        "index": q_idx,
+                        "type": q_row[0],
+                        "text": q_row[1],
+                        "options": json.loads(q_row[2]),
+                        "hint_image": q_row[3],
+                        "extra_data": json.loads(q_row[4]) if q_row[4] else None,
+                        "time_remaining_ms": time_remaining,
+                    }
 
-            cur_ans = await db.execute(
-                "SELECT selected_answer, is_correct, score FROM quiz_answers WHERE room_id = ? AND question_index = ? AND user_id = ?",
-                (room_id, q_idx, me),
-            )
-            my_ans_row = await cur_ans.fetchone()
-            my_answer = None
-            if my_ans_row:
-                my_answer = {
-                    "selected": my_ans_row[0],
-                    "is_correct": bool(my_ans_row[1]),
-                    "score": my_ans_row[2],
-                }
+                cur_ans = await db.execute(
+                    "SELECT selected_answer, is_correct, score FROM quiz_answers WHERE room_id = ? AND question_index = ? AND user_id = ?",
+                    (room_id, q_idx, me),
+                )
+                my_ans_row = await cur_ans.fetchone()
+                my_answer = None
+                if my_ans_row:
+                    my_answer = {
+                        "selected": my_ans_row[0],
+                        "is_correct": bool(my_ans_row[1]),
+                        "score": my_ans_row[2],
+                    }
 
-            opponent_id = room["opponent_id"] if is_creator else room["creator_id"]
-            cur_opp = await db.execute(
-                "SELECT COUNT(*) FROM quiz_answers WHERE room_id = ? AND question_index = ? AND user_id = ?",
-                (room_id, q_idx, opponent_id),
-            )
-            opp_answered = (await cur_opp.fetchone())[0] > 0
+                opponent_id = room["opponent_id"] if is_creator else room["creator_id"]
+                cur_opp = await db.execute(
+                    "SELECT COUNT(*) FROM quiz_answers WHERE room_id = ? AND question_index = ? AND user_id = ?",
+                    (room_id, q_idx, opponent_id),
+                )
+                opp_answered = (await cur_opp.fetchone())[0] > 0
 
-            cur_scores = await db.execute(
-                "SELECT user_id, SUM(score) FROM quiz_answers WHERE room_id = ? GROUP BY user_id",
-                (room_id,),
-            )
-            score_rows = await cur_scores.fetchall()
-            score_map = {r[0]: r[1] or 0 for r in score_rows}
+                cur_scores = await db.execute(
+                    "SELECT user_id, SUM(score) FROM quiz_answers WHERE room_id = ? GROUP BY user_id",
+                    (room_id,),
+                )
+                score_rows = await cur_scores.fetchall()
+                score_map = {r[0]: r[1] or 0 for r in score_rows}
 
-            response.update({
-                "current_question": q_idx,
-                "total_questions": QUESTIONS_PER_GAME,
-                "question": question_data,
-                "my_answer": my_answer,
-                "opponent_answered": opp_answered,
-                "scores": {
-                    "me": score_map.get(me, 0),
-                    "opponent": score_map.get(opponent_id, 0),
-                },
-            })
+                response.update({
+                    "current_question": q_idx,
+                    "total_questions": QUESTIONS_PER_GAME,
+                    "question": question_data,
+                    "my_answer": my_answer,
+                    "opponent_answered": opp_answered,
+                    "scores": {
+                        "me": score_map.get(me, 0),
+                        "opponent": score_map.get(opponent_id, 0),
+                    },
+                })
 
-        elif room["status"] == "FINISHED":
-            response["winner_id"] = room.get("winner_id")
+            elif room["status"] == "FINISHED":
+                response["winner_id"] = room.get("winner_id")
 
-        return response
+            return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("poll_room error for room=%s user=%s: %s", room_id, me, e)
+        raise HTTPException(status_code=500, detail=f"Oda durumu alınırken hata: {e}")
 
 
 @router.post("/rooms/{room_id}/join")
@@ -824,23 +834,29 @@ async def join_room(room_id: str, user: dict = Depends(verify_user)):
     """Oda kodunu bilen herkes katılabilir."""
     me = user["user_id"]
 
-    async with _db_conn(cache.db_path, user_data=True) as db:
-        room = await _get_room(db, room_id)
+    try:
+        async with _db_conn(cache.db_path, user_data=True) as db:
+            room = await _get_room(db, room_id)
 
-        if room["status"] != "WAITING":
-            raise HTTPException(status_code=400, detail="Oda artık katılıma açık değil")
-        if room["creator_id"] == me:
-            return {"ok": True, "status": "WAITING"}
-        if room["opponent_id"] and room["opponent_id"] != me:
-            raise HTTPException(status_code=400, detail="Odada zaten bir rakip var")
+            if room["status"] != "WAITING":
+                raise HTTPException(status_code=400, detail="Oda artık katılıma açık değil")
+            if room["creator_id"] == me:
+                return {"ok": True, "status": "WAITING"}
+            if room["opponent_id"] and room["opponent_id"] != me:
+                raise HTTPException(status_code=400, detail="Odada zaten bir rakip var")
 
-        await db.execute(
-            "UPDATE quiz_rooms SET opponent_id = ? WHERE id = ?",
-            (me, room_id),
-        )
-        await db.commit()
+            await db.execute(
+                "UPDATE quiz_rooms SET opponent_id = ? WHERE id = ?",
+                (me, room_id),
+            )
+            await db.commit()
 
-    return {"ok": True, "status": "WAITING"}
+        return {"ok": True, "status": "WAITING"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("join_room error for room=%s user=%s: %s", room_id, me, e)
+        raise HTTPException(status_code=500, detail=f"Odaya katılırken hata: {e}")
 
 
 @router.post("/rooms/{room_id}/ready")
