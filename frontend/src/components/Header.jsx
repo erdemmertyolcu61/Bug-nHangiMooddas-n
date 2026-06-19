@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Clapperboard, BookOpen, Compass, BookMarked, User, Sun, Moon, Bell } from 'lucide-react';
+import { Clapperboard, Swords, Compass, BookMarked, User, Sun, Moon, Bell } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { getUnreadShareCount, isLoggedIn } from '../services/api';
 
 const NAV_ITEMS = [
   { label: 'Moodlar', icon: Clapperboard, path: '/', end: true },
-  { label: 'Listeler', icon: BookOpen, path: '/listeler' },
+  { label: 'SineQuiz', icon: Swords, path: '/sinequiz' },
   { label: 'Kafan mı Karışık', icon: Compass, path: '/kafan-mi-karisik' },
   { label: 'Defterim', icon: BookMarked, path: '/defterim' },
   { label: 'Profil', icon: User, path: '/profil' },
