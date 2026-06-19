@@ -126,7 +126,7 @@ function DuelloIntro({ onCreateRoom, onJoinRoom }) {
             value={joinCode}
             onChange={e => setJoinCode(e.target.value.toUpperCase())}
             maxLength={8}
-            className="flex-1 bg-black/30 border border-amber/20 rounded-xl px-4 py-3 text-sm text-amber font-mono font-bold tracking-[0.3em] text-center uppercase placeholder:text-amber/30 placeholder:tracking-normal placeholder:font-normal focus:outline-none focus:border-amber/50"
+            className="flex-1 bg-surface-2/50 border border-amber/20 rounded-xl px-4 py-3 text-sm text-amber font-mono font-bold tracking-[0.3em] text-center uppercase placeholder:text-fg-subtle placeholder:tracking-normal placeholder:font-normal focus:outline-none focus:border-amber/50"
             onKeyDown={e => { if (e.key === 'Enter') handleJoin(); }}
           />
           <button
@@ -161,7 +161,7 @@ function DuelloIntro({ onCreateRoom, onJoinRoom }) {
               className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition-all ${
                 selectedCats.includes(cat.slug)
                   ? 'border-amber bg-amber/15 text-amber font-medium'
-                  : 'border-amber/15 bg-black/20 text-amber/60 hover:border-amber/40'
+                  : 'border-amber/15 bg-surface-2/30 text-fg-muted hover:border-amber/40'
               }`}
             >
               <span>{cat.emoji}</span>
@@ -202,7 +202,7 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
         {roomId && (
           <div className="space-y-2">
             <p className="text-xs text-amber/50">Oda kodunu arkadaşınla paylaş</p>
-            <div className="inline-block bg-black/40 border-2 border-amber/40 rounded-2xl px-8 py-4">
+            <div className="inline-block bg-surface-2/60 border-2 border-amber/40 rounded-2xl px-8 py-4">
               <span className="text-3xl font-mono font-bold text-amber tracking-[0.4em]">{roomId}</span>
             </div>
           </div>
@@ -235,7 +235,7 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
       {roomId && (
         <div className="space-y-1">
           <p className="text-[10px] text-amber/40 uppercase tracking-wider">Oda Kodu</p>
-          <div className="inline-block bg-black/40 border-2 border-amber/40 rounded-2xl px-6 py-3">
+          <div className="inline-block bg-surface-2/60 border-2 border-amber/40 rounded-2xl px-6 py-3">
             <span className="text-2xl font-mono font-bold text-amber tracking-[0.4em]">{roomId}</span>
           </div>
         </div>
@@ -460,7 +460,7 @@ function DuelloGame({ roomState, onAnswer }) {
                     ? 'border-red-500 bg-red-500/20 text-red-300'
                     : isSelected
                       ? 'border-amber bg-amber/20 text-amber'
-                      : 'border-amber/15 bg-black/20 text-amber/80 hover:border-amber/40 hover:bg-amber-900/10'
+                      : 'border-amber/15 bg-surface-2/30 text-fg-muted hover:border-amber/40 hover:bg-amber-900/10'
               } disabled:cursor-default`}
             >
               <div className="flex items-center justify-between">
@@ -580,7 +580,7 @@ function DuelloResults({ roomId, onPlayAgain, onGoHome }) {
             const ca = q.creator_answer;
             const oa = q.opponent_answer;
             return (
-              <div key={i} className="bg-black/20 border border-amber/10 rounded-xl px-3 py-2">
+              <div key={i} className="bg-surface-2/30 border border-amber/10 rounded-xl px-3 py-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="text-xs text-amber/70 flex-1 min-w-0">
                     <span className="text-amber/40 mr-1">S{i + 1}.</span>
@@ -721,11 +721,11 @@ export default function QuizDuello() {
 
   if (!isLoggedIn()) {
     return (
-      <div className="min-h-screen bg-[#120d0b] text-[#f5f2eb]">
+      <div className="min-h-screen bg-bg text-ivory">
         <div className="max-w-md mx-auto px-4 pt-20 text-center space-y-4">
           <Swords className="mx-auto text-amber/40" size={48} />
           <h2 className="text-lg font-bold text-amber">Giriş Gerekli</h2>
-          <p className="text-sm text-amber/50">SineQuiz oynamak için giriş yapmalısın.</p>
+          <p className="text-sm text-fg-muted">SineQuiz oynamak için giriş yapmalısın.</p>
           <button
             onClick={() => navigate('/')}
             className="px-6 py-2 rounded-xl bg-amber-900/30 border border-amber/30 text-amber text-sm"
@@ -743,7 +743,7 @@ export default function QuizDuello() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -6 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="min-h-screen bg-[#120d0b] text-[#f5f2eb] pb-32"
+      className="min-h-screen bg-bg text-ivory pb-32"
     >
       <div className="max-w-md mx-auto px-4 pt-6">
         {phase !== 'playing' && (
