@@ -185,6 +185,17 @@
 [data-theme="light"] [class*="text-rose"] { color: #7a5c5c !important; }
 [data-theme="light"] [class*="bg-rose"] { background-color: rgba(122, 92, 92, 0.12) !important; }
 [data-theme="light"] [class*="border-rose"] { border-color: rgba(122, 92, 92, 0.25) !important; }
+/* SineQuiz joker & quiz renkleri → latte uyumlu */
+[data-theme="light"] [class*="text-blue-400"] { color: #1a6fb5 !important; }
+[data-theme="light"] [class*="border-blue-400"] { border-color: rgba(26, 111, 181, 0.3) !important; }
+[data-theme="light"] [class*="bg-blue-400"] { background-color: rgba(26, 111, 181, 0.12) !important; }
+[data-theme="light"] [class*="text-green-400"] { color: #1e6b4a !important; }
+[data-theme="light"] [class*="text-green-500"] { color: #1e6b4a !important; }
+[data-theme="light"] [class*="bg-green-600"] { background-color: #2d8a5e !important; }
+[data-theme="light"] [class*="ring-green-500"] { --tw-ring-color: #2d8a5e !important; }
+[data-theme="light"] [class*="text-yellow-400"] { color: #9a7b1a !important; }
+[data-theme="light"] [class*="bg-yellow-500"] { background-color: #c49b24 !important; }
+[data-theme="light"] [class*="bg-red-500"] { background-color: #b83030 !important; }
 /* Arka plan metinleri (buton içi) → koyu espresso, aynı kalsın */
 [data-theme="light"] [class*="text-[#120d0b]"] { color: #2a2017 !important; }
 [data-theme="light"] [class*="fill-[#120d0b]"] { fill: #2a2017 !important; }

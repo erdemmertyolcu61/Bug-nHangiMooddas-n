@@ -291,6 +291,38 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
         ))}
       </div>
 
+      {/* Nasıl Oynanır */}
+      <div className="rounded-2xl border border-amber/10 bg-surface-2/30 p-4 text-left space-y-3">
+        <h3 className="text-xs font-bold text-amber uppercase tracking-wider flex items-center gap-1.5">
+          <Swords size={12} /> Nasıl Oynanır?
+        </h3>
+        <div className="space-y-2 text-xs text-fg-muted leading-relaxed">
+          <p>10 soru, her biri 30 saniye. Hızlı ve doğru cevapla daha çok puan kazan (10-20 puan).</p>
+          <div className="space-y-1.5">
+            <p className="font-semibold text-fg">Jokerler <span className="font-normal text-fg-muted">(oyun başına 1 kez)</span></p>
+            <div className="flex items-start gap-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-amber/10 border border-amber/20 shrink-0">
+                <Scissors size={12} className="text-amber" />
+              </span>
+              <span><strong className="text-fg">Yarı Yarıya</strong> — 2 yanlış seçenek elenir</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-500/20 shrink-0">
+                <Snowflake size={12} className="text-blue-400" />
+              </span>
+              <span><strong className="text-fg">Süre Dondur</strong> — +10 saniye ekler</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald/10 border border-emerald/20 shrink-0">
+                <Dices size={12} className="text-emerald" />
+              </span>
+              <span><strong className="text-fg">Çifte Şans</strong> — yanlış bilirsen tekrar dene</span>
+            </div>
+          </div>
+          <p className="text-fg-subtle">Art arda 3 doğru = <strong className="text-amber">x1.5 Puan Serisi!</strong></p>
+        </div>
+      </div>
+
       {/* Butonlar */}
       <div className="space-y-3">
         {opponent && (
@@ -518,45 +550,29 @@ function DuelloGame({ roomState, onAnswer }) {
         </div>
 
         {/* Jokerler */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleJoker('fifty_fifty')}
-            disabled={my_answer || jokerLoading || timeLeft <= 0 || (player_jokers?.fifty_fifty !== undefined)}
-            className={`p-1.5 rounded-lg border transition-all flex items-center justify-center
-              ${player_jokers?.fifty_fifty !== undefined
-                ? 'border-white/5 bg-surface-2/20 text-fg-muted opacity-50'
-                : 'border-amber/30 bg-amber-900/30 text-amber hover:bg-amber-900/50'
-              }`}
-            title="Yarı Yarıya (%50)"
-          >
-            <Scissors size={14} />
-          </button>
-          
-          <button
-            onClick={() => handleJoker('freeze_time')}
-            disabled={my_answer || jokerLoading || timeLeft <= 0 || (player_jokers?.freeze_time !== undefined)}
-            className={`p-1.5 rounded-lg border transition-all flex items-center justify-center
-              ${player_jokers?.freeze_time !== undefined
-                ? 'border-white/5 bg-surface-2/20 text-fg-muted opacity-50'
-                : 'border-blue-500/30 bg-blue-900/30 text-blue-400 hover:bg-blue-900/50'
-              }`}
-            title="Zamanı Dondur (+10s)"
-          >
-            <Snowflake size={14} />
-          </button>
-
-          <button
-            onClick={() => handleJoker('double_chance')}
-            disabled={my_answer || jokerLoading || timeLeft <= 0 || (player_jokers?.double_chance !== undefined)}
-            className={`p-1.5 rounded-lg border transition-all flex items-center justify-center
-              ${player_jokers?.double_chance !== undefined
-                ? 'border-white/5 bg-surface-2/20 text-fg-muted opacity-50'
-                : 'border-emerald/30 bg-emerald-900/30 text-emerald hover:bg-emerald-900/50'
-              }`}
-            title="Çifte Şans"
-          >
-            <Dices size={14} />
-          </button>
+        <div className="flex items-center gap-1.5">
+          {[
+            { type: 'fifty_fifty', icon: Scissors, label: '%50', activeColor: 'border-amber/30 bg-amber/10 text-amber', hoverColor: 'hover:bg-amber/20' },
+            { type: 'freeze_time', icon: Snowflake, label: '+10s', activeColor: 'border-blue-400/30 bg-blue-400/10 text-blue-400', hoverColor: 'hover:bg-blue-400/20' },
+            { type: 'double_chance', icon: Dices, label: 'x2', activeColor: 'border-emerald/30 bg-emerald/10 text-emerald', hoverColor: 'hover:bg-emerald/20' },
+          ].map(({ type, icon: Icon, label, activeColor, hoverColor }) => {
+            const used = player_jokers?.[type] !== undefined;
+            return (
+              <button
+                key={type}
+                onClick={() => handleJoker(type)}
+                disabled={my_answer || jokerLoading || timeLeft <= 0 || used}
+                className={`px-2 py-1 rounded-lg border transition-all flex items-center gap-1 text-[11px] font-medium
+                  ${used
+                    ? 'border-fg-subtle/20 bg-surface-2/30 text-fg-subtle line-through'
+                    : `${activeColor} ${hoverColor}`
+                  } disabled:cursor-default`}
+              >
+                <Icon size={12} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
