@@ -470,6 +470,18 @@ export async function getDuelloResults(roomId) {
   return getJson(`${BASE}/game/quiz/rooms/${roomId}/results`, { errorMsg: 'Sonuçlar yüklenemedi' });
 }
 
+export async function rematchDuello(roomId) {
+  const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}/rematch`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Rövanş oluşturulamadı');
+  }
+  return res.json();
+}
+
 export async function leaveDuelloRoom(roomId) {
   const res = await fetch(`${BASE}/game/quiz/rooms/${roomId}/leave`, {
     method: 'POST',

@@ -8,7 +8,7 @@ import {
 import {
   getDuelloCategories, createDuelloRoom, getDuelloState,
   joinDuelloRoom, setDuelloReady, startDuello,
-  submitDuelloAnswer, getDuelloResults, leaveDuelloRoom,
+  submitDuelloAnswer, getDuelloResults, leaveDuelloRoom, rematchDuello,
   isLoggedIn, useDuelloJoker,
 } from '../services/api';
 import useDuelloPoll from '../hooks/useDuelloPoll';
@@ -639,11 +639,36 @@ function DuelloGame({ roomState, onAnswer }) {
 
 // ─── TRANSITION: Son soru → Sonuç geçiş animasyonu ────────────────────────
 
-function GameEndTransition({ scores, onComplete }) {
+function GameEndTransition({ scores, roomId, onComplete }) {
+  const [prefetchedResults, setPrefetchedResults] = useState(null);
+  const [minTimePassed, setMinTimePassed] = useState(false);
+  const completedRef = useRef(false);
+
   useEffect(() => {
-    const timer = setTimeout(onComplete, 3200);
-    return () => clearTimeout(timer);
-  }, [onComplete]);
+    getDuelloResults(roomId).then(setPrefetchedResults).catch(() => {});
+  }, [roomId]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setMinTimePassed(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (minTimePassed && prefetchedResults && !completedRef.current) {
+      completedRef.current = true;
+      onComplete(prefetchedResults);
+    }
+  }, [minTimePassed, prefetchedResults]);
+
+  useEffect(() => {
+    const fallback = setTimeout(() => {
+      if (!completedRef.current) {
+        completedRef.current = true;
+        onComplete(prefetchedResults);
+      }
+    }, 4000);
+    return () => clearTimeout(fallback);
+  }, [prefetchedResults]);
 
   return (
     <div className="flex flex-col items-center justify-center py-16 space-y-8">
@@ -660,7 +685,7 @@ function GameEndTransition({ scores, onComplete }) {
       <motion.h2
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.5 }}
+        transition={{ delay: 0.3, duration: 0.4 }}
         className="text-2xl font-bold text-amber tracking-wide"
       >
         Oyun Bitti!
@@ -670,7 +695,7 @@ function GameEndTransition({ scores, onComplete }) {
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.8, duration: 0.5 }}
+          transition={{ delay: 0.6, duration: 0.4 }}
           className="flex items-center gap-6"
         >
           <div className="text-center">
@@ -686,17 +711,6 @@ function GameEndTransition({ scores, onComplete }) {
       )}
 
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.5, duration: 0.5 }}
-        className="flex items-center gap-2 text-xs text-amber/40"
-      >
-        <Loader2 className="animate-spin" size={14} />
-        Sonuçlar yükleniyor...
-      </motion.div>
-
-      {/* decorative shimmer lines */}
-      <motion.div
         initial={{ scaleX: 0 }}
         animate={{ scaleX: 1 }}
         transition={{ delay: 0.3, duration: 0.8, ease: 'easeOut' }}
@@ -708,11 +722,13 @@ function GameEndTransition({ scores, onComplete }) {
 
 // ─── RESULTS: Oyun sonu ────────────────────────────────────────────────────
 
-function DuelloResults({ roomId, onPlayAgain, onGoHome }) {
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(true);
+function DuelloResults({ roomId, prefetchedResults, onPlayAgain, onRematch, onGoHome }) {
+  const [results, setResults] = useState(prefetchedResults || null);
+  const [loading, setLoading] = useState(!prefetchedResults);
+  const [rematchLoading, setRematchLoading] = useState(false);
 
   useEffect(() => {
+    if (prefetchedResults) return;
     (async () => {
       try {
         const data = await getDuelloResults(roomId);
@@ -720,7 +736,7 @@ function DuelloResults({ roomId, onPlayAgain, onGoHome }) {
       } catch {}
       setLoading(false);
     })();
-  }, [roomId]);
+  }, [roomId, prefetchedResults]);
 
   if (loading || !results) {
     return (
@@ -818,15 +834,32 @@ function DuelloResults({ roomId, onPlayAgain, onGoHome }) {
       {/* Butonlar */}
       <div className="space-y-2">
         <button
-          onClick={onPlayAgain}
+          onClick={async () => {
+            if (rematchLoading) return;
+            setRematchLoading(true);
+            try {
+              await onRematch(roomId);
+            } catch {
+              setRematchLoading(false);
+            }
+          }}
+          disabled={rematchLoading}
           className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-bold
-                     hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all flex items-center justify-center gap-2"
+                     hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all flex items-center justify-center gap-2
+                     disabled:opacity-60"
         >
-          <RotateCcw size={16} /> Rövanş!
+          {rematchLoading ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+          {rematchLoading ? 'Oda kuruluyor...' : 'Rövanş!'}
+        </button>
+        <button
+          onClick={onPlayAgain}
+          className="w-full py-2.5 rounded-2xl border border-amber/20 text-amber/60 text-sm hover:bg-amber-900/10 transition-all"
+        >
+          Yeni Oyun (Farklı Kategori)
         </button>
         <button
           onClick={onGoHome}
-          className="w-full py-2.5 rounded-2xl border border-amber/20 text-amber/60 text-sm hover:bg-amber-900/10 transition-all"
+          className="w-full py-2 rounded-2xl text-amber/40 text-xs hover:text-amber/60 transition-all"
         >
           Ana Sayfaya Dön
         </button>
@@ -851,6 +884,7 @@ export default function QuizDuello() {
   const [roomId, setRoomId] = useState(roomParam || null);
   const [startingGame, setStartingGame] = useState(false);
   const [joinError, setJoinError] = useState('');
+  const [prefetchedResults, setPrefetchedResults] = useState(null);
 
   const isPolling = phase === 'lobby' || phase === 'playing' || phase === 'transition';
   const { state: roomState, error: pollError, refetch } = useDuelloPoll(
@@ -930,8 +964,18 @@ export default function QuizDuello() {
 
   const handlePlayAgain = () => {
     setRoomId(null);
+    setPrefetchedResults(null);
     setPhase('intro');
     window.history.replaceState({}, '', '/sinequiz');
+  };
+
+  const handleRematch = async (oldRoomId) => {
+    const data = await rematchDuello(oldRoomId);
+    const newId = data.room_id;
+    setRoomId(newId);
+    setPrefetchedResults(null);
+    setPhase('lobby');
+    window.history.replaceState({}, '', `/sinequiz?room=${newId}`);
   };
 
   if (!isLoggedIn()) {
@@ -1031,7 +1075,11 @@ export default function QuizDuello() {
             >
               <GameEndTransition
                 scores={roomState?.scores}
-                onComplete={() => setPhase('results')}
+                roomId={roomId}
+                onComplete={(results) => {
+                  setPrefetchedResults(results || null);
+                  setPhase('results');
+                }}
               />
             </motion.div>
           )}
@@ -1046,7 +1094,9 @@ export default function QuizDuello() {
             >
               <DuelloResults
                 roomId={roomId}
+                prefetchedResults={prefetchedResults}
                 onPlayAgain={handlePlayAgain}
+                onRematch={handleRematch}
                 onGoHome={() => navigate('/')}
               />
             </motion.div>

@@ -972,6 +972,34 @@ async def get_results(room_id: str, user: dict = Depends(verify_user)):
         }
 
 
+@router.post("/rooms/{room_id}/rematch")
+async def rematch(room_id: str, user: dict = Depends(verify_user)):
+    """Aynı kategoriler ve rakiple yeni oda oluştur."""
+    me = user["user_id"]
+
+    async with _db_conn(cache.db_path, user_data=True) as db:
+        room = await _get_room(db, room_id)
+
+        if room["status"] != "FINISHED":
+            raise HTTPException(status_code=400, detail="Oyun henüz bitmedi")
+
+        if me not in (room["creator_id"], room["opponent_id"]):
+            raise HTTPException(status_code=403, detail="Bu odada değilsin")
+
+        categories = json.loads(room["categories"]) if isinstance(room["categories"], str) else room["categories"]
+        other_id = room["opponent_id"] if me == room["creator_id"] else room["creator_id"]
+
+        new_room_id = uuid.uuid4().hex[:6].upper()
+        await db.execute(
+            """INSERT INTO quiz_rooms (id, creator_id, opponent_id, categories, status)
+               VALUES (?, ?, ?, ?, 'WAITING')""",
+            (new_room_id, me, other_id, json.dumps(categories)),
+        )
+        await db.commit()
+
+    return {"room_id": new_room_id, "categories": categories, "status": "WAITING"}
+
+
 @router.post("/rooms/{room_id}/leave")
 async def leave_room(room_id: str, user: dict = Depends(verify_user)):
     """Odadan ayrıl / terk et."""
