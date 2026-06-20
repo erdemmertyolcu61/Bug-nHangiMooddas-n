@@ -1214,6 +1214,7 @@ class MovieCache:
                 creator_id INTEGER NOT NULL REFERENCES users(id),
                 opponent_id INTEGER REFERENCES users(id),
                 categories TEXT NOT NULL DEFAULT '[]',
+                player_jokers TEXT DEFAULT '{}',
                 status TEXT NOT NULL DEFAULT 'WAITING'
                     CHECK (status IN ('WAITING','READY','PLAYING','FINISHED','ABANDONED')),
                 creator_ready INTEGER NOT NULL DEFAULT 0,
@@ -1275,6 +1276,12 @@ class MovieCache:
                 await _turso_client.execute(mig)
             except Exception as _mig_e:
                 _mig_logger.warning("[Migration] Turso: %s (%s)", _mig_e, mig)
+
+        try:
+            await _turso_client.execute("ALTER TABLE quiz_rooms ADD COLUMN player_jokers TEXT DEFAULT '{}'")
+        except Exception:
+            _mig_logger.warning("[Migration] Turso: player_jokers column likely exists")
+
         try:
             await _turso_client.execute("""
                 UPDATE users SET username =
