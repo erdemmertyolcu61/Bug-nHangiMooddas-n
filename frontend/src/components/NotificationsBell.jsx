@@ -123,7 +123,7 @@ export default function NotificationsBell({ open: externalOpen, onOpenChange }) 
       const [recsData, requestsData, dailyData] = await Promise.all([
         getRecommendationHistory().catch(() => ({ received: [] })),
         getFriendRequests().catch(() => ({ requests: [] })),
-        getDailyFilm().catch(() => null),
+        getDailyFilm(false).catch(() => null),
       ]);
       if (dailyData?.movie) setDailyFilm(dailyData);
       setShares(recsData.received || []);

@@ -1166,9 +1166,9 @@ export default function QuizDuello() {
         {phase !== 'playing' && phase !== 'transition' && (
           <button
             onClick={() => phase === 'intro' ? navigate(-1) : handleLeave()}
-            className="mb-4 flex items-center gap-1 text-xs text-amber/40 hover:text-amber/70 transition-colors"
+            className="mb-4 flex items-center gap-2 text-sm text-amber/50 hover:text-amber/80 transition-colors group"
           >
-            <ChevronLeft size={14} />
+            <ChevronLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
             {phase === 'intro' ? 'Geri' : 'Odadan Ayrıl'}
           </button>
         )}

@@ -74,9 +74,9 @@ export default function QuizLeaderboard() {
       <div className="max-w-md mx-auto px-4 pt-6">
         <button
           onClick={() => navigate('/sinequiz')}
-          className="mb-4 flex items-center gap-1 text-xs text-amber/40 hover:text-amber/70 transition-colors"
+          className="mb-4 flex items-center gap-2 text-sm text-amber/50 hover:text-amber/80 transition-colors group"
         >
-          <ChevronLeft size={14} /> SineQuiz
+          <ChevronLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" /> SineQuiz
         </button>
 
         <div className="text-center space-y-2 mb-6">
