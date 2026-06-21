@@ -503,6 +503,36 @@ export async function checkDuelloPendingInvite() {
   return getJson(`${BASE}/game/quiz/pending-invite`, { errorMsg: 'Davet kontrolü başarısız' });
 }
 
+export async function joinMatchmaking(categories) {
+  const res = await fetch(`${BASE}/game/quiz/matchmaking/join`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ categories }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Eşleşme kuyruğuna girilemedi');
+  }
+  return res.json();
+}
+
+export async function pollMatchmaking() {
+  return getJson(`${BASE}/game/quiz/matchmaking/poll`, { errorMsg: 'Eşleşme sorgulanamadı' });
+}
+
+export async function leaveMatchmaking() {
+  const res = await fetch(`${BASE}/game/quiz/matchmaking/leave`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getDuelloLeaderboard(limit = 50) {
+  return getJson(`${BASE}/game/quiz/leaderboard?limit=${limit}`, { errorMsg: 'Sıralama yüklenemedi' });
+}
+
 // ─── Web Push ───
 export async function getPushPublicKey() {
   const res = await fetch(`${BASE}/push/public-key`);

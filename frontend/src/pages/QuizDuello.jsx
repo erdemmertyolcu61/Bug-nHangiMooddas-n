@@ -10,10 +10,12 @@ import {
   joinDuelloRoom, setDuelloReady, startDuello,
   submitDuelloAnswer, getDuelloResults, leaveDuelloRoom, rematchDuello,
   isLoggedIn, useDuelloJoker,
+  joinMatchmaking, pollMatchmaking, leaveMatchmaking,
 } from '../services/api';
 import useDuelloPoll from '../hooks/useDuelloPoll';
 import { resolveAvatarUrl } from '../utils/apiConfig';
 import useDocumentMeta from '../utils/useDocumentMeta';
+import { getLeague } from '../utils/league';
 
 const TOTAL_QUESTIONS = 10;
 const QUESTION_TIME = 30;
@@ -45,7 +47,7 @@ function AvatarCircle({ user, size = 40 }) {
 
 // ─── INTRO: Oda oluştur veya koda katıl ──────────────────────────────────
 
-function DuelloIntro({ onCreateRoom, onJoinRoom }) {
+function DuelloIntro({ onCreateRoom, onJoinRoom, onNavigateLeaderboard }) {
   const [categories, setCategories] = useState([]);
   const [selectedCats, setSelectedCats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +55,10 @@ function DuelloIntro({ onCreateRoom, onJoinRoom }) {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchElapsed, setSearchElapsed] = useState(0);
+  const searchIntervalRef = useRef(null);
+  const searchPollRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -96,6 +102,77 @@ function DuelloIntro({ onCreateRoom, onJoinRoom }) {
       setJoining(false);
     }
   };
+
+  const stopSearch = useCallback(() => {
+    clearInterval(searchIntervalRef.current);
+    clearInterval(searchPollRef.current);
+    setSearching(false);
+    setSearchElapsed(0);
+  }, []);
+
+  const handleFindMatch = async () => {
+    if (selectedCats.length === 0 || selectedCats.length > 3) return;
+    setSearching(true);
+    setError('');
+    setSearchElapsed(0);
+    try {
+      const res = await joinMatchmaking(selectedCats);
+      if (res.matched) {
+        stopSearch();
+        onJoinRoom(res.room_id);
+        return;
+      }
+      searchIntervalRef.current = setInterval(() => setSearchElapsed(p => p + 1), 1000);
+      searchPollRef.current = setInterval(async () => {
+        try {
+          const poll = await pollMatchmaking();
+          if (poll.matched) {
+            stopSearch();
+            onJoinRoom(poll.room_id);
+          } else if (poll.timeout) {
+            stopSearch();
+            setError('Rakip bulunamadı, tekrar dene.');
+          }
+        } catch {
+          stopSearch();
+          setError('Eşleşme hatası');
+        }
+      }, 2000);
+    } catch (e) {
+      setSearching(false);
+      setError(e.message || 'Eşleşme başlatılamadı');
+    }
+  };
+
+  const handleCancelSearch = async () => {
+    stopSearch();
+    try { await leaveMatchmaking(); } catch {}
+  };
+
+  useEffect(() => () => { clearInterval(searchIntervalRef.current); clearInterval(searchPollRef.current); }, []);
+
+  if (searching) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 space-y-6">
+        <div className="relative">
+          <div className="w-24 h-24 rounded-full border-4 border-amber/20 flex items-center justify-center">
+            <Users className="text-amber" size={36} />
+          </div>
+          <div className="absolute inset-0 w-24 h-24 rounded-full border-4 border-t-amber border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-amber font-bold text-lg">Rakip aranıyor...</p>
+          <p className="text-amber/50 text-sm font-mono">{searchElapsed}s</p>
+        </div>
+        <button
+          onClick={handleCancelSearch}
+          className="px-6 py-2.5 rounded-xl border border-amber/30 text-amber/70 text-sm hover:bg-amber/10 transition-all"
+        >
+          İptal
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -194,6 +271,27 @@ function DuelloIntro({ onCreateRoom, onJoinRoom }) {
         {creating ? <Loader2 className="animate-spin" size={18} /> : <Swords size={18} />}
         {creating ? 'Oda kuruluyor...' : 'Oda Kur'}
       </button>
+
+      {/* Rakip Bul Butonu */}
+      <button
+        onClick={handleFindMatch}
+        disabled={selectedCats.length === 0 || selectedCats.length > 3}
+        className="w-full py-3 rounded-2xl border-2 border-amber/40 text-amber font-bold
+                   disabled:opacity-30 disabled:cursor-not-allowed hover:bg-amber/10
+                   transition-all flex items-center justify-center gap-2"
+      >
+        <Users size={18} />
+        Rakip Bul
+      </button>
+
+      {/* Skor Tablosu */}
+      <button
+        onClick={onNavigateLeaderboard}
+        className="w-full py-2.5 rounded-xl text-amber/60 text-sm hover:text-amber hover:bg-amber/5 transition-all flex items-center justify-center gap-2"
+      >
+        <Trophy size={16} />
+        Skor Tablosu
+      </button>
     </div>
   );
 }
@@ -257,6 +355,9 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
             <AvatarCircle user={creator} size={56} />
           </div>
           <span className="text-xs text-amber font-medium">{creator?.name || creator?.username}</span>
+          {creator?.league && (
+            <span className="text-[10px] text-amber/50">{creator.league.emoji} {creator.league.label}</span>
+          )}
           {creator_ready && <span className="text-[10px] text-green-400">Hazır</span>}
         </div>
 
@@ -269,6 +370,9 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
                 <AvatarCircle user={opponent} size={56} />
               </div>
               <span className="text-xs text-amber font-medium">{opponent?.name || opponent?.username}</span>
+              {opponent?.league && (
+                <span className="text-[10px] text-amber/50">{opponent.league.emoji} {opponent.league.label}</span>
+              )}
               {opponent_ready && <span className="text-[10px] text-green-400">Hazır</span>}
             </>
           ) : (
@@ -421,11 +525,20 @@ function DuelloGame({ roomState, onAnswer }) {
     return () => clearInterval(timerRef.current);
   }, [question?.index, my_answer]);
 
+  const doubleChanceUsedRef = useRef(false);
+
+  useEffect(() => {
+    if (question?.index !== undefined) doubleChanceUsedRef.current = false;
+  }, [question?.index]);
+
   const handleSelect = async (option) => {
-    if (selected || my_answer || timeLeft <= 0 || submitting) return;
+    const isDoubleRetry = !!(localFeedback && !localFeedback.is_correct && player_jokers?.double_chance === question?.index && !doubleChanceUsedRef.current);
+    if (selected || submitting || timeLeft <= 0) return;
+    if (my_answer && !isDoubleRetry) return;
+
     setSelected(option);
     setSubmitting(true);
-    clearInterval(timerRef.current);
+    if (!isDoubleRetry) clearInterval(timerRef.current);
     try {
       const result = await onAnswer(question.index, option);
       if (result) {
@@ -435,11 +548,13 @@ function DuelloGame({ roomState, onAnswer }) {
           score: result.score,
           correct_answer: result.correct_answer,
         });
-        if (result.is_correct || player_jokers?.double_chance !== question.index) {
+        if (result.is_correct || isDoubleRetry) {
+          doubleChanceUsedRef.current = true;
           feedbackUntil.current = Date.now() + 1500;
-        } else {
-          // Çifte şans hakkı var ve yanlış bildi, feedback süresi bekleme, tekrar seçilebilir olsun
+        } else if (player_jokers?.double_chance === question.index && !doubleChanceUsedRef.current) {
           setSelected(null);
+        } else {
+          feedbackUntil.current = Date.now() + 1500;
         }
       }
     } catch {
@@ -564,7 +679,7 @@ function DuelloGame({ roomState, onAnswer }) {
                 disabled={my_answer || jokerLoading || timeLeft <= 0 || used}
                 className={`px-2 py-1 rounded-lg border transition-all flex items-center gap-1 text-[11px] font-medium
                   ${used
-                    ? 'border-fg-subtle/20 bg-surface-2/30 text-fg-subtle line-through'
+                    ? 'border-fg-subtle/20 bg-surface-2/30 text-fg-subtle line-through opacity-40'
                     : `${activeColor} ${hoverColor}`
                   } disabled:cursor-default`}
               >
@@ -599,8 +714,8 @@ function DuelloGame({ roomState, onAnswer }) {
 
           const isEliminated = eliminatedOptions.includes(option);
 
-          const isDoubleChanceActive = my_answer && !my_answer.is_correct && player_jokers?.double_chance === question.index;
-          const isDisabled = (!!my_answer && !isDoubleChanceActive) || !!selected || timeLeft <= 0 || isEliminated;
+          const isDoubleChanceActive = my_answer && !my_answer.is_correct && player_jokers?.double_chance === question.index && !doubleChanceUsedRef.current;
+          const isDisabled = (!!my_answer && !isDoubleChanceActive) || !!selected || timeLeft <= 0 || isEliminated || (isDoubleChanceActive && isMyPick);
 
           return (
             <motion.button
@@ -815,6 +930,33 @@ function DuelloResults({ roomId, prefetchedResults, onPlayAgain, onRematch, onGo
           <span className="text-[10px] text-amber/40">{opponent?.total_correct || 0}/{TOTAL_QUESTIONS} doğru</span>
         </div>
       </div>
+
+      {/* ELO Değişimi */}
+      {results.elo_changes && (() => {
+        const ce = results.elo_changes.creator;
+        const oe = results.elo_changes.opponent;
+        return (
+          <div className="flex items-center justify-center gap-6">
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[10px] text-amber/40">ELO</span>
+              <span className="text-sm font-bold text-amber">{ce.after}</span>
+              <span className={`text-xs font-bold ${ce.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {ce.delta >= 0 ? `+${ce.delta}` : ce.delta}
+              </span>
+              {ce.league && <span className="text-[10px]">{ce.league.emoji} {ce.league.label}</span>}
+            </div>
+            <div className="text-amber/15 text-xs">|</div>
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[10px] text-amber/40">ELO</span>
+              <span className="text-sm font-bold text-amber">{oe.after}</span>
+              <span className={`text-xs font-bold ${oe.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {oe.delta >= 0 ? `+${oe.delta}` : oe.delta}
+              </span>
+              {oe.league && <span className="text-[10px]">{oe.league.emoji} {oe.league.label}</span>}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Soru detayları */}
       <div className="space-y-2">
@@ -1045,7 +1187,11 @@ export default function QuizDuello() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              <DuelloIntro onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} />
+              <DuelloIntro
+                onCreateRoom={handleCreateRoom}
+                onJoinRoom={handleJoinRoom}
+                onNavigateLeaderboard={() => navigate('/sinequiz/skor-tablosu')}
+              />
             </motion.div>
           )}
 

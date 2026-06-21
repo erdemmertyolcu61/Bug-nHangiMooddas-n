@@ -914,6 +914,13 @@ class MovieCache:
             except Exception:
                 logger.warning("[DB] ALTER quiz_rooms ADD player_jokers failed (likely exists)")
 
+            for _col in ("creator_elo_before INTEGER", "opponent_elo_before INTEGER",
+                         "creator_elo_after INTEGER", "opponent_elo_after INTEGER"):
+                try:
+                    await db.execute(f"ALTER TABLE quiz_rooms ADD COLUMN {_col}")
+                except Exception:
+                    pass
+
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS quiz_questions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -960,6 +967,23 @@ class MovieCache:
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+
+            for _col in ("elo_rating INTEGER NOT NULL DEFAULT 1000",
+                         "elo_peak INTEGER NOT NULL DEFAULT 1000"):
+                try:
+                    await db.execute(f"ALTER TABLE quiz_stats ADD COLUMN {_col}")
+                except Exception:
+                    pass
+
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS quiz_matchmaking_queue (
+                    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+                    elo_rating INTEGER NOT NULL DEFAULT 1000,
+                    categories TEXT NOT NULL DEFAULT '[]',
+                    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_matchmaking_elo ON quiz_matchmaking_queue(elo_rating)")
 
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS movie_credits_cache (
@@ -1281,6 +1305,33 @@ class MovieCache:
             await _turso_client.execute("ALTER TABLE quiz_rooms ADD COLUMN player_jokers TEXT DEFAULT '{}'")
         except Exception:
             _mig_logger.warning("[Migration] Turso: player_jokers column likely exists")
+
+        for _col in ("creator_elo_before INTEGER", "opponent_elo_before INTEGER",
+                     "creator_elo_after INTEGER", "opponent_elo_after INTEGER"):
+            try:
+                await _turso_client.execute(f"ALTER TABLE quiz_rooms ADD COLUMN {_col}")
+            except Exception:
+                pass
+
+        for _col in ("elo_rating INTEGER NOT NULL DEFAULT 1000",
+                     "elo_peak INTEGER NOT NULL DEFAULT 1000"):
+            try:
+                await _turso_client.execute(f"ALTER TABLE quiz_stats ADD COLUMN {_col}")
+            except Exception:
+                pass
+
+        try:
+            await _turso_client.execute("""
+                CREATE TABLE IF NOT EXISTS quiz_matchmaking_queue (
+                    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+                    elo_rating INTEGER NOT NULL DEFAULT 1000,
+                    categories TEXT NOT NULL DEFAULT '[]',
+                    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            await _turso_client.execute("CREATE INDEX IF NOT EXISTS idx_matchmaking_elo ON quiz_matchmaking_queue(elo_rating)")
+        except Exception:
+            _mig_logger.warning("[Migration] Turso: matchmaking queue table likely exists")
 
         try:
             await _turso_client.execute("""

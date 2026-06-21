@@ -74,6 +74,7 @@ _ROOM_COLS = [
     "id", "creator_id", "opponent_id", "categories", "player_jokers", "status",
     "creator_ready", "opponent_ready", "current_question",
     "question_started_at", "winner_id", "created_at", "finished_at",
+    "creator_elo_before", "opponent_elo_before", "creator_elo_after", "opponent_elo_after",
 ]
 
 async def _get_room(db, room_id: str) -> dict:
@@ -357,6 +358,62 @@ async def _check_advance_question(db, room: dict) -> dict:
     return room
 
 
+def _get_league(elo: int) -> dict:
+    if elo >= 1800:
+        return {"tier": "sine-guru", "label": "Sine-Guru", "emoji": "💎"}
+    if elo >= 1500:
+        return {"tier": "altin", "label": "Altın", "emoji": "🥇"}
+    if elo >= 1200:
+        return {"tier": "gumus", "label": "Gümüş", "emoji": "🥈"}
+    return {"tier": "bronz", "label": "Bronz", "emoji": "🥉"}
+
+
+def _compute_elo_change(rating_a: int, rating_b: int, score_a: float, games_a: int) -> int:
+    k = 32 if games_a < 30 else 24
+    expected = 1.0 / (1.0 + 10 ** ((rating_b - rating_a) / 400.0))
+    return round(k * (score_a - expected))
+
+
+async def _get_elo(db, user_id: int) -> tuple[int, int]:
+    cur = await db.execute(
+        "SELECT elo_rating, games_played FROM quiz_stats WHERE user_id = ?", (user_id,)
+    )
+    row = await cur.fetchone()
+    if row:
+        return (row[0] or 1000, row[1] or 0)
+    return (1000, 0)
+
+
+async def _update_elo(db, room_id: str, creator_id: int, opponent_id: int, winner_id: Optional[int]):
+    creator_elo, creator_games = await _get_elo(db, creator_id)
+    opponent_elo, opponent_games = await _get_elo(db, opponent_id)
+
+    if winner_id is None:
+        c_score, o_score = 0.5, 0.5
+    elif winner_id == creator_id:
+        c_score, o_score = 1.0, 0.0
+    else:
+        c_score, o_score = 0.0, 1.0
+
+    c_delta = _compute_elo_change(creator_elo, opponent_elo, c_score, creator_games)
+    o_delta = _compute_elo_change(opponent_elo, creator_elo, o_score, opponent_games)
+
+    new_c = max(100, creator_elo + c_delta)
+    new_o = max(100, opponent_elo + o_delta)
+
+    for uid, new_elo in ((creator_id, new_c), (opponent_id, new_o)):
+        await db.execute(
+            "UPDATE quiz_stats SET elo_rating = ?, elo_peak = MAX(COALESCE(elo_peak, 1000), ?) WHERE user_id = ?",
+            (new_elo, new_elo, uid),
+        )
+
+    await db.execute(
+        """UPDATE quiz_rooms SET creator_elo_before = ?, opponent_elo_before = ?,
+           creator_elo_after = ?, opponent_elo_after = ? WHERE id = ?""",
+        (creator_elo, opponent_elo, new_c, new_o, room_id),
+    )
+
+
 async def _compute_winner(db, room_id: str, creator_id: int, opponent_id: int) -> Optional[int]:
     cur = await db.execute(
         """SELECT user_id, SUM(score) as total_score,
@@ -422,10 +479,12 @@ async def _update_stats(db, room_id: str, creator_id: int, opponent_id: int, win
         else:
             await db.execute(
                 """INSERT INTO quiz_stats (user_id, games_played, games_won, total_score,
-                   best_score, win_streak, best_streak)
-                   VALUES (?, 1, ?, ?, ?, ?, ?)""",
+                   best_score, win_streak, best_streak, elo_rating, elo_peak)
+                   VALUES (?, 1, ?, ?, ?, ?, ?, 1000, 1000)""",
                 (uid, won, game_score, game_score, 1 if won else 0, 1 if won else 0),
             )
+
+    await _update_elo(db, room_id, creator_id, opponent_id, winner_id)
     await db.commit()
 
 
@@ -527,11 +586,20 @@ async def poll_room(room_id: str, user: dict = Depends(verify_user)):
                     "emoji": cat_def["emoji"] if cat_def else "",
                 })
 
+            creator_elo, _ = await _get_elo(db, room["creator_id"])
+            creator_info = {**(await _user_info(room["creator_id"])),
+                            "elo_rating": creator_elo, "league": _get_league(creator_elo)}
+            opponent_info = None
+            if room["opponent_id"]:
+                opp_elo, _ = await _get_elo(db, room["opponent_id"])
+                opponent_info = {**(await _user_info(room["opponent_id"])),
+                                 "elo_rating": opp_elo, "league": _get_league(opp_elo)}
+
             response = {
                 "room_id": room_id,
                 "status": room["status"],
-                "creator": await _user_info(room["creator_id"]),
-                "opponent": await _user_info(room["opponent_id"]) if room["opponent_id"] else None,
+                "creator": creator_info,
+                "opponent": opponent_info,
                 "creator_ready": bool(room["creator_ready"]),
                 "opponent_ready": bool(room["opponent_ready"]),
                 "categories": cat_labels,
@@ -952,6 +1020,19 @@ async def get_results(room_id: str, user: dict = Depends(verify_user)):
                 "emoji": cat_def["emoji"] if cat_def else "",
             })
 
+        elo_changes = None
+        c_before = room.get("creator_elo_before")
+        if c_before is not None:
+            c_after = room.get("creator_elo_after") or c_before
+            o_before = room.get("opponent_elo_before") or 1000
+            o_after = room.get("opponent_elo_after") or o_before
+            elo_changes = {
+                "creator": {"before": c_before, "after": c_after, "delta": c_after - c_before,
+                            "league": _get_league(c_after)},
+                "opponent": {"before": o_before, "after": o_after, "delta": o_after - o_before,
+                             "league": _get_league(o_after)},
+            }
+
         return {
             "room_id": room_id,
             "status": room["status"],
@@ -969,6 +1050,7 @@ async def get_results(room_id: str, user: dict = Depends(verify_user)):
             } if opponent_info else None,
             "categories": cat_labels,
             "questions": questions_detail,
+            "elo_changes": elo_changes,
         }
 
 
@@ -1039,7 +1121,7 @@ async def get_stats(user: dict = Depends(verify_user)):
 
     async with _db_conn(cache.db_path, user_data=True) as db:
         cur = await db.execute(
-            "SELECT user_id, games_played, games_won, total_score, best_score, win_streak, best_streak FROM quiz_stats WHERE user_id = ?",
+            "SELECT user_id, games_played, games_won, total_score, best_score, win_streak, best_streak, elo_rating, elo_peak FROM quiz_stats WHERE user_id = ?",
             (me,),
         )
         row = await cur.fetchone()
@@ -1050,10 +1132,15 @@ async def get_stats(user: dict = Depends(verify_user)):
                 "total_score": 0, "best_score": 0,
                 "win_streak": 0, "best_streak": 0,
                 "win_rate": 0,
+                "elo_rating": 1000, "elo_peak": 1000,
+                "league": _get_league(1000),
             }
 
-        stat_cols = ["user_id", "games_played", "games_won", "total_score", "best_score", "win_streak", "best_streak"]
+        stat_cols = ["user_id", "games_played", "games_won", "total_score", "best_score", "win_streak", "best_streak", "elo_rating", "elo_peak"]
         stats = dict(zip(stat_cols, row))
+        stats["elo_rating"] = stats.get("elo_rating") or 1000
+        stats["elo_peak"] = stats.get("elo_peak") or 1000
+        stats["league"] = _get_league(stats["elo_rating"])
         stats["win_rate"] = round(
             (stats["games_won"] / stats["games_played"] * 100)
             if stats["games_played"] > 0 else 0
@@ -1136,6 +1223,190 @@ async def check_pending_invite(user: dict = Depends(verify_user)):
         }
 
 
+# ─── Matchmaking ────────────────────────────────────────────────────────────
+
+class MatchmakingBody(BaseModel):
+    categories: list[str] = Field(..., min_length=1, max_length=3)
+
+
+@router.post("/matchmaking/join")
+async def join_matchmaking(body: MatchmakingBody, user: dict = Depends(verify_user)):
+    """Eşleşme kuyruğuna gir. Anında eşleşme varsa oda döner."""
+    me = user["user_id"]
+
+    for cat in body.categories:
+        if cat != "rastgele" and cat not in QUIZ_CATEGORIES:
+            raise HTTPException(status_code=400, detail=f"Geçersiz kategori: {cat}")
+
+    all_cats = list(body.categories)
+    if "rastgele" in all_cats:
+        all_cats.remove("rastgele")
+        remaining = [k for k in QUIZ_CATEGORIES if k not in all_cats]
+        if remaining:
+            all_cats.append(random.choice(remaining))
+
+    async with _db_conn(cache.db_path, user_data=True) as db:
+        my_elo, _ = await _get_elo(db, me)
+
+        await db.execute(
+            "INSERT OR REPLACE INTO quiz_matchmaking_queue (user_id, elo_rating, categories, joined_at) VALUES (?, ?, ?, datetime('now'))",
+            (me, my_elo, json.dumps(all_cats)),
+        )
+        await db.commit()
+
+        match = await _try_match(db, me, my_elo, all_cats, elo_range=200)
+        if match:
+            return match
+
+    return {"matched": False}
+
+
+@router.get("/matchmaking/poll")
+async def poll_matchmaking(user: dict = Depends(verify_user)):
+    """Eşleşme kuyruğunu poll et."""
+    me = user["user_id"]
+
+    async with _db_conn(cache.db_path, user_data=True) as db:
+        cur = await db.execute(
+            "SELECT elo_rating, categories, joined_at FROM quiz_matchmaking_queue WHERE user_id = ?",
+            (me,),
+        )
+        row = await cur.fetchone()
+
+        if not row:
+            cur2 = await db.execute(
+                """SELECT id FROM quiz_rooms
+                   WHERE opponent_id = ? AND status = 'WAITING'
+                   ORDER BY created_at DESC LIMIT 1""",
+                (me,),
+            )
+            room_row = await cur2.fetchone()
+            if room_row:
+                return {"matched": True, "room_id": room_row[0]}
+            return {"matched": False, "timeout": True}
+
+        my_elo = row[0] or 1000
+        my_cats = json.loads(row[1]) if row[1] else []
+        joined_at = row[2]
+
+        try:
+            joined_dt = datetime.fromisoformat(joined_at.replace("Z", "+00:00")) if joined_at else datetime.now(timezone.utc)
+        except Exception:
+            joined_dt = datetime.now(timezone.utc)
+
+        elapsed_s = (datetime.now(timezone.utc) - joined_dt.replace(tzinfo=timezone.utc if joined_dt.tzinfo is None else joined_dt.tzinfo)).total_seconds()
+
+        if elapsed_s > 120:
+            await db.execute("DELETE FROM quiz_matchmaking_queue WHERE user_id = ?", (me,))
+            await db.commit()
+            return {"matched": False, "timeout": True}
+
+        if elapsed_s <= 10:
+            elo_range = 200
+        elif elapsed_s <= 30:
+            elo_range = 400
+        elif elapsed_s <= 60:
+            elo_range = 600
+        else:
+            elo_range = 800
+
+        match = await _try_match(db, me, my_elo, my_cats, elo_range)
+        if match:
+            return match
+
+    return {"matched": False, "elapsed": round(elapsed_s)}
+
+
+@router.post("/matchmaking/leave")
+async def leave_matchmaking(user: dict = Depends(verify_user)):
+    """Eşleşme kuyruğundan çık."""
+    me = user["user_id"]
+    async with _db_conn(cache.db_path, user_data=True) as db:
+        await db.execute("DELETE FROM quiz_matchmaking_queue WHERE user_id = ?", (me,))
+        await db.commit()
+    return {"ok": True}
+
+
+async def _try_match(db, me: int, my_elo: int, my_cats: list, elo_range: int) -> Optional[dict]:
+    cur = await db.execute(
+        """SELECT user_id, elo_rating, categories FROM quiz_matchmaking_queue
+           WHERE user_id != ? AND ABS(elo_rating - ?) <= ?
+           ORDER BY ABS(elo_rating - ?) ASC LIMIT 1""",
+        (me, my_elo, elo_range, my_elo),
+    )
+    row = await cur.fetchone()
+    if not row:
+        return None
+
+    other_id = row[0]
+    other_cats = json.loads(row[2]) if row[2] else []
+
+    shared = set(my_cats) & set(other_cats)
+    if not shared:
+        union = list(set(my_cats) | set(other_cats))
+        cats = random.sample(union, min(3, len(union)))
+    else:
+        cats = list(shared)[:3]
+
+    await db.execute("DELETE FROM quiz_matchmaking_queue WHERE user_id IN (?, ?)", (me, other_id))
+
+    room_id = uuid.uuid4().hex[:6].upper()
+    await db.execute(
+        """INSERT INTO quiz_rooms (id, creator_id, opponent_id, categories, status)
+           VALUES (?, ?, ?, ?, 'WAITING')""",
+        (room_id, me, other_id, json.dumps(cats)),
+    )
+    await db.commit()
+
+    return {"matched": True, "room_id": room_id, "categories": cats}
+
+
+# ─── Leaderboard ────────────────────────────────────────────────────────────
+
+@router.get("/leaderboard")
+async def get_leaderboard(user: dict = Depends(verify_user), limit: int = 50):
+    """Top oyuncular ELO sıralamasına göre."""
+    me = user["user_id"]
+
+    async with _db_conn(cache.db_path, user_data=True) as db:
+        cur = await db.execute(
+            """SELECT s.user_id, s.elo_rating, s.games_played, s.games_won,
+                      u.username, u.name, u.picture
+               FROM quiz_stats s JOIN users u ON s.user_id = u.id
+               WHERE s.games_played >= 1
+               ORDER BY COALESCE(s.elo_rating, 1000) DESC LIMIT ?""",
+            (limit,),
+        )
+        rows = await cur.fetchall()
+
+        players = []
+        for i, r in enumerate(rows):
+            elo = r[1] or 1000
+            played = r[2] or 0
+            won = r[3] or 0
+            players.append({
+                "rank": i + 1,
+                "user_id": r[0],
+                "username": r[4] or "",
+                "name": r[5] or "",
+                "avatar": r[6],
+                "elo_rating": elo,
+                "league": _get_league(elo),
+                "games_played": played,
+                "games_won": won,
+                "win_rate": round(won / played * 100) if played > 0 else 0,
+            })
+
+        cur_rank = await db.execute(
+            "SELECT COUNT(*) FROM quiz_stats WHERE COALESCE(elo_rating, 1000) > (SELECT COALESCE(elo_rating, 1000) FROM quiz_stats WHERE user_id = ?)",
+            (me,),
+        )
+        rank_row = await cur_rank.fetchone()
+        my_rank = (rank_row[0] + 1) if rank_row else None
+
+    return {"players": players, "my_rank": my_rank}
+
+
 # ─── Oda Temizleme (background task olarak main.py'den çağrılır) ────────────
 
 async def cleanup_stale_rooms():
@@ -1151,6 +1422,9 @@ async def cleanup_stale_rooms():
                 """UPDATE quiz_rooms SET status = 'ABANDONED', finished_at = CURRENT_TIMESTAMP
                    WHERE status IN ('PLAYING', 'READY')
                      AND created_at < datetime('now', '-2 hours')""",
+            )
+            await db.execute(
+                "DELETE FROM quiz_matchmaking_queue WHERE joined_at < datetime('now', '-3 minutes')",
             )
             await db.commit()
     except Exception as e:

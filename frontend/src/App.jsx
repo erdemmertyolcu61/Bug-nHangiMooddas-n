@@ -66,6 +66,7 @@ const MoodFeed = lazyRetry(() => import('./components/social/MoodFeed'));
 const PublicList = lazyRetry(() => import('./pages/PublicList'));
 const Bildirimler = lazyRetry(() => import('./pages/Bildirimler'));
 const QuizDuello = lazyRetry(() => import('./pages/QuizDuello'));
+const QuizLeaderboard = lazyRetry(() => import('./pages/QuizLeaderboard'));
 
 import { useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
@@ -164,6 +165,7 @@ function AppContent() {
             <Route path="/gizlilik" element={<Gizlilik />} />
             <Route path="/oyun" element={<MoodOracle />} />
             <Route path="/sinequiz" element={<QuizDuello />} />
+            <Route path="/sinequiz/skor-tablosu" element={<QuizLeaderboard />} />
             <Route path="/duello" element={<Navigate to="/sinequiz" replace />} />
             <Route path="/feed" element={<MoodFeed />} />
 
