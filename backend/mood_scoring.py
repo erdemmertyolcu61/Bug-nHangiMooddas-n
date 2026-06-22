@@ -827,7 +827,7 @@ def calculate_mood_scores(genre_ids: list, vote_average: float = None,
         # Türkçe: yerli sinema önceliği, Japon/Hint: aşırı temsili azalt
         if original_language:
             if original_language == "tr":
-                final_score *= 1.08  # Türkçe: %8 bonus
+                final_score *= 0.92  # Türkçe: %8 ceza — çeşitlilik için
             elif original_language == "ja":
                 final_score *= 0.55  # Japonca: %45 ceza — en kalabalık 2. dil
             elif original_language == "hi":
@@ -841,12 +841,16 @@ def calculate_mood_scores(genre_ids: list, vote_average: float = None,
         # Mainstream'e ceza YOK, sadece az bilinen kaliteli filmlere bonus.
         # Bu sayede sıralama organik kalır: çoğu film tanınmış, araya 2-3 gem sızar.
         if vote_count and vote_average:
+            gem_bonus = 0.0
             if vote_count < 2000 and vote_average >= 7.5:
-                final_score += 8.0   # Altın gem: çok az oy, çok yüksek kalite
+                gem_bonus = 8.0
             elif vote_count < 3000 and vote_average >= 7.0:
-                final_score += 5.0   # Gümüş gem: az oy, yüksek kalite
+                gem_bonus = 5.0
             elif vote_count < 5000 and vote_average >= 7.5:
-                final_score += 3.0   # Bronz gem: orta-düşük oy, mükemmel kalite
+                gem_bonus = 3.0
+            if gem_bonus > 0 and original_language == "tr" and vote_count < 200:
+                gem_bonus *= 0.3
+            final_score += gem_bonus
 
         # Genre çeşitliliği bonusu — 3+ uyumlu tür → daha zengin film deneyimi
         matched_positive_count = sum(1 for g in genre_ids if weights.get(g, 0) >= 0.5)
