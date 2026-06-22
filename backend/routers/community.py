@@ -788,24 +788,49 @@ async def respond_to_challenge(body: ChallengeResponseBody, user: dict = Depends
     """Günün sorusuna film ile cevap ver."""
     uid = user["user_id"]
     date_key = _current_date_key()
-    async with _db_conn(cache.db_path, user_data=True) as db:
-        cur = await db.execute(
-            "SELECT id FROM daily_challenges WHERE date_key = ?", (date_key,)
-        )
-        row = await cur.fetchone()
-        if not row:
-            raise HTTPException(404, "Bugünün sorusu bulunamadı.")
-        challenge_id = row[0]
-        await db.execute(
-            """INSERT INTO challenge_responses (challenge_id, user_id, tmdb_id, comment)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(challenge_id, user_id) DO UPDATE SET
-                 tmdb_id = excluded.tmdb_id,
-                 comment = excluded.comment,
-                 created_at = CURRENT_TIMESTAMP""",
-            (challenge_id, uid, body.tmdb_id, body.comment.strip()),
-        )
-        await db.commit()
+    try:
+        async with _db_conn(cache.db_path, user_data=True) as db:
+            cur = await db.execute(
+                "SELECT id FROM daily_challenges WHERE date_key = ?", (date_key,)
+            )
+            row = await cur.fetchone()
+            if not row:
+                import hashlib
+                idx = int(hashlib.md5(date_key.encode()).hexdigest(), 16) % len(DAILY_QUESTIONS)
+                question = DAILY_QUESTIONS[idx]
+                await db.execute(
+                    "INSERT OR IGNORE INTO daily_challenges (question, date_key) VALUES (?, ?)",
+                    (question, date_key),
+                )
+                await db.commit()
+                cur = await db.execute(
+                    "SELECT id FROM daily_challenges WHERE date_key = ?", (date_key,)
+                )
+                row = await cur.fetchone()
+            if not row:
+                raise HTTPException(404, "Bugünün sorusu bulunamadı.")
+            challenge_id = row[0]
+            cur2 = await db.execute(
+                "SELECT id FROM challenge_responses WHERE challenge_id = ? AND user_id = ?",
+                (challenge_id, uid),
+            )
+            existing = await cur2.fetchone()
+            if existing:
+                await db.execute(
+                    "UPDATE challenge_responses SET tmdb_id = ?, comment = ?, created_at = CURRENT_TIMESTAMP WHERE challenge_id = ? AND user_id = ?",
+                    (body.tmdb_id, body.comment.strip(), challenge_id, uid),
+                )
+            else:
+                await db.execute(
+                    "INSERT INTO challenge_responses (challenge_id, user_id, tmdb_id, comment) VALUES (?, ?, ?, ?)",
+                    (challenge_id, uid, body.tmdb_id, body.comment.strip()),
+                )
+            await db.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("challenge/respond error: %s", e, exc_info=True)
+        raise HTTPException(500, f"Cevap kaydedilemedi: {e}")
     return {"ok": True}
 
 
