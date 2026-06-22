@@ -81,12 +81,11 @@ if (new URLSearchParams(window.location.search).get('ref')) {
   } catch { /* sessizce geç */ }
 })();
 
-// ─── PWA Service Worker — her açılışta/öne gelişte güncelleme kontrolü ───
-// iOS PWA'da WKWebView SW güncellemesini kendi kendine kontrol etmez.
-// visibilitychange + reg.update() ile her kullanıcı en geç bir sonraki
-// açılışında Railway'deki son sürümü alır. Tüm platformlarda çalışır.
+// ─── PWA Service Worker — native'de devre dışı, web'de her açılışta güncelle ───
 (() => {
   try {
+    const isNativeCap = window.Capacitor?.isNativePlatform?.();
+    if (isNativeCap) return; // Native'de SW gereksiz, WebView kendi cache'ini yönetir
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js');
       document.addEventListener('visibilitychange', () => {

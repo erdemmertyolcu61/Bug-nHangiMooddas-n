@@ -85,7 +85,11 @@ image_cache/
 audio_files/
 
 # ============================================
-# Capacitor native projects (generated, not for git)
+# Capacitor native projects (mostly generated)
 # ============================================
 frontend/android/
 frontend/ios/
+# Keep native customizations tracked:
+!frontend/android/app/src/main/AndroidManifest.xml
+!frontend/android/app/src/main/res/
+!frontend/ios/App/App/Info.plist

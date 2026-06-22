@@ -832,9 +832,9 @@ def calculate_mood_scores(genre_ids: list, vote_average: float = None,
             if original_language == "tr":
                 final_score *= 0.92
             elif original_language == "en":
-                final_score *= 1.05
+                final_score *= 1.10
             elif original_language in ("fr", "de", "it", "es", "pt", "da", "sv", "no", "nl", "pl", "cs", "el"):
-                final_score *= 1.03
+                final_score *= 1.06
             elif original_language == "ja":
                 final_score *= 0.55
             elif original_language == "hi" or original_language == "ta" or original_language == "te" or original_language == "ml":
@@ -847,7 +847,7 @@ def calculate_mood_scores(genre_ids: list, vote_average: float = None,
         # 11. Hidden Gem Boost (tüm mood'lar — sayfa başına 2-3 keşfedilmemiş film)
         # Mainstream'e ceza YOK, sadece az bilinen kaliteli filmlere bonus.
         # Bu sayede sıralama organik kalır: çoğu film tanınmış, araya 2-3 gem sızar.
-        if vote_count and vote_average:
+        if vote_count and vote_average and vote_count >= 100:
             gem_bonus = 0.0
             if vote_count < 2000 and vote_average >= 7.5:
                 gem_bonus = 8.0
@@ -855,8 +855,8 @@ def calculate_mood_scores(genre_ids: list, vote_average: float = None,
                 gem_bonus = 5.0
             elif vote_count < 5000 and vote_average >= 7.5:
                 gem_bonus = 3.0
-            if gem_bonus > 0 and original_language == "tr" and vote_count < 200:
-                gem_bonus *= 0.3
+            if gem_bonus > 0 and original_language == "tr":
+                gem_bonus *= 0.15
             final_score += gem_bonus
 
         # Genre çeşitliliği bonusu — 3+ uyumlu tür → daha zengin film deneyimi
