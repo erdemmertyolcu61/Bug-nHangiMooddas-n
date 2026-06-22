@@ -10,9 +10,14 @@ import { initAnalytics, track, trackAppOpen, EVENTS } from './utils/analytics';
 import { recordStreakOpen } from './utils/streak';
 import { captureReferral } from './context/AuthContext';
 import { initMonitoring } from './utils/monitoring';
+import { initNativePlugins } from './utils/native';
+import { getApiUrl } from './utils/apiConfig';
 
 // Hata izleme (VITE_SENTRY_DSN yoksa no-op) — olabildiğince erken başlat
 initMonitoring();
+
+// Capacitor native plugin'leri (status bar, splash, back button)
+initNativePlugins();
 
 // Gizlilik-dostu analytics (yapılandırılmadıysa no-op)
 initAnalytics();
@@ -44,7 +49,7 @@ if (new URLSearchParams(window.location.search).get('ref')) {
 // last_active'i günceller; 7+ gün ping göndermeyen kullanıcı hatırlatma push'u alır.
 (() => {
   const ping = () => {
-    fetch('/api/users/ping', { method: 'POST', keepalive: true }).catch(() => {});
+    fetch(getApiUrl('/api/users/ping'), { method: 'POST', keepalive: true }).catch(() => {});
   };
   ping();
   setInterval(ping, 300000); // 5 dakika
@@ -57,7 +62,7 @@ if (new URLSearchParams(window.location.search).get('ref')) {
 (() => {
   try {
     // Same-origin (dev: vite proxy, prod: vercel rewrite) → cross-origin gerekmez.
-    fetch('/api/health', { method: 'GET', keepalive: true }).catch(() => {});
+    fetch(getApiUrl('/api/health'), { method: 'GET', keepalive: true }).catch(() => {});
   } catch { /* sessizce geç */ }
 })();
 

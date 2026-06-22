@@ -83,3 +83,9 @@ image_cache/
 # Audio files (large, not for git)
 # ============================================
 audio_files/
+
+# ============================================
+# Capacitor native projects (generated, not for git)
+# ============================================
+frontend/android/
+frontend/ios/

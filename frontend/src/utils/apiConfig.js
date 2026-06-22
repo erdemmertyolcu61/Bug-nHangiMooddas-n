@@ -1,22 +1,23 @@
 /**
- * API Configuration for Gourmet Cinema Club.
- * Vite development proxy (vite.config.js) handles /api -> backend (8002).
- * Production: VITE_API_BASE_URL env ile backend adresini belirt.
+ * API Configuration for Sinemood.
+ * Web (dev): Vite proxy /api -> localhost:8002
+ * Web (prod): Vercel rewrite /api -> Railway backend (same-origin)
+ * Native (Capacitor): direct absolute URL to Railway backend
  */
 
 export const DIRECT_BASE = "http://127.0.0.1:8002";
 
-// ─── API tabanı: SAME-ORIGIN proxy ───
-// API/XHR çağrıları RELATIVE ("/api/...") yapılır → hem dev (vite proxy) hem
-// prod (Vercel rewrite, vercel.json) backend'e same-origin olarak iletir.
-// Neden: iOS standalone PWA'da cross-origin fetch WebKit tarafından
-// "TypeError: Load failed" ile engelleniyordu (CORS/ITP). Same-origin'de bu yok.
-export const API_BASE_URL = "";
+const IS_NATIVE = typeof window !== 'undefined'
+  && window.Capacitor?.isNativePlatform?.();
 
-// Backend'in MUTLAK adresi — yalnız tarayıcıda açılan (fetch değil) paylaşım/OG
-// linkleri için. Env yoksa canlı Railway'e düşer (eski onrender KAPALI).
-const BACKEND_ABSOLUTE = (import.meta.env.VITE_API_BASE_URL
+// Web: relative path → same-origin proxy (Vercel rewrite / Vite proxy)
+// Native: absolute URL → backend directly (no proxy available)
+const PRODUCTION_BACKEND = (import.meta.env.VITE_API_BASE_URL
   || "https://bug-nhangimooddas-n-production.up.railway.app").replace(/\/$/, "");
+
+export const API_BASE_URL = IS_NATIVE ? PRODUCTION_BACKEND : "";
+
+const BACKEND_ABSOLUTE = PRODUCTION_BACKEND;
 
 // Kanonik herkese açık FRONTEND adresi — paylaşım/QR linkleri için TEK kaynak.
 // `window.location.origin` web'de doğru ama native (Capacitor) içinde

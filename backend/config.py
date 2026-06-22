@@ -36,7 +36,7 @@ DATABASE_PATH = os.getenv("DATABASE_PATH", "movie_cache.db")
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "https://bug-n-hangi-mooddas-n.vercel.app").rstrip("/")
 
 # ─── CORS ───
-_default_origins = "http://localhost:3005,http://localhost:5173,http://127.0.0.1:3005,http://127.0.0.1:5173,https://bug-n-hangi-mooddas-n.vercel.app"
+_default_origins = "http://localhost:3005,http://localhost:5173,http://127.0.0.1:3005,http://127.0.0.1:5173,https://bug-n-hangi-mooddas-n.vercel.app,capacitor://localhost,http://localhost"
 ALLOWED_ORIGINS = [
     o.strip() for o in os.getenv("ALLOWED_ORIGINS", _default_origins).split(",") if o.strip()
 ]
