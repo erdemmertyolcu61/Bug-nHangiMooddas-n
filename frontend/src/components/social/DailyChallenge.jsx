@@ -35,17 +35,24 @@ export default function DailyChallenge() {
     return () => clearTimeout(t);
   }, [query]);
 
+  const [error, setError] = useState('');
+
   const submit = useCallback(async () => {
     if (!selected || sending) return;
     setSending(true);
+    setError('');
     try {
-      await respondToChallenge(selected.id || selected.tmdb_id, comment);
-      setData((d) => d ? { ...d, my_response: { tmdb_id: selected.id || selected.tmdb_id, comment, movie_title: selected.title, poster_url: selected.poster_path ? `https://image.tmdb.org/t/p/w92${selected.poster_path}` : '' } } : d);
+      const tmdbId = selected.id || selected.tmdb_id;
+      if (!tmdbId) { setError('Film seçilemedi.'); setSending(false); return; }
+      await respondToChallenge(tmdbId, comment);
+      setData((d) => d ? { ...d, my_response: { tmdb_id: tmdbId, comment, movie_title: selected.title, poster_url: selected.poster_path ? `https://image.tmdb.org/t/p/w92${selected.poster_path}` : '' } } : d);
       setShowForm(false);
       setQuery('');
       setSelected(null);
       setComment('');
-    } catch { /* */ }
+    } catch (e) {
+      setError(e?.message || 'Cevap gönderilemedi.');
+    }
     setSending(false);
   }, [selected, comment, sending]);
 
@@ -116,8 +123,9 @@ export default function DailyChallenge() {
               />
               <button onClick={submit} disabled={sending}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-amber/20 text-amber text-[11px] font-bold hover:bg-amber/30 disabled:opacity-40 transition-all">
-                <Send size={12} /> Gönder
+                <Send size={12} /> {sending ? 'Gönderiliyor…' : 'Gönder'}
               </button>
+              {error && <p className="text-[11px] text-red-400">{error}</p>}
             </>
           )}
         </div>
