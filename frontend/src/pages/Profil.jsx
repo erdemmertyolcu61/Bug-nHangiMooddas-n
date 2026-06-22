@@ -245,7 +245,6 @@ export default function Profil() {
           setShares(hist.received || []);
           setSentShares(hist.sent || []);
           const recs = dedupeRecs(comm?.recommendations || []);
-          console.log('[DEBUG Profil] mount communityRecs count:', recs.length);
           setCommunityRecs(recs);
           // NOT: burada otomatik markSharesRead ÇAĞRILMAZ. Aksi halde kullanıcı
           // zile tıklamadan rozet sıfırlanıp bildirim "yokmuş" gibi görünüyordu.

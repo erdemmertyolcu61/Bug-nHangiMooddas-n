@@ -46,7 +46,7 @@ def _auth_response(data: dict, token: str):
         max_age=7776000,
         path="/",
         secure=IS_PRODUCTION,
-        httponly=False,
+        httponly=True,
         samesite="lax",
     )
     user_data = data.get("user")
@@ -76,8 +76,9 @@ def verify_beta(request: Request):
 
 
 def verify_admin(request: Request):
-    if not IS_PRODUCTION and not ADMIN_PASSWORD:
-        return
+    if not ADMIN_PASSWORD:
+        logger.warning("[AUTH] ADMIN_PASSWORD not set — admin endpoints are locked")
+        raise HTTPException(status_code=403, detail="Admin access not configured")
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
         token = auth.replace("Bearer ", "")

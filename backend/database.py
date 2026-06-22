@@ -46,6 +46,7 @@ async def init_pool(db_path: str, size: int = 8):
         await conn.execute("PRAGMA journal_mode=WAL")
         await conn.execute("PRAGMA synchronous=NORMAL")
         await conn.execute("PRAGMA busy_timeout=30000")
+        await conn.execute("PRAGMA foreign_keys=ON")
         _sqlite_pool.append(conn)
     _pool_init = True
 
@@ -196,6 +197,7 @@ async def _get_connection(db_path: str, user_data: bool = False):
             await db.execute("PRAGMA journal_mode=WAL")
             await db.execute("PRAGMA synchronous=NORMAL")
             await db.execute("PRAGMA busy_timeout=30000")
+            await db.execute("PRAGMA foreign_keys=ON")
             yield db
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -230,6 +232,7 @@ class MovieCache:
             await db.execute("PRAGMA journal_mode=WAL")
             await db.execute("PRAGMA synchronous=NORMAL")
             await db.execute("PRAGMA cache_size=-8000")
+            await db.execute("PRAGMA foreign_keys=ON")
             # Movie analysis cache
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS movie_cache (
@@ -994,6 +997,24 @@ class MovieCache:
                 )
             """)
 
+            # Email uniqueness — aynı email ile birden fazla hesap önlenir
+            try:
+                await db.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_notnull "
+                    "ON users(email) WHERE email IS NOT NULL"
+                )
+            except Exception:
+                pass
+
+            # movie_ratings lookup index
+            try:
+                await db.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_movie_ratings_user "
+                    "ON movie_ratings(user_id, reaction)"
+                )
+            except Exception:
+                pass
+
             await db.commit()
 
     async def _init_turso_user_tables(self):
@@ -1345,6 +1366,15 @@ class MovieCache:
             """)
         except Exception:
             logger.warning("[DB] Turso UPDATE username auto-generate failed")
+
+        for _idx_sql in (
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_notnull ON users(email) WHERE email IS NOT NULL",
+            "CREATE INDEX IF NOT EXISTS idx_movie_ratings_user ON movie_ratings(user_id, reaction)",
+        ):
+            try:
+                await _turso_client.execute(_idx_sql)
+            except Exception:
+                pass
 
     # --- Mood Feedback Methods ---
     async def save_mood_feedback(self, user_id: int, tmdb_id: int, mood_id: str, feedback: str):
@@ -1722,7 +1752,7 @@ class MovieCache:
             await db.commit()
             return True
 
-    async def get_friends(self, user_id: int) -> list:
+    async def get_friends(self, user_id: int, limit: int = 100, offset: int = 0) -> list:
         """ACCEPTED arkadaşların karşı tarafının public bilgileri."""
         async with _get_connection(self.db_path, user_data=True) as db:
             cur = await db.execute(
@@ -1730,21 +1760,21 @@ class MovieCache:
                    FROM friendships f
                    JOIN users u ON u.id = CASE WHEN f.user_id = ? THEN f.friend_id ELSE f.user_id END
                    WHERE (f.user_id = ? OR f.friend_id = ?) AND f.status = 'ACCEPTED'
-                   ORDER BY u.name""",
-                (user_id, user_id, user_id),
+                   ORDER BY u.name LIMIT ? OFFSET ?""",
+                (user_id, user_id, user_id, limit, offset),
             )
             rows = await cur.fetchall()
             return [{"id": r[0], "username": r[1], "name": r[2], "avatar": r[3]} for r in rows]
 
-    async def get_incoming_requests(self, user_id: int) -> list:
+    async def get_incoming_requests(self, user_id: int, limit: int = 50, offset: int = 0) -> list:
         """Bana gelen PENDING istekler + gönderen bilgisi."""
         async with _get_connection(self.db_path, user_data=True) as db:
             cur = await db.execute(
                 """SELECT f.id, u.id, u.username, u.name, u.picture, f.created_at
                    FROM friendships f JOIN users u ON u.id = f.user_id
                    WHERE f.friend_id = ? AND f.status = 'PENDING'
-                   ORDER BY f.created_at DESC""",
-                (user_id,),
+                   ORDER BY f.created_at DESC LIMIT ? OFFSET ?""",
+                (user_id, limit, offset),
             )
             rows = await cur.fetchall()
             return [{"request_id": r[0], "id": r[1], "username": r[2], "name": r[3],

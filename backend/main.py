@@ -843,7 +843,7 @@ def _slim_movie_list(movies: list[dict]) -> list[dict]:
 
 # ─── Rate Limiter (paylaşılan modül — social.py vb. de aynı limiter'ı kullanır) ───
 from backend.services.rate_limit import (
-    rate_limit_general, rate_limit_ai,
+    rate_limit_general, rate_limit_ai, rate_limit_image_proxy,
 )
 
 
@@ -1022,7 +1022,7 @@ async def google_login(request: Request):
 async def dev_login():
     """SADECE YEREL/GELİŞTİRME — Google olmadan sahte bir kullanıcıyla giriş.
     Üretimde tamamen kapalı (403). Profil/sosyal özellikleri yerelde test etmek için."""
-    if IS_PRODUCTION:
+    if IS_PRODUCTION or ENVIRONMENT not in ("development", "local", "dev"):
         raise HTTPException(status_code=403, detail="Dev giriş üretimde kapalıdır")
 
     google_id = "dev-local"
@@ -2773,7 +2773,7 @@ _image_client = _hx.AsyncClient(
     follow_redirects=True,
 )
 
-@app.get("/api/image-proxy")
+@app.get("/api/image-proxy", dependencies=[Depends(rate_limit_image_proxy)])
 async def image_proxy(url: str = Query(...)):
     """
     TMDB görsel proxy — ISP DNS engelini aşmak için.

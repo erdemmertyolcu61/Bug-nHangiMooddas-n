@@ -776,6 +776,14 @@ async def delete_account(user: dict = Depends(get_current_user)):
         except Exception:
             pass
         for table, col in (
+            ("review_replies", "user_id"),
+            ("challenge_responses", "user_id"),
+            ("mood_feedback", "user_id"),
+            ("oracle_scores", "user_id"),
+            ("list_collaborators", "user_id"),
+            ("quiz_answers", "user_id"),
+            ("quiz_stats", "user_id"),
+            ("quiz_matchmaking_queue", "user_id"),
             ("movie_reviews", "user_id"),
             ("ugc_reports", "reporter_id"),
             ("watchlist", "user_id"),
@@ -792,6 +800,17 @@ async def delete_account(user: dict = Depends(get_current_user)):
                 await db.execute(f"DELETE FROM {table} WHERE {col} = ?", (uid,))
             except Exception:
                 logger.warning("[AccountDelete] %s silinemedi (uid=%d)", table, uid)
+        # Quiz room'lardaki soruları ve cevapları temizle
+        try:
+            await db.execute(
+                "DELETE FROM quiz_questions WHERE room_id IN "
+                "(SELECT id FROM quiz_rooms WHERE creator_id = ? OR opponent_id = ?)", (uid, uid))
+            await db.execute(
+                "DELETE FROM quiz_answers WHERE room_id IN "
+                "(SELECT id FROM quiz_rooms WHERE creator_id = ? OR opponent_id = ?)", (uid, uid))
+            await db.execute("DELETE FROM quiz_rooms WHERE creator_id = ? OR opponent_id = ?", (uid, uid))
+        except Exception:
+            logger.warning("[AccountDelete] quiz tabloları silinemedi (uid=%d)", uid)
         # Çift kolonlu ilişki tabloları
         for stmt in (
             "DELETE FROM friendships WHERE user_id = ? OR friend_id = ?",

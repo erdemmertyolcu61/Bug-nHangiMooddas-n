@@ -60,7 +60,7 @@ export const checkBackendHealth = async () => {
       try {
         const response = await fetch(url, { signal: AbortSignal.timeout(3000) });
         if (response.ok) {
-          console.log("[API] Backend is healthy via", url);
+          // healthy
           return true;
         }
       } catch (_) {}

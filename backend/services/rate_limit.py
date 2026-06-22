@@ -58,3 +58,9 @@ def rate_limit_ai(request: Request) -> None:
 
 def rate_limit_strict(request: Request) -> None:
     _check_rate_limit(request, RATE_LIMIT_STRICT)
+
+
+RATE_LIMIT_IMAGE_PROXY = 120
+
+def rate_limit_image_proxy(request: Request) -> None:
+    _check_rate_limit(request, RATE_LIMIT_IMAGE_PROXY)
