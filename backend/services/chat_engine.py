@@ -1850,6 +1850,25 @@ class ChatEngine:
         # Gemini vektör yolu kullanıldıysa mode'u koru; aksi halde lokal.
         if result.get("mode") != "semantic_gemini":
             result["mode"] = "semantic_local"
+
+        # TR film çeşitlilik sınırı: kullanıcı açıkça Türk filmi istemediyse
+        # sonuçlarda en fazla %30 TR film olsun
+        if lang_filter != "tr" and result.get("movies"):
+            movies = result["movies"]
+            max_tr = max(1, len(movies) // 3)
+            tr_count = sum(1 for m in movies if (m.get("original_language") or "") == "tr")
+            if tr_count > max_tr:
+                kept_tr = 0
+                filtered = []
+                for m in movies:
+                    if (m.get("original_language") or "") == "tr":
+                        if kept_tr < max_tr:
+                            filtered.append(m)
+                            kept_tr += 1
+                    else:
+                        filtered.append(m)
+                result["movies"] = filtered
+
         return result
 
     # ─────────── GEMINI VECTOR SEARCH (üretim semantic yolu) ───────────

@@ -3655,7 +3655,7 @@ class MovieCache:
         # "recommended" sıralamasında TR filmleri eşit dağıtmak için mood_score'dan
         # küçük bir kesinti yapılır; bu sayede ilk sayfalara yığılmaz, doğal karışır.
         order_clauses = {
-            "recommended": "CASE WHEN original_language='tr' THEN mood_score - 2.0 ELSE mood_score END DESC, vote_average DESC",
+            "recommended": "CASE WHEN original_language='tr' THEN mood_score - 8.0 ELSE mood_score END DESC, vote_average DESC",
             "rating_desc": "vote_average DESC, mood_score DESC",
             "rating_asc": "vote_average ASC, mood_score DESC",
             "mood_desc": "mood_score DESC, vote_average DESC",
@@ -3712,6 +3712,23 @@ class MovieCache:
                 "popularity": r[10] if r[10] else 0,
                 "mood_score": r[11] if r[11] else 0,
             })
+
+        if sort_by == "recommended" and len(movies) > 4:
+            max_tr = max(2, len(movies) // 5)
+            tr_films = [m for m in movies if m.get("original_language") == "tr"]
+            if len(tr_films) > max_tr:
+                non_tr = [m for m in movies if m.get("original_language") != "tr"]
+                tr_kept = tr_films[:max_tr]
+                movies = []
+                ti = 0
+                for i, m in enumerate(non_tr):
+                    movies.append(m)
+                    if ti < len(tr_kept) and (i + 1) % (len(non_tr) // max(1, len(tr_kept))) == 0:
+                        movies.append(tr_kept[ti])
+                        ti += 1
+                while ti < len(tr_kept):
+                    movies.append(tr_kept[ti])
+                    ti += 1
 
         total_pages = max(1, (total + per_page - 1) // per_page)
         return {
