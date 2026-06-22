@@ -98,10 +98,11 @@ def _decode_cell(cell):
 
 class _TursoCursor:
     """aiosqlite-style async cursor over a decoded Hrana result."""
-    __slots__ = ("_rows",)
+    __slots__ = ("_rows", "rowcount")
 
-    def __init__(self, rows):
+    def __init__(self, rows, affected_row_count: int = 0):
         self._rows = rows  # list of tuples
+        self.rowcount = affected_row_count
 
     async def fetchone(self):
         return self._rows[0] if self._rows else None
@@ -152,16 +153,21 @@ class _TursoHTTP:
             resp = item.get("response") or {}
             if resp.get("type") == "execute":
                 res = resp.get("result", {})
-                out.append([
+                rows = [
                     tuple(_decode_cell(c) for c in row)
                     for row in res.get("rows", [])
-                ])
+                ]
+                affected = res.get("affected_row_count", 0)
+                out.append((rows, affected))
         return out
 
     async def execute(self, sql, params=()):
         stmt = {"sql": sql, "args": [_encode_arg(v) for v in params]}
         results = await self._pipeline([stmt])
-        return _TursoCursor(results[0] if results else [])
+        if results:
+            rows, affected = results[0]
+            return _TursoCursor(rows, affected)
+        return _TursoCursor([], 0)
 
     async def executemany(self, sql, params_list):
         params_list = list(params_list)
