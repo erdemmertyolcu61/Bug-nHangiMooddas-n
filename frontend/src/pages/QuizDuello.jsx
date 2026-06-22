@@ -13,6 +13,7 @@ import {
   joinMatchmaking, pollMatchmaking, leaveMatchmaking,
 } from '../services/api';
 import useDuelloPoll from '../hooks/useDuelloPoll';
+import useQuizSounds from '../hooks/useQuizSounds';
 import { resolveAvatarUrl } from '../utils/apiConfig';
 import useDocumentMeta from '../utils/useDocumentMeta';
 import { getLeague } from '../utils/league';
@@ -463,9 +464,10 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
 
 // ─── GAME: Aktif quiz ──────────────────────────────────────────────────────
 
-function DuelloGame({ roomState, onAnswer }) {
+function DuelloGame({ roomState, onAnswer, sounds }) {
   const [displayState, setDisplayState] = useState(roomState);
   const [localFeedback, setLocalFeedback] = useState(null);
+  const [answerAnim, setAnswerAnim] = useState(null); // 'correct' | 'wrong' | null
   const feedbackUntil = useRef(0);
 
   useEffect(() => {
@@ -506,6 +508,7 @@ function DuelloGame({ roomState, onAnswer }) {
       setSubmitting(false);
       setEliminatedOptions([]);
       setLocalFeedback(null);
+      setAnswerAnim(null);
       const serverRemaining = Math.ceil((question.time_remaining_ms || QUESTION_TIME * 1000) / 1000);
       setTimeLeft(Math.min(QUESTION_TIME, Math.max(0, serverRemaining)));
     }
@@ -519,6 +522,7 @@ function DuelloGame({ roomState, onAnswer }) {
           clearInterval(timerRef.current);
           return 0;
         }
+        if (prev <= 6 && prev > 1) sounds?.playTick();
         return prev - 1;
       });
     }, 1000);
@@ -548,6 +552,13 @@ function DuelloGame({ roomState, onAnswer }) {
           score: result.score,
           correct_answer: result.correct_answer,
         });
+        if (result.is_correct) {
+          sounds?.playCorrect();
+          setAnswerAnim('correct');
+        } else {
+          sounds?.playWrong();
+          setAnswerAnim('wrong');
+        }
         if (result.is_correct || isDoubleRetry) {
           doubleChanceUsedRef.current = true;
           feedbackUntil.current = Date.now() + 1500;
@@ -569,6 +580,7 @@ function DuelloGame({ roomState, onAnswer }) {
     setJokerLoading(true);
     try {
       const res = await useDuelloJoker(room_id, question.index, jokerType);
+      sounds?.playJoker();
       if (jokerType === 'fifty_fifty' && res.eliminated) {
         setEliminatedOptions(res.eliminated);
       } else if (jokerType === 'freeze_time') {
@@ -594,8 +606,23 @@ function DuelloGame({ roomState, onAnswer }) {
   const timerColor = timeLeft > 10 ? 'text-green-400' : timeLeft > 5 ? 'text-yellow-400' : 'text-red-400';
   const movieName = question.extra_data?.movie;
 
+  const urgentMode = timeLeft <= 5 && timeLeft > 0 && !my_answer;
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 relative">
+      {/* Son 5 saniye kenar glow'u */}
+      <AnimatePresence>
+        {urgentMode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.15, 0.35, 0.15] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1, repeat: Infinity }}
+            className="fixed inset-0 pointer-events-none z-50"
+            style={{ boxShadow: 'inset 0 0 80px 20px rgba(239,68,68,0.25)' }}
+          />
+        )}
+      </AnimatePresence>
       {/* Header: skor + süre + soru */}
       <div className="sticky top-0 z-10 -mx-4 px-4 pt-10 pb-3 bg-bg/95 backdrop-blur-sm border-b border-white/5">
         {/* Skorlar */}
@@ -614,23 +641,38 @@ function DuelloGame({ roomState, onAnswer }) {
         </div>
 
         {/* Timer bar */}
-        <div className="relative h-1.5 bg-surface-2/50 rounded-full overflow-hidden">
+        <div className={`relative h-1.5 bg-surface-2/50 rounded-full overflow-hidden ${
+          timeLeft <= 5 && timeLeft > 0 && !my_answer ? 'animate-pulse' : ''
+        }`}>
           <motion.div
             className={`absolute inset-y-0 left-0 rounded-full ${
               timeLeft > 10 ? 'bg-green-500' : timeLeft > 5 ? 'bg-yellow-500' : 'bg-red-500'
             }`}
             initial={false}
-            animate={{ width: `${timerPct}%` }}
-            transition={{ duration: 0.3 }}
+            animate={{
+              width: `${timerPct}%`,
+              ...(timeLeft <= 5 && timeLeft > 0 && !my_answer ? { opacity: [1, 0.6, 1] } : {}),
+            }}
+            transition={{
+              width: { duration: 0.3 },
+              opacity: { duration: 0.5, repeat: Infinity },
+            }}
           />
         </div>
 
         {/* Timer sayacı + rakip durumu */}
         <div className="flex items-center justify-between mt-1.5">
-          <div className={`flex items-center gap-1 text-sm font-mono font-bold ${timerColor}`}>
+          <motion.div
+            className={`flex items-center gap-1 text-sm font-mono font-bold ${timerColor}`}
+            animate={timeLeft <= 5 && timeLeft > 0 && !my_answer
+              ? { scale: [1, 1.15, 1] }
+              : { scale: 1 }
+            }
+            transition={{ duration: 0.5, repeat: timeLeft <= 5 && timeLeft > 0 ? Infinity : 0 }}
+          >
             <Clock size={14} />
             {timeLeft}s
-          </div>
+          </motion.div>
           {opponent_answered && !my_answer && (
             <motion.span
               initial={{ opacity: 0, x: 10 }}
@@ -717,12 +759,27 @@ function DuelloGame({ roomState, onAnswer }) {
           const isDoubleChanceActive = my_answer && !my_answer.is_correct && player_jokers?.double_chance === question.index && !doubleChanceUsedRef.current;
           const isDisabled = (!!my_answer && !isDoubleChanceActive) || !!selected || timeLeft <= 0 || isEliminated || (isDoubleChanceActive && isMyPick);
 
+          const shakeAnim = isWrong && answerAnim === 'wrong';
+          const popAnim = isCorrect && answerAnim === 'correct';
+
           return (
             <motion.button
               key={`${question.index}-${i}`}
               initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2, delay: i * 0.05 }}
+              animate={
+                shakeAnim
+                  ? { opacity: 1, x: [0, -6, 6, -4, 4, 0] }
+                  : popAnim
+                    ? { opacity: 1, x: 0, scale: [1, 1.04, 1] }
+                    : { opacity: 1, x: 0 }
+              }
+              transition={
+                shakeAnim
+                  ? { duration: 0.4 }
+                  : popAnim
+                    ? { duration: 0.3 }
+                    : { duration: 0.2, delay: i * 0.05 }
+              }
               onClick={() => handleSelect(option)}
               disabled={isDisabled}
               whileTap={!isDisabled ? { scale: 0.97 } : {}}
@@ -1032,6 +1089,7 @@ export default function QuizDuello() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomParam = searchParams.get('room');
+  const sounds = useQuizSounds();
 
   useDocumentMeta({
     title: 'SineQuiz | Sinemood',
@@ -1092,6 +1150,7 @@ export default function QuizDuello() {
   };
 
   const handleReady = async () => {
+    sounds.warmUp();
     await setDuelloReady(roomId);
     refetch();
   };
@@ -1223,6 +1282,7 @@ export default function QuizDuello() {
               <DuelloGame
                 roomState={roomState}
                 onAnswer={handleAnswer}
+                sounds={sounds}
               />
             </motion.div>
           )}
