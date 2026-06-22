@@ -668,6 +668,16 @@ async def poll_room(room_id: str, user: dict = Depends(verify_user)):
                     else: my_streak = 0
                     
                 jokers_dict = json.loads(room.get("player_jokers") or "{}")
+                my_jokers = jokers_dict.get(str(me), {})
+
+                if my_ans_row:
+                    cur_correct = await db.execute(
+                        "SELECT correct_answer FROM quiz_questions WHERE room_id = ? AND question_index = ?",
+                        (room_id, q_idx),
+                    )
+                    correct_row = await cur_correct.fetchone()
+                    if correct_row and my_answer:
+                        my_answer["correct_answer"] = correct_row[0]
 
                 response.update({
                     "current_question": q_idx,
@@ -675,7 +685,7 @@ async def poll_room(room_id: str, user: dict = Depends(verify_user)):
                     "question": question_data,
                     "my_answer": my_answer,
                     "my_streak": my_streak,
-                    "player_jokers": jokers_dict,
+                    "player_jokers": my_jokers,
                     "opponent_answered": opp_answered,
                     "scores": {
                         "me": score_map.get(me, 0),

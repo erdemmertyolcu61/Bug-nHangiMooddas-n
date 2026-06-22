@@ -561,11 +561,12 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
         }
         if (result.is_correct || isDoubleRetry) {
           doubleChanceUsedRef.current = true;
-          feedbackUntil.current = Date.now() + 1500;
+          feedbackUntil.current = Date.now() + 2000;
         } else if (player_jokers?.double_chance === question.index && !doubleChanceUsedRef.current) {
           setSelected(null);
+          setAnswerAnim(null);
         } else {
-          feedbackUntil.current = Date.now() + 1500;
+          feedbackUntil.current = Date.now() + 2000;
         }
       }
     } catch {
@@ -719,14 +720,17 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
                 key={type}
                 onClick={() => handleJoker(type)}
                 disabled={my_answer || jokerLoading || timeLeft <= 0 || used}
-                className={`px-2 py-1 rounded-lg border transition-all flex items-center gap-1 text-[11px] font-medium
+                className={`relative px-2 py-1 rounded-lg border transition-all flex items-center gap-1 text-[11px] font-medium
                   ${used
-                    ? 'border-fg-subtle/20 bg-surface-2/30 text-fg-subtle line-through opacity-40'
+                    ? 'border-fg-subtle/20 bg-surface-2/30 text-fg-subtle opacity-40'
                     : `${activeColor} ${hoverColor}`
                   } disabled:cursor-default`}
               >
                 <Icon size={12} />
                 <span>{label}</span>
+                {used && (
+                  <X size={16} className="absolute inset-0 m-auto text-red-400 opacity-80" strokeWidth={3} />
+                )}
               </button>
             );
           })}
