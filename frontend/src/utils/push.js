@@ -1,10 +1,15 @@
 /**
- * Web Push yardımcıları — izin iste, abone ol/çık, durum sorgula.
- * VAPID anahtarı backend'de yoksa (push kapalı) tüm akış sessizce devre dışı kalır.
+ * Push notification helpers — web (VAPID) + native (FCM via Capacitor).
+ * Platform detection happens automatically; callers use the same API.
  */
 import { getPushPublicKey, subscribePush, unsubscribePush } from '../services/api';
+import { isNative } from './native';
 
-export function pushSupported() {
+// ═══════════════════════════════════════════
+// Web Push (VAPID)
+// ═══════════════════════════════════════════
+
+function webPushSupported() {
   return typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
     'PushManager' in window &&
@@ -25,39 +30,82 @@ async function getRegistration() {
   return (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.ready);
 }
 
-/** Mevcut abonelik durumu: true → bu cihaz abone. */
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone
+    || false;
+}
+
+// ═══════════════════════════════════════════
+// Native Push (FCM via @capacitor-firebase/messaging)
+// ═══════════════════════════════════════════
+
+let _firebaseMessaging = null;
+async function getFirebaseMessaging() {
+  if (!_firebaseMessaging) {
+    const mod = await import('@capacitor-firebase/messaging');
+    _firebaseMessaging = mod.FirebaseMessaging;
+  }
+  return _firebaseMessaging;
+}
+
+// ═══════════════════════════════════════════
+// Public API (platform-agnostic)
+// ═══════════════════════════════════════════
+
+export function pushSupported() {
+  if (isNative) return true;
+  return webPushSupported();
+}
+
 export async function isPushSubscribed() {
-  if (!pushSupported() || Notification.permission !== 'granted') return false;
+  if (isNative) {
+    try {
+      const fm = await getFirebaseMessaging();
+      const { receive } = await fm.checkPermissions();
+      return receive === 'granted';
+    } catch { return false; }
+  }
+  if (!webPushSupported() || Notification.permission !== 'granted') return false;
   try {
     const reg = await getRegistration();
     if (!reg) return false;
     const sub = await reg.pushManager.getSubscription();
     return !!sub;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
-/** Push backend'de açık mı (VAPID anahtarı var mı)? */
 export async function isPushEnabledOnServer() {
+  if (isNative) return true;
   try {
     const { enabled } = await getPushPublicKey();
     return !!enabled;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
-/** PWA (Ana Ekrana Eklenmiş) modunda mı? */
-function isStandalone() {
-  return window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone  // iOS Safari
-    || false;
-}
-
-/** İzin iste + abone ol + backend'e kaydet. Başarılıysa true. */
 export async function enablePush() {
-  if (!pushSupported()) return { ok: false, reason: 'unsupported' };
+  if (isNative) {
+    try {
+      const fm = await getFirebaseMessaging();
+      const { receive } = await fm.requestPermissions();
+      if (receive !== 'granted') return { ok: false, reason: 'denied' };
+      const { token } = await fm.getToken();
+      if (!token) return { ok: false, reason: 'no-token' };
+      await subscribePush({ endpoint: token, type: 'fcm', is_pwa: false });
+
+      fm.addListener('tokenRefresh', async ({ token: newToken }) => {
+        await subscribePush({ endpoint: newToken, type: 'fcm', is_pwa: false }).catch(() => {});
+      });
+
+      return { ok: true };
+    } catch (e) {
+      console.error('[Push] native enable error:', e);
+      return { ok: false, reason: 'error' };
+    }
+  }
+
+  // Web VAPID flow
+  if (!webPushSupported()) return { ok: false, reason: 'unsupported' };
   const { enabled, public_key } = await getPushPublicKey();
   if (!enabled || !public_key) return { ok: false, reason: 'disabled' };
 
@@ -78,9 +126,16 @@ export async function enablePush() {
   return { ok: true };
 }
 
-/** Abonelikten çık + backend'den sil. */
 export async function disablePush() {
-  if (!pushSupported()) return { ok: false };
+  if (isNative) {
+    try {
+      const fm = await getFirebaseMessaging();
+      await fm.deleteToken();
+      return { ok: true };
+    } catch { return { ok: false }; }
+  }
+
+  if (!webPushSupported()) return { ok: false };
   try {
     const reg = await getRegistration();
     if (!reg) return { ok: false };
@@ -90,7 +145,5 @@ export async function disablePush() {
       await sub.unsubscribe().catch(() => {});
     }
     return { ok: true };
-  } catch {
-    return { ok: false };
-  }
+  } catch { return { ok: false }; }
 }

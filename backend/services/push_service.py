@@ -55,11 +55,36 @@ def _send_web_push(sub: dict, payload: dict) -> str:
         return "fail"
 
 
+def _send_fcm_push(fcm_token: str, payload: dict) -> str:
+    """FCM HTTP v1 ile tek bir cihaza push gönderir."""
+    try:
+        import firebase_admin
+        from firebase_admin import messaging as fcm_messaging
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app()
+        message = fcm_messaging.Message(
+            token=fcm_token,
+            notification=fcm_messaging.Notification(
+                title=payload.get("title", "Sinemood"),
+                body=payload.get("body", ""),
+            ),
+            data={"url": payload.get("url", "/"), "tag": payload.get("tag", "sinemood")},
+        )
+        fcm_messaging.send(message)
+        return "ok"
+    except Exception as e:
+        err_str = str(e)
+        if "not-registered" in err_str or "invalid-registration" in err_str:
+            return "gone"
+        logger.warning("[Push] FCM send error: %s", e)
+        return "fail"
+
+
 async def send_push_to_user(user_id: int, title: str, body: str,
                             url: str = "/", tag: str = "sinemood") -> int:
     """Bir kullanıcının tüm cihazlarına push gönderir. Ölü abonelikleri temizler.
     Döner: başarıyla gönderilen cihaz sayısı."""
-    if not PUSH_ENABLED or not user_id:
+    if not user_id:
         return 0
     try:
         subs = await cache.get_push_subscriptions(user_id)
@@ -68,7 +93,13 @@ async def send_push_to_user(user_id: int, title: str, body: str,
     payload = {"title": title, "body": body, "url": url, "tag": tag}
     sent = 0
     for sub in subs:
-        result = await asyncio.to_thread(_send_web_push, sub, payload)
+        sub_type = sub.get("sub_type", "vapid")
+        if sub_type == "fcm":
+            result = await asyncio.to_thread(_send_fcm_push, sub["endpoint"], payload)
+        else:
+            if not PUSH_ENABLED:
+                continue
+            result = await asyncio.to_thread(_send_web_push, sub, payload)
         if result == "ok":
             sent += 1
         elif result == "gone":
@@ -86,8 +117,6 @@ async def send_push_for_hour(hour: int, title: str, body: str, url: str = "/",
     pwa_only=False (varsayılan): Android tarayıcı aboneleri DAHİL herkese gönderir.
     (iOS yalnız kurulu PWA'da abone olabildiği için is_pwa filtresi gereksiz.)
     Ölü abonelikleri temizler. Döner: başarıyla gönderilen cihaz sayısı."""
-    if not PUSH_ENABLED:
-        return 0
     try:
         subs = await cache.get_push_subscriptions_by_hour(hour)
     except Exception:
@@ -97,7 +126,13 @@ async def send_push_for_hour(hour: int, title: str, body: str, url: str = "/",
     for sub in subs:
         if pwa_only and not sub.get("is_pwa"):
             continue
-        result = await asyncio.to_thread(_send_web_push, sub, payload)
+        sub_type = sub.get("sub_type", "vapid")
+        if sub_type == "fcm":
+            result = await asyncio.to_thread(_send_fcm_push, sub["endpoint"], payload)
+        else:
+            if not PUSH_ENABLED:
+                continue
+            result = await asyncio.to_thread(_send_web_push, sub, payload)
         if result == "ok":
             sent += 1
         elif result == "gone":
@@ -105,7 +140,6 @@ async def send_push_for_hour(hour: int, title: str, body: str, url: str = "/",
                 await cache.delete_push_subscription(sub["endpoint"])
             except Exception:
                 pass
-        # "fail": geçici hata → aboneliği KORU
     return sent
 
 
@@ -113,8 +147,6 @@ async def send_push_broadcast(title: str, body: str, url: str = "/", tag: str = 
     """Tüm abonelere push gönderir (günlük içerik). Ölü abonelikleri temizler.
     pwa_only=True: sadece Ana Ekrana Eklenmiş (PWA) kullanıcılara gönderir.
     Döner: başarıyla gönderilen cihaz sayısı."""
-    if not PUSH_ENABLED:
-        return 0
     try:
         subs = await cache.get_all_push_subscriptions()
     except Exception:
@@ -124,7 +156,13 @@ async def send_push_broadcast(title: str, body: str, url: str = "/", tag: str = 
     for sub in subs:
         if pwa_only and not sub.get("is_pwa"):
             continue
-        result = await asyncio.to_thread(_send_web_push, sub, payload)
+        sub_type = sub.get("sub_type", "vapid")
+        if sub_type == "fcm":
+            result = await asyncio.to_thread(_send_fcm_push, sub["endpoint"], payload)
+        else:
+            if not PUSH_ENABLED:
+                continue
+            result = await asyncio.to_thread(_send_web_push, sub, payload)
         if result == "ok":
             sent += 1
         elif result == "gone":
@@ -132,5 +170,4 @@ async def send_push_broadcast(title: str, body: str, url: str = "/", tag: str = 
                 await cache.delete_push_subscription(sub["endpoint"])
             except Exception:
                 pass
-        # "fail": geçici hata → aboneliği KORU (silme)
     return sent

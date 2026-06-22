@@ -17,8 +17,9 @@ router = APIRouter(prefix="/api", tags=["push"])
 
 class PushSubscribeBody(BaseModel):
     endpoint: str
-    keys: dict
+    keys: dict = {}
     is_pwa: bool = False
+    type: str = "vapid"  # "vapid" or "fcm"
 
 
 class PushUnsubscribeBody(BaseModel):
@@ -36,6 +37,11 @@ async def push_public_key():
 
 @router.post("/push/subscribe", dependencies=[Depends(rate_limit_strict)])
 async def push_subscribe(body: PushSubscribeBody, user=Depends(verify_user)):
+    if body.type == "fcm":
+        ok = await cache.save_push_subscription(
+            user["user_id"], body.endpoint, "", "", is_pwa=0, sub_type="fcm",
+        )
+        return {"ok": ok, "enabled": True}
     if not PUSH_ENABLED:
         return {"ok": False, "enabled": False}
     keys = body.keys or {}

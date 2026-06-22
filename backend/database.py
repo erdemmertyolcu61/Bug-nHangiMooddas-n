@@ -748,6 +748,11 @@ class MovieCache:
                 await db.execute("ALTER TABLE push_subscriptions ADD COLUMN notify_hour INTEGER DEFAULT 18")
             except Exception:
                 logger.warning("[DB] ALTER push_subscriptions ADD notify_hour failed")
+            # sub_type migration (vapid vs fcm)
+            try:
+                await db.execute("ALTER TABLE push_subscriptions ADD COLUMN sub_type TEXT DEFAULT 'vapid'")
+            except Exception:
+                logger.warning("[DB] ALTER push_subscriptions ADD sub_type failed")
             # reaction migration (öneri reaksiyonları)
             try:
                 await db.execute("ALTER TABLE direct_recommendations ADD COLUMN reaction TEXT")
@@ -1590,19 +1595,21 @@ class MovieCache:
             return int(row[0]) if row else 0
 
     # ── Web Push abonelikleri ─────────────────────────────────────────────
-    async def save_push_subscription(self, user_id: int, endpoint: str, p256dh: str, auth: str, is_pwa: int = 0) -> bool:
+    async def save_push_subscription(self, user_id: int, endpoint: str, p256dh: str, auth: str, is_pwa: int = 0, sub_type: str = "vapid") -> bool:
         """Push aboneliğini kaydeder/günceller (endpoint tekil)."""
-        if not user_id or not endpoint or not p256dh or not auth:
+        if not user_id or not endpoint:
+            return False
+        if sub_type == "vapid" and (not p256dh or not auth):
             return False
         async with _get_connection(self.db_path, user_data=True) as db:
-            # UPSERT: yeniden abone olunca notify_hour (kullanıcı tercihi) KORUNUR.
             await db.execute(
-                """INSERT INTO push_subscriptions (endpoint, user_id, p256dh, auth, is_pwa)
-                   VALUES (?, ?, ?, ?, ?)
+                """INSERT INTO push_subscriptions (endpoint, user_id, p256dh, auth, is_pwa, sub_type)
+                   VALUES (?, ?, ?, ?, ?, ?)
                    ON CONFLICT(endpoint) DO UPDATE SET
                        user_id=excluded.user_id, p256dh=excluded.p256dh,
-                       auth=excluded.auth, is_pwa=excluded.is_pwa""",
-                (endpoint, user_id, p256dh, auth, is_pwa),
+                       auth=excluded.auth, is_pwa=excluded.is_pwa,
+                       sub_type=excluded.sub_type""",
+                (endpoint, user_id, p256dh, auth, is_pwa, sub_type),
             )
             await db.commit()
             return True
@@ -1636,11 +1643,11 @@ class MovieCache:
         """notify_hour == hour olan tüm abonelikleri döndürür (saatlik günlük push)."""
         async with _get_connection(self.db_path, user_data=True) as db:
             cur = await db.execute(
-                "SELECT endpoint, p256dh, auth, user_id, is_pwa FROM push_subscriptions WHERE notify_hour = ?",
+                "SELECT endpoint, p256dh, auth, user_id, is_pwa, sub_type FROM push_subscriptions WHERE notify_hour = ?",
                 (int(hour),),
             )
             rows = await cur.fetchall()
-            return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2], "user_id": r[3], "is_pwa": r[4] or 0} for r in rows]
+            return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2], "user_id": r[3], "is_pwa": r[4] or 0, "sub_type": r[5] or "vapid"} for r in rows]
 
     async def delete_push_subscription(self, endpoint: str) -> bool:
         if not endpoint:
@@ -1654,20 +1661,20 @@ class MovieCache:
         """Bir kullanıcının tüm push aboneliklerini döndürür."""
         async with _get_connection(self.db_path, user_data=True) as db:
             cur = await db.execute(
-                "SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?",
+                "SELECT endpoint, p256dh, auth, sub_type FROM push_subscriptions WHERE user_id = ?",
                 (user_id,),
             )
             rows = await cur.fetchall()
-            return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2]} for r in rows]
+            return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2], "sub_type": r[3] or "vapid"} for r in rows]
 
     async def get_all_push_subscriptions(self) -> list:
         """Tüm aboneliği döndürür (toplu günlük bildirim için)."""
         async with _get_connection(self.db_path, user_data=True) as db:
             cur = await db.execute(
-                "SELECT endpoint, p256dh, auth, user_id, is_pwa FROM push_subscriptions"
+                "SELECT endpoint, p256dh, auth, user_id, is_pwa, sub_type FROM push_subscriptions"
             )
             rows = await cur.fetchall()
-            return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2], "user_id": r[3], "is_pwa": r[4] or 0} for r in rows]
+            return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2], "user_id": r[3], "is_pwa": r[4] or 0, "sub_type": r[5] or "vapid"} for r in rows]
 
     async def update_last_active(self, user_id: int) -> None:
         """Kullanıcının son aktif olma zamanını günceller."""
