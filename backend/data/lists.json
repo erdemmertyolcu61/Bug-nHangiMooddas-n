@@ -24,7 +24,7 @@
   },
   {
     "slug": "cannes",
-    "title": "Cannes — Altın Palmiye",
+    "title": "Cannes | Altın Palmiye",
     "description": "Dünyanın en saygın film festivalinin zirvesi. Croisette'te Altın Palmiye'yi kazanan başyapıtlar.",
     "ustad_intro": "Cannes sinemanın kalbinin attığı yerdir. Altın Palmiye almak, bir yönetmen için ömürlük bir mühürdür. Bu liste o mührü taşıyan, jürinin önünde diğerlerinden sıyrılan filmler.",
     "mood": "askbahcesi",
@@ -91,7 +91,7 @@
   },
   {
     "slug": "venedik",
-    "title": "Venedik — Altın Aslan",
+    "title": "Venedik | Altın Aslan",
     "description": "Dünyanın en eski film festivalinin başyapıtları. Lido'da Altın Aslan'ı kazananlar.",
     "ustad_intro": "Venedik, sinemanın en kıdemli sahnesidir. Altın Aslan, cesur ve sanatsal olana verilir. Son yılların Lido'da zafer kazanan, sezona damga vuran filmleri.",
     "mood": "gece",
@@ -135,7 +135,7 @@
   },
   {
     "slug": "berlin",
-    "title": "Berlin — Altın Ayı",
+    "title": "Berlin | Altın Ayı",
     "description": "Berlinale'nin politik ve cesur seçkisi. Altın Ayı'yı kazanan, çağına ayna tutan filmler.",
     "ustad_intro": "Berlinale, sinemayı politikadan ayırmaz. Altın Ayı çoğu zaman cesur, sarsıcı ve zamanın ruhunu yakalayan filmlere gider. İşte son yılların Berlin'de parlayan yapımları.",
     "mood": "deep-chills",
@@ -181,7 +181,7 @@
   {
     "slug": "altin-portakal",
     "title": "Altın Portakal Film Festivali",
-    "description": "Antalya'nın efsane festivali — Türk sinemasının en güncel En İyi Film ödülleri.",
+    "description": "Antalya'nın efsane festivali, Türk sinemasının en güncel En İyi Film ödülleri.",
     "ustad_intro": "Altın Portakal, Türk sinemasının nabzını tutar. Her yıl bu topraklardan çıkan en güçlü hikâyeler Antalya'da yarışır. İşte son yılların En İyi Film ödülünü kucaklayan yerli yapımlar.",
     "mood": "kalp",
     "badge": "Altın Portakal",
@@ -202,7 +202,7 @@
   {
     "slug": "altin-koza",
     "title": "Uluslararası Adana Altın Koza",
-    "description": "Adana'nın köklü festivali — Türk sinemasının cesur seslerini ödüllendiren En İyi Filmler.",
+    "description": "Adana'nın köklü festivali, Türk sinemasının cesur seslerini ödüllendiren En İyi Filmler.",
     "ustad_intro": "Altın Koza, Yılmaz Güney'in toprağında kök salmış bir gelenek. Türk sinemasının en cesur, en samimi yapımlarını onurlandırır. İşte son dönemin Adana'da zafere ulaşan filmleri.",
     "mood": "sessiz",
     "badge": "Altın Koza",
