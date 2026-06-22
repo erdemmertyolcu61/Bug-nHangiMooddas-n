@@ -536,7 +536,7 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
   }, [question?.index]);
 
   const handleSelect = async (option) => {
-    const isDoubleRetry = !!(localFeedback && !localFeedback.is_correct && player_jokers?.double_chance === question?.index && !doubleChanceUsedRef.current);
+    const isDoubleRetry = !!(my_answer && !my_answer.is_correct && player_jokers?.double_chance === question?.index && !doubleChanceUsedRef.current);
     if (selected || submitting || timeLeft <= 0) return;
     if (my_answer && !isDoubleRetry) return;
 
@@ -751,7 +751,8 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
       {/* Seçenekler */}
       <div className="grid grid-cols-1 gap-2">
         {(question.options || []).map((option, i) => {
-          const correctAnswer = my_answer?.correct_answer;
+          const isDoubleChanceActive = my_answer && !my_answer.is_correct && player_jokers?.double_chance === question.index && !doubleChanceUsedRef.current;
+          const correctAnswer = isDoubleChanceActive ? null : my_answer?.correct_answer;
           const isMyPick = my_answer && option === my_answer.selected;
           const isCorrectAnswer = my_answer && correctAnswer && option === correctAnswer;
           const isCorrect = isMyPick && my_answer.is_correct;
@@ -760,7 +761,6 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
 
           const isEliminated = eliminatedOptions.includes(option);
 
-          const isDoubleChanceActive = my_answer && !my_answer.is_correct && player_jokers?.double_chance === question.index && !doubleChanceUsedRef.current;
           const isDisabled = (!!my_answer && !isDoubleChanceActive) || !!selected || timeLeft <= 0 || isEliminated || (isDoubleChanceActive && isMyPick);
 
           const shakeAnim = isWrong && answerAnim === 'wrong';

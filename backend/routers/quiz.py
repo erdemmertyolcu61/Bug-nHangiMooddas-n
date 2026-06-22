@@ -269,14 +269,15 @@ def _generate_questions_from_trivia(categories: list[str]) -> list[dict]:
             added += 1
 
     while len(questions) < QUESTIONS_PER_GAME:
-        all_remaining = [
-            t for t in TRIVIA_QUESTIONS
-            if id(t) not in used_indices
-        ]
-        if not all_remaining:
-            all_remaining = list(TRIVIA_QUESTIONS)
-            used_indices.clear()
-        trivia = random.choice(all_remaining)
+        pool = [t for t in TRIVIA_QUESTIONS if id(t) not in used_indices and t["category"] in categories]
+        if not pool:
+            pool = [t for t in TRIVIA_QUESTIONS if t["category"] in categories]
+            used_indices -= {id(t) for t in pool}
+        if not pool:
+            pool = [t for t in TRIVIA_QUESTIONS if id(t) not in used_indices]
+        if not pool:
+            break
+        trivia = random.choice(pool)
         used_indices.add(id(trivia))
         options = [trivia["correct"]] + trivia["wrong"][:3]
         random.shuffle(options)
@@ -670,14 +671,18 @@ async def poll_room(room_id: str, user: dict = Depends(verify_user)):
                 jokers_dict = json.loads(room.get("player_jokers") or "{}")
                 my_jokers = jokers_dict.get(str(me), {})
 
-                if my_ans_row:
-                    cur_correct = await db.execute(
-                        "SELECT correct_answer FROM quiz_questions WHERE room_id = ? AND question_index = ?",
-                        (room_id, q_idx),
-                    )
-                    correct_row = await cur_correct.fetchone()
-                    if correct_row and my_answer:
-                        my_answer["correct_answer"] = correct_row[0]
+                if my_ans_row and my_answer:
+                    has_dc = my_jokers.get("double_chance") == q_idx
+                    is_wrong = not my_answer["is_correct"]
+                    dc_retry_window = has_dc and is_wrong
+                    if not dc_retry_window:
+                        cur_correct = await db.execute(
+                            "SELECT correct_answer FROM quiz_questions WHERE room_id = ? AND question_index = ?",
+                            (room_id, q_idx),
+                        )
+                        correct_row = await cur_correct.fetchone()
+                        if correct_row:
+                            my_answer["correct_answer"] = correct_row[0]
 
                 response.update({
                     "current_question": q_idx,
@@ -944,13 +949,14 @@ async def submit_answer(room_id: str, body: AnswerBody, user: dict = Depends(ver
             room = await _get_room(db, room_id)
             await _check_advance_question(db, room)
 
-    return {
-        "is_correct": is_correct,
-        "correct_answer": correct_answer,
-        "score": score,
-        "elapsed_ms": elapsed_ms,
-        "both_answered": both_answered,
-    }
+        can_retry = has_double_chance and not is_correct and not existing
+        return {
+            "is_correct": is_correct,
+            "correct_answer": None if can_retry else correct_answer,
+            "score": score,
+            "elapsed_ms": elapsed_ms,
+            "both_answered": both_answered,
+        }
 
 
 @router.get("/rooms/{room_id}/results")
