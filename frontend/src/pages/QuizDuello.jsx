@@ -1225,13 +1225,13 @@ export default function QuizDuello() {
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
       className="min-h-screen bg-bg text-ivory pb-32"
     >
-      <div className="max-w-md mx-auto px-4 pt-6">
+      <div className="max-w-md mx-auto px-4 pt-safe">
         {phase !== 'playing' && phase !== 'transition' && (
           <button
             onClick={() => phase === 'intro' ? navigate(-1) : handleLeave()}
-            className="mb-4 flex items-center gap-2 text-sm text-amber/50 hover:text-amber/80 transition-colors group"
+            className="mt-3 mb-3 -ml-1 flex items-center gap-1.5 text-sm text-amber/50 hover:text-amber/80 active:text-amber/90 transition-colors group min-h-[44px] min-w-[44px] px-2"
           >
-            <ChevronLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+            <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
             {phase === 'intro' ? 'Geri' : 'Odadan Ayrıl'}
           </button>
         )}
