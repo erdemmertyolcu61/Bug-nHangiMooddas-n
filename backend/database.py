@@ -3712,7 +3712,8 @@ class MovieCache:
                 where_params
             ).fetchone()[0]
 
-            # Fetch page
+            # Over-fetch to allow TR diversity filtering
+            fetch_limit = per_page * 2 if sort_by == "recommended" else per_page
             rows = conn.execute(
                 f"""SELECT tmdb_id, title, poster_url, overview, release_date,
                            vote_average, genre_ids, backdrop_url, vote_count,
@@ -3721,7 +3722,7 @@ class MovieCache:
                     WHERE {where_sql}
                     ORDER BY {order_by}
                     LIMIT ? OFFSET ?""",
-                where_params + [per_page, offset]
+                where_params + [fetch_limit, offset]
             ).fetchall()
         finally:
             conn.close()
@@ -3744,21 +3745,23 @@ class MovieCache:
             })
 
         if sort_by == "recommended" and len(movies) > 4:
-            max_tr = max(2, len(movies) // 5)
+            max_tr = max(1, per_page // 7)
             tr_films = [m for m in movies if m.get("original_language") == "tr"]
             if len(tr_films) > max_tr:
                 non_tr = [m for m in movies if m.get("original_language") != "tr"]
                 tr_kept = tr_films[:max_tr]
                 movies = []
                 ti = 0
+                step = max(1, len(non_tr) // (len(tr_kept) + 1))
                 for i, m in enumerate(non_tr):
                     movies.append(m)
-                    if ti < len(tr_kept) and (i + 1) % (len(non_tr) // max(1, len(tr_kept))) == 0:
+                    if ti < len(tr_kept) and (i + 1) % step == 0:
                         movies.append(tr_kept[ti])
                         ti += 1
                 while ti < len(tr_kept):
                     movies.append(tr_kept[ti])
                     ti += 1
+            movies = movies[:per_page]
 
         total_pages = max(1, (total + per_page - 1) // per_page)
         return {
