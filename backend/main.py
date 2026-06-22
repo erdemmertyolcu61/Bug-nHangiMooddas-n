@@ -417,7 +417,7 @@ async def lifespan(app: FastAPI):
                     "SELECT COUNT(*) FROM movie_repository WHERE mood_score > 0"
                 )
                 scored_count = (await cursor.fetchone())[0]
-            RESCORE_VERSION = 2  # Bump to force rescore after scoring formula changes
+            RESCORE_VERSION = 3  # Bump to force rescore after scoring formula changes
             if scored_count < 100 or os.environ.get("MOOD_RESCORE_VER", "0") != str(RESCORE_VERSION):
                 os.environ["MOOD_RESCORE_VER"] = str(RESCORE_VERSION)
                 logger.info("[MoodScore] Scoring v%d needed, will run in background...", RESCORE_VERSION)

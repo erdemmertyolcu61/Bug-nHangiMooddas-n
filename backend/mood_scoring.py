@@ -213,7 +213,7 @@ KEYWORD_MOOD_BLOCKS = {
 
 # Her mood için genre ağırlıkları (0-1, mood profillerinden türetildi)
 MOOD_GENRE_WEIGHTS = {
-    "battaniye":  {10751: 1.0, 35: 1.0, 16: 0.5, 10749: 0.8, 10402: 0.5, 18: 0.6, 14: 0.3, 12: 0.1, 36: 0.1, 99: 0.1, 53: 0.0, 28: 0.0, 80: 0.0, 27: 0.0, 9648: 0.0, 878: 0.0, 10752: 0.0, 37: 0.0},
+    "battaniye":  {10751: 1.0, 35: 1.0, 16: 0.9, 10749: 0.8, 10402: 0.5, 18: 0.6, 14: 0.3, 12: 0.1, 36: 0.1, 99: 0.1, 53: 0.0, 28: 0.0, 80: 0.0, 27: 0.0, 9648: 0.0, 878: 0.0, 10752: 0.0, 37: 0.0},
     "yolculuk":   {12: 1.0, 14: 0.9, 878: 0.8, 28: 0.8, 10752: 0.7, 37: 0.6, 18: 0.4, 53: 0.3, 36: 0.3, 99: 0.2, 10749: 0.1, 35: 0.1, 16: 0.0, 10751: 0.0, 80: 0.0, 27: 0.0, 9648: 0.0, 10402: 0.0},
     "gece":       {53: 1.0, 9648: 1.0, 27: 1.0, 80: 0.9, 28: 0.2, 18: 0.3, 878: 0.2, 14: 0.0, 36: 0.0, 10752: 0.0, 35: 0.0, 10749: 0.0, 16: 0.0, 10751: 0.0, 10402: 0.0, 12: 0.0, 99: 0.0, 37: 0.0},
     "kahkaha":    {35: 1.0, 10402: 0.9, 10751: 0.6, 18: 0.4, 80: 0.3, 10749: 0.2, 16: 0.0, 14: 0.0, 12: 0.0, 28: 0.0, 53: 0.0, 27: 0.0, 9648: 0.0, 878: 0.0, 10752: 0.0, 36: 0.0, 99: 0.0, 37: 0.0},
@@ -552,11 +552,14 @@ def _mood_specific_bonus(genre_ids: list, mood_id: str, vote_count: int = None) 
         # Feel-good drama-comedy
         if 35 in genre_set and 18 in genre_set:
             bonus += 0.08
-        # Family + Animation together: mild bonus
+        # Family + Animation together
         if 10751 in genre_set and 16 in genre_set:
-            bonus += 0.05
+            bonus += 0.15
+        # Animation with Comedy/Drama/Romance
+        elif 16 in genre_set and (genre_set & {35, 18, 10749}):
+            bonus += 0.10
         # Animation-ONLY penalty (no Family, Comedy, Drama, or Romance alongside)
-        if 16 in genre_set and not (genre_set & {10751, 35, 18, 10749}):
+        elif 16 in genre_set and not (genre_set & {10751, 35, 18, 10749}):
             bonus -= 0.10
         # Rom-com is cozy
         if 10749 in genre_set and 35 in genre_set:
@@ -827,15 +830,19 @@ def calculate_mood_scores(genre_ids: list, vote_average: float = None,
         # Türkçe: yerli sinema önceliği, Japon/Hint: aşırı temsili azalt
         if original_language:
             if original_language == "tr":
-                final_score *= 0.92  # Türkçe: %8 ceza — çeşitlilik için
+                final_score *= 0.92
+            elif original_language == "en":
+                final_score *= 1.05
+            elif original_language in ("fr", "de", "it", "es", "pt", "da", "sv", "no", "nl", "pl", "cs", "el"):
+                final_score *= 1.03
             elif original_language == "ja":
-                final_score *= 0.55  # Japonca: %45 ceza — en kalabalık 2. dil
-            elif original_language == "hi":
-                final_score *= 0.65  # Hintçe: %35 ceza
+                final_score *= 0.55
+            elif original_language == "hi" or original_language == "ta" or original_language == "te" or original_language == "ml":
+                final_score *= 0.45
             elif original_language == "ko":
-                final_score *= 0.90  # Korece: hafif ceza (kaliteli K-drama dengesi)
+                final_score *= 0.70
             elif original_language == "zh" or original_language == "cn":
-                final_score *= 0.88  # Çince: hafif ceza
+                final_score *= 0.75
 
         # 11. Hidden Gem Boost (tüm mood'lar — sayfa başına 2-3 keşfedilmemiş film)
         # Mainstream'e ceza YOK, sadece az bilinen kaliteli filmlere bonus.
