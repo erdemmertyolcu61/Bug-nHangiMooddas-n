@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { getApiUrl } from '../utils/apiConfig';
 import { track, EVENTS } from '../utils/analytics';
 import { getAuthItem, setAuthItem, removeAuthItem } from '../utils/authStorage';
+import { initPurchases, loginPurchases, logoutPurchases } from '../utils/purchases';
 
 const AUTH_KEY = 'fc_user_token';
 const USER_KEY = 'fc_user_info';
@@ -92,6 +93,7 @@ export function AuthProvider({ children }) {
       await setAuthItem(USER_KEY, JSON.stringify(data.user));
       window.__fc_user_token = data.token;
       track(EVENTS.SIGNUP, { is_new: !!data.is_new });
+      initPurchases(data.user?.user_id).then(() => loginPurchases(data.user?.user_id));
       // Davet atıfı backend'de işlendi → ref'i temizle (tekrar atıf olmasın)
       if (data.is_new) {
         try {
@@ -133,6 +135,7 @@ export function AuthProvider({ children }) {
       await setAuthItem(AUTH_KEY, data.token);
       await setAuthItem(USER_KEY, JSON.stringify(data.user));
       window.__fc_user_token = data.token;
+      initPurchases(data.user?.user_id).then(() => loginPurchases(data.user?.user_id));
       return { ok: true };
     } catch (e) {
       return { ok: false, error: 'Bağlantı hatası (backend çalışıyor mu?)' };
@@ -164,6 +167,7 @@ export function AuthProvider({ children }) {
       await setAuthItem(USER_KEY, JSON.stringify(data.user));
       window.__fc_user_token = data.token;
       track(EVENTS.SIGNUP, { is_new: !!data.is_new, method: 'email' });
+      initPurchases(data.user?.user_id).then(() => loginPurchases(data.user?.user_id));
       return { ok: true };
     } catch (e) {
       let host = '';
@@ -229,6 +233,9 @@ export function AuthProvider({ children }) {
       if (!cancelled) {
         if (currentToken !== token) setToken(currentToken);
         if (currentUser !== user && currentUser) setUser(currentUser);
+        if (currentUser?.user_id) {
+          initPurchases(currentUser.user_id).then(() => loginPurchases(currentUser.user_id));
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -236,6 +243,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     clearLocalUserData();
+    logoutPurchases();
     setToken(null);
     setUser(null);
     removeAuthItem(AUTH_KEY);

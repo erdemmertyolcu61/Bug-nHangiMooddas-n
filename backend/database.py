@@ -1026,6 +1026,59 @@ class MovieCache:
             except Exception:
                 pass
 
+            # ── Feed sosyal etkileşim tabloları ──
+            # Aktivite beğenileri (arkadaşın izlediği/kaydettiği filme ❤️)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS feed_likes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    target_user_id INTEGER NOT NULL REFERENCES users(id),
+                    tmdb_id INTEGER NOT NULL,
+                    action_type TEXT NOT NULL DEFAULT 'watched'
+                        CHECK (action_type IN ('watched', 'saved')),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, target_user_id, tmdb_id, action_type)
+                )
+            """)
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_feed_likes_target "
+                "ON feed_likes(target_user_id, tmdb_id)"
+            )
+
+            # Aktivite yorumları (arkadaşın izlediği filme kısa yorum)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS feed_comments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    target_user_id INTEGER NOT NULL REFERENCES users(id),
+                    tmdb_id INTEGER NOT NULL,
+                    action_type TEXT NOT NULL DEFAULT 'watched'
+                        CHECK (action_type IN ('watched', 'saved')),
+                    content TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_feed_comments_target "
+                "ON feed_comments(target_user_id, tmdb_id)"
+            )
+
+            # Mood emoji reaksiyonları (arkadaşın mooduna 🔥 🫂 😂 🎬)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS mood_reactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    target_user_id INTEGER NOT NULL REFERENCES users(id),
+                    reaction_emoji TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, target_user_id)
+                )
+            """)
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_mood_reactions_target "
+                "ON mood_reactions(target_user_id)"
+            )
+
             await db.commit()
 
     async def _init_turso_user_tables(self):
@@ -2083,7 +2136,7 @@ class MovieCache:
             await db.commit()
             return cur.rowcount > 0
 
-    async def get_friends_activity(self, user_id: int, limit: int = 20) -> list:
+    async def get_friends_activity(self, user_id: int, limit: int = 20, offset: int = 0) -> list:
         """Son 14 günde arkadaşların izlediği/kaydettiği filmler (hide_activity=0 olanlar)."""
         async with _get_connection(self.db_path, user_data=True) as db:
             cursor = await db.execute("""
@@ -2102,8 +2155,8 @@ class MovieCache:
                   AND COALESCE(u.hide_activity, 0) = 0
                   AND w.added_at > datetime('now', '-14 days')
                 ORDER BY action_at DESC
-                LIMIT ?
-            """, (user_id, user_id, limit))
+                LIMIT ? OFFSET ?
+            """, (user_id, user_id, limit, offset))
             rows = await cursor.fetchall()
             return [
                 {
@@ -2150,6 +2203,152 @@ class MovieCache:
             )
             row = await cursor.fetchone()
             return bool(row[0]) if row else False
+
+    # ── Feed beğenileri ─────────────────────────────────────────
+    async def add_feed_like(self, user_id: int, target_user_id: int,
+                            tmdb_id: int, action_type: str = "watched") -> bool:
+        """Bir aktiviteye beğeni at. Zaten varsa sessizce atla."""
+        async with _get_connection(self.db_path, user_data=True) as db:
+            try:
+                await db.execute(
+                    "INSERT OR IGNORE INTO feed_likes (user_id, target_user_id, tmdb_id, action_type) "
+                    "VALUES (?, ?, ?, ?)",
+                    (user_id, target_user_id, tmdb_id, action_type),
+                )
+                await db.commit()
+                return True
+            except Exception:
+                return False
+
+    async def remove_feed_like(self, user_id: int, target_user_id: int,
+                               tmdb_id: int, action_type: str = "watched") -> bool:
+        """Bir aktivitedeki beğeniyi geri al."""
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                "DELETE FROM feed_likes WHERE user_id = ? AND target_user_id = ? "
+                "AND tmdb_id = ? AND action_type = ?",
+                (user_id, target_user_id, tmdb_id, action_type),
+            )
+            await db.commit()
+            return cur.rowcount > 0
+
+    async def get_activity_like_counts(self, activity_keys: list) -> dict:
+        """Toplu beğeni sayıları. activity_keys = [(target_user_id, tmdb_id, action_type), ...]
+        Dönen format: {(target_user_id, tmdb_id, action_type): count}"""
+        if not activity_keys:
+            return {}
+        async with _get_connection(self.db_path, user_data=True) as db:
+            result = {}
+            for key in activity_keys:
+                target_uid, tmdb_id, act_type = key
+                cur = await db.execute(
+                    "SELECT COUNT(*) FROM feed_likes WHERE target_user_id = ? AND tmdb_id = ? AND action_type = ?",
+                    (target_uid, tmdb_id, act_type),
+                )
+                row = await cur.fetchone()
+                result[key] = row[0] if row else 0
+            return result
+
+    async def get_user_feed_likes(self, user_id: int, activity_keys: list) -> set:
+        """Kullanıcının hangi aktiviteleri beğendiğini döndür.
+        Dönen format: {(target_user_id, tmdb_id, action_type), ...}"""
+        if not activity_keys:
+            return set()
+        async with _get_connection(self.db_path, user_data=True) as db:
+            liked = set()
+            for key in activity_keys:
+                target_uid, tmdb_id, act_type = key
+                cur = await db.execute(
+                    "SELECT 1 FROM feed_likes WHERE user_id = ? AND target_user_id = ? "
+                    "AND tmdb_id = ? AND action_type = ?",
+                    (user_id, target_uid, tmdb_id, act_type),
+                )
+                if await cur.fetchone():
+                    liked.add(key)
+            return liked
+
+    # ── Feed yorumları ──────────────────────────────────────────
+    async def add_feed_comment(self, user_id: int, target_user_id: int,
+                               tmdb_id: int, action_type: str,
+                               content: str) -> dict:
+        """Bir aktiviteye yorum ekle."""
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                "INSERT INTO feed_comments (user_id, target_user_id, tmdb_id, action_type, content) "
+                "VALUES (?, ?, ?, ?, ?) RETURNING id, created_at",
+                (user_id, target_user_id, tmdb_id, action_type, content[:200]),
+            )
+            row = await cur.fetchone()
+            await db.commit()
+            return {"id": row[0], "created_at": str(row[1])} if row else {}
+
+    async def get_feed_comments(self, target_user_id: int, tmdb_id: int,
+                                action_type: str, limit: int = 20) -> list:
+        """Bir aktivitenin yorumlarını çek."""
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                """SELECT c.id, c.user_id, u.username, u.picture, c.content, c.created_at
+                   FROM feed_comments c JOIN users u ON u.id = c.user_id
+                   WHERE c.target_user_id = ? AND c.tmdb_id = ? AND c.action_type = ?
+                   ORDER BY c.created_at DESC LIMIT ?""",
+                (target_user_id, tmdb_id, action_type, limit),
+            )
+            rows = await cur.fetchall()
+            return [
+                {"id": r[0], "user_id": r[1], "username": r[2], "avatar": r[3],
+                 "content": r[4], "created_at": str(r[5])}
+                for r in rows
+            ]
+
+    async def get_activity_comment_counts(self, activity_keys: list) -> dict:
+        """Toplu yorum sayıları. Aynı format: {(target_user_id, tmdb_id, action_type): count}"""
+        if not activity_keys:
+            return {}
+        async with _get_connection(self.db_path, user_data=True) as db:
+            result = {}
+            for key in activity_keys:
+                target_uid, tmdb_id, act_type = key
+                cur = await db.execute(
+                    "SELECT COUNT(*) FROM feed_comments WHERE target_user_id = ? AND tmdb_id = ? AND action_type = ?",
+                    (target_uid, tmdb_id, act_type),
+                )
+                row = await cur.fetchone()
+                result[key] = row[0] if row else 0
+            return result
+
+    # ── Mood emoji reaksiyonları ────────────────────────────────
+    async def add_mood_reaction(self, user_id: int, target_user_id: int,
+                                reaction_emoji: str) -> bool:
+        """Arkadaşın mooduna emoji reaksiyonu bırak (UPSERT — son reaksiyon kazanır)."""
+        async with _get_connection(self.db_path, user_data=True) as db:
+            await db.execute(
+                "INSERT INTO mood_reactions (user_id, target_user_id, reaction_emoji) "
+                "VALUES (?, ?, ?) ON CONFLICT(user_id, target_user_id) "
+                "DO UPDATE SET reaction_emoji = excluded.reaction_emoji, "
+                "created_at = CURRENT_TIMESTAMP",
+                (user_id, target_user_id, reaction_emoji),
+            )
+            await db.commit()
+            return True
+
+    async def get_mood_reactions(self, target_user_id: int) -> list:
+        """Bir kullanıcının mooduna gelen reaksiyonları getir."""
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                """SELECT mr.user_id, u.username, u.picture, mr.reaction_emoji, mr.created_at
+                   FROM mood_reactions mr JOIN users u ON u.id = mr.user_id
+                   WHERE mr.target_user_id = ?
+                     AND mr.created_at > datetime('now', '-7 days')
+                   ORDER BY mr.created_at DESC LIMIT 20""",
+                (target_user_id,),
+            )
+            rows = await cur.fetchall()
+            return [
+                {"user_id": r[0], "username": r[1], "avatar": r[2],
+                 "emoji": r[3], "created_at": str(r[4])}
+                for r in rows
+            ]
+
 
     async def get_movies_meta_by_ids(self, movie_ids: list) -> dict:
         """Toplu başlık/afiş çek: önce movie_repository, eksikler için movie_cache fallback."""

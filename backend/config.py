@@ -79,6 +79,10 @@ VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "").strip()
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "").strip()
 VAPID_SUBJECT = os.getenv("VAPID_SUBJECT", "mailto:admin@sinemood.app").strip()
 
+# ─── RevenueCat (in-app subscriptions) ───
+REVENUECAT_API_KEY = os.getenv("REVENUECAT_API_KEY", "").strip()
+REVENUECAT_ENTITLEMENT = os.getenv("REVENUECAT_ENTITLEMENT", "premium")
+
 # ─── Rate Limiting ───
 RATE_LIMIT_GENERAL = int(os.getenv("RATE_LIMIT_GENERAL", "60"))   # per minute per IP
 RATE_LIMIT_AI = int(os.getenv("RATE_LIMIT_AI", "20"))             # per minute per IP

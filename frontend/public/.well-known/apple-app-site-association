@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAM_ID.app.sinemood",
+        "paths": [
+          "/film/*",
+          "/profil/*",
+          "/liste/*",
+          "/mood/*",
+          "/listeler/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "TEAM_ID.app.sinemood"
+    ]
+  }
+}

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Settings, Bell, Palette, Database, AlertTriangle, ChevronRight, ChevronDown, Clock, EyeOff, Ban,
+  Settings, Bell, Palette, Database, AlertTriangle, ChevronRight, ChevronDown, Clock, EyeOff, Ban, Crown,
 } from 'lucide-react';
 import { getWatchlist, getNotifyTime, setNotifyTime, setActivityVisibility, getBlockedUsers, unblockUser } from '../../services/api';
 import { resolveAvatarUrl } from '../../utils/apiConfig';
 import { getApiUrl } from '../../utils/apiConfig';
 import { isPushSubscribed } from '../../utils/push';
+import { isNative } from '../../utils/native';
 
 /**
  * Günlük film bildirimi saati seçici — yalnız bu cihaz push'a aboneyse görünür.
@@ -180,8 +181,12 @@ function BlockedUsersRow() {
   );
 }
 
-export default function ProfileSettings({ theme, toggleTheme, logout, navigate, onNotifOpen }) {
+export default function ProfileSettings({ theme, toggleTheme, logout, navigate, onNotifOpen, onPremiumOpen }) {
   const settings = [
+    ...(isNative ? [{
+      icon: Crown, label: 'Premium', desc: 'Film deneyimini yükselt',
+      action: onPremiumOpen, badge: 'Yükselt', premium: true,
+    }] : []),
     {
       icon: Bell, label: 'Bildirimler', desc: 'Öneri ve istek bildirimleri',
       action: onNotifOpen,
@@ -238,11 +243,11 @@ export default function ProfileSettings({ theme, toggleTheme, logout, navigate, 
         <NotifyTimeRow />
         <ActivityToggleRow />
         <BlockedUsersRow />
-        {settings.map(({ icon: Icon, label, desc, danger, action, badge }) => (
+        {settings.map(({ icon: Icon, label, desc, danger, action, badge, premium }) => (
           <button key={label} onClick={action}
             className={`w-full flex items-center gap-3.5 px-5 py-4 text-left transition-all
               ${danger ? 'hover:bg-rose-500/8' : 'hover:bg-white/[0.04]'}`}>
-            <Icon size={17} className={danger ? 'text-rose-400/70' : 'text-ivory/65'} />
+            <Icon size={17} className={premium ? 'text-amber-400' : danger ? 'text-rose-400/70' : 'text-ivory/65'} />
             <div className="flex-1 min-w-0">
               <p className={`font-sans text-[14px] font-semibold ${danger ? 'text-rose-400/80' : 'text-ivory/80'}`}>
                 {label}

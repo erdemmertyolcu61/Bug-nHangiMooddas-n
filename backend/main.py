@@ -716,6 +716,8 @@ from backend.routers.community import router as community_router
 app.include_router(community_router)
 from backend.routers.quiz import router as quiz_router
 app.include_router(quiz_router)
+from backend.routers.subscription import router as subscription_router
+app.include_router(subscription_router)
 
 # ── Statik dosyalar: Avatar yüklemeleri ──
 import os

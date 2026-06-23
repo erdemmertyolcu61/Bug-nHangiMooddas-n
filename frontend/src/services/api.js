@@ -928,10 +928,57 @@ export async function reactToRecommendation(recId, reaction) {
 }
 
 // ─── Sosyal Akış (Feed) ────────────────────────────────────────────────
-export async function getSocialFeed() {
-  const res = await fetch(`${BASE}/feed`, { headers: { ...authHeaders() } });
-  if (!res.ok) return { friend_moods: [], activities: [], recommendations: [] };
+export async function getSocialFeed(page = 1) {
+  const res = await fetch(`${BASE}/feed?page=${page}`, { headers: { ...authHeaders() } });
+  if (!res.ok) return { friend_moods: [], activities: [], recommendations: [], has_more: false, page: 1 };
   return res.json();
+}
+
+// ─── Feed Sosyal Etkileşimler ──────────────────────────────────────────
+export async function likeActivity(targetUserId, tmdbId, actionType = 'watched') {
+  const res = await fetch(`${BASE}/activity/like`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ target_user_id: targetUserId, tmdb_id: tmdbId, action_type: actionType }),
+  });
+  return res.ok ? res.json() : { ok: false };
+}
+
+export async function unlikeActivity(targetUserId, tmdbId, actionType = 'watched') {
+  const res = await fetch(`${BASE}/activity/like`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ target_user_id: targetUserId, tmdb_id: tmdbId, action_type: actionType }),
+  });
+  return res.ok ? res.json() : { ok: false };
+}
+
+export async function commentOnActivity(targetUserId, tmdbId, actionType, content) {
+  const res = await fetch(`${BASE}/activity/comment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ target_user_id: targetUserId, tmdb_id: tmdbId, action_type: actionType, content }),
+  });
+  if (!res.ok) return { ok: false };
+  return res.json();
+}
+
+export async function getActivityComments(targetUserId, tmdbId, actionType = 'watched') {
+  const res = await fetch(
+    `${BASE}/activity/comments?target_user_id=${targetUserId}&tmdb_id=${tmdbId}&action_type=${actionType}`,
+    { headers: { ...authHeaders() } },
+  );
+  if (!res.ok) return { comments: [] };
+  return res.json();
+}
+
+export async function reactToMood(targetUserId, reactionEmoji) {
+  const res = await fetch(`${BASE}/mood/react`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ target_user_id: targetUserId, reaction_emoji: reactionEmoji }),
+  });
+  return res.ok ? res.json() : { ok: false };
 }
 
 // ─── Film beğeni (like/dislike) — giriş zorunlu, backend ──────────────────

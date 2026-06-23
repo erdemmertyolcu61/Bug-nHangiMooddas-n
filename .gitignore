@@ -93,3 +93,4 @@ frontend/ios/
 !frontend/android/app/src/main/AndroidManifest.xml
 !frontend/android/app/src/main/res/
 !frontend/ios/App/App/Info.plist
+!frontend/ios/App/App/App.entitlements

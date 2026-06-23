@@ -957,25 +957,151 @@ async def all_notifications(user: dict = Depends(get_current_user)):
 
 
 @router.get("/feed")
-async def social_feed(user: dict = Depends(get_current_user)):
-    """Birleşik sosyal akış: arkadaş mood'ları + aktivite + öneriler."""
+async def social_feed(page: int = 1, user: dict = Depends(get_current_user)):
+    """Birleşik sosyal akış: arkadaş mood'ları + aktivite + öneriler (sayfalı)."""
     uid = user["user_id"]
-    moods = await cache.get_friends_moods(uid)
-    activities = await cache.get_friends_activity(uid, limit=15)
-    received = await cache.get_received_recommendations(uid, limit=5)
-    # Öneri meta verisini doldur
-    movie_ids = [r["movie_id"] for r in received]
-    meta = {}
-    if movie_ids:
-        meta = await cache.get_movies_meta_by_ids(movie_ids)
-        await _fill_missing_posters(meta, movie_ids)
-    for r in received:
-        m = meta.get(r["movie_id"], {})
-        r["movie_title"] = m.get("title", "")
-        r["poster_url"] = m.get("poster_url", "")
-        r["vote_average"] = m.get("vote_average")
+    per_page = 15
+    offset = (max(1, page) - 1) * per_page
+
+    # Mood'lar sadece ilk sayfada gönder (tekrar yüklemeye gerek yok)
+    moods = await cache.get_friends_moods(uid) if page == 1 else []
+
+    activities = await cache.get_friends_activity(uid, limit=per_page, offset=offset)
+
+    # Öneriler de sadece ilk sayfada
+    received = []
+    if page == 1:
+        received = await cache.get_received_recommendations(uid, limit=5)
+        movie_ids = [r["movie_id"] for r in received]
+        meta = {}
+        if movie_ids:
+            meta = await cache.get_movies_meta_by_ids(movie_ids)
+            await _fill_missing_posters(meta, movie_ids)
+        for r in received:
+            m = meta.get(r["movie_id"], {})
+            r["movie_title"] = m.get("title", "")
+            r["poster_url"] = m.get("poster_url", "")
+            r["vote_average"] = m.get("vote_average")
+
+    # Aktivitelere beğeni/yorum sayılarını ekle
+    if activities:
+        activity_keys = [
+            (a["user_id"], a["tmdb_id"], a["action_type"]) for a in activities
+        ]
+        try:
+            like_counts = await cache.get_activity_like_counts(activity_keys)
+            comment_counts = await cache.get_activity_comment_counts(activity_keys)
+            user_likes = await cache.get_user_feed_likes(uid, activity_keys)
+        except Exception:
+            like_counts, comment_counts, user_likes = {}, {}, set()
+
+        for a in activities:
+            key = (a["user_id"], a["tmdb_id"], a["action_type"])
+            a["like_count"] = like_counts.get(key, 0)
+            a["comment_count"] = comment_counts.get(key, 0)
+            a["is_liked"] = key in user_likes
+
+    # Mood reaksiyonlarını ekle (ilk sayfa)
+    if moods:
+        for fm in moods:
+            try:
+                reactions = await cache.get_mood_reactions(fm["user_id"])
+                fm["reactions"] = reactions
+            except Exception:
+                fm["reactions"] = []
+
+    has_more = len(activities) == per_page
+
     return {
         "friend_moods": moods,
         "activities": activities,
         "recommendations": received,
+        "has_more": has_more,
+        "page": page,
     }
+
+
+# ─── Feed Sosyal Etkileşim Endpoint'leri ────────────────────────────────────
+
+
+class FeedLikeBody(BaseModel):
+    target_user_id: int
+    tmdb_id: int
+    action_type: str = Field(default="watched", pattern="^(watched|saved)$")
+
+
+@router.post("/activity/like", dependencies=[Depends(rate_limit_strict)])
+async def like_activity(body: FeedLikeBody, user: dict = Depends(get_current_user)):
+    """Bir aktiviteyi beğen."""
+    uid = user["user_id"]
+    if body.target_user_id == uid:
+        raise HTTPException(400, "Kendi aktiviteni beğenemezsin")
+    ok = await cache.add_feed_like(uid, body.target_user_id, body.tmdb_id, body.action_type)
+    return {"ok": ok}
+
+
+@router.delete("/activity/like", dependencies=[Depends(rate_limit_strict)])
+async def unlike_activity(body: FeedLikeBody, user: dict = Depends(get_current_user)):
+    """Bir aktivitedeki beğeniyi geri al."""
+    uid = user["user_id"]
+    ok = await cache.remove_feed_like(uid, body.target_user_id, body.tmdb_id, body.action_type)
+    return {"ok": ok}
+
+
+class FeedCommentBody(BaseModel):
+    target_user_id: int
+    tmdb_id: int
+    action_type: str = Field(default="watched", pattern="^(watched|saved)$")
+    content: str = Field(..., min_length=1, max_length=200)
+
+
+@router.post("/activity/comment", dependencies=[Depends(rate_limit_strict)])
+async def comment_activity(body: FeedCommentBody, user: dict = Depends(get_current_user)):
+    """Bir aktiviteye yorum yap."""
+    uid = user["user_id"]
+    info = await cache.get_user_by_username_by_id(uid)
+    result = await cache.add_feed_comment(
+        uid, body.target_user_id, body.tmdb_id, body.action_type, body.content
+    )
+    return {
+        "ok": True,
+        "comment": {
+            **result,
+            "user_id": uid,
+            "username": (info or {}).get("username", ""),
+            "avatar": (info or {}).get("picture", ""),
+            "content": body.content,
+        },
+    }
+
+
+@router.get("/activity/comments")
+async def get_comments(
+    target_user_id: int,
+    tmdb_id: int,
+    action_type: str = "watched",
+    user: dict = Depends(get_current_user),
+):
+    """Bir aktivitenin yorumlarını getir."""
+    comments = await cache.get_feed_comments(target_user_id, tmdb_id, action_type)
+    return {"comments": comments}
+
+
+VALID_MOOD_EMOJIS = {"🔥", "🫂", "😂", "🎬"}
+
+
+class MoodReactBody(BaseModel):
+    target_user_id: int
+    reaction_emoji: str = Field(..., max_length=4)
+
+
+@router.post("/mood/react", dependencies=[Depends(rate_limit_strict)])
+async def react_to_mood(body: MoodReactBody, user: dict = Depends(get_current_user)):
+    """Arkadaşın mooduna emoji reaksiyonu bırak."""
+    uid = user["user_id"]
+    if body.target_user_id == uid:
+        raise HTTPException(400, "Kendi mooduna reaksiyon veremezsin")
+    if body.reaction_emoji not in VALID_MOOD_EMOJIS:
+        raise HTTPException(400, f"Geçersiz emoji. Seçenekler: {VALID_MOOD_EMOJIS}")
+    ok = await cache.add_mood_reaction(uid, body.target_user_id, body.reaction_emoji)
+    return {"ok": ok}
