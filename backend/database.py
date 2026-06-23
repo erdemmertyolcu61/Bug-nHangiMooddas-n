@@ -2092,15 +2092,18 @@ class MovieCache:
                        w.watched,
                        COALESCE(w.watched_at, w.added_at) as action_at,
                        CASE WHEN w.watched = 1 THEN 'watched' ELSE 'saved' END as action_type
-                FROM friendships f
-                JOIN users u ON u.id = f.friend_id
-                JOIN watchlist w ON w.user_id = f.friend_id
-                WHERE f.user_id = ? AND f.status = 'ACCEPTED'
+                FROM watchlist w
+                JOIN users u ON u.id = w.user_id
+                JOIN friendships f ON (
+                    (f.user_id = ? AND f.friend_id = w.user_id)
+                    OR (f.friend_id = ? AND f.user_id = w.user_id)
+                )
+                WHERE f.status = 'ACCEPTED'
                   AND COALESCE(u.hide_activity, 0) = 0
                   AND w.added_at > datetime('now', '-14 days')
                 ORDER BY action_at DESC
                 LIMIT ?
-            """, (user_id, limit))
+            """, (user_id, user_id, limit))
             rows = await cursor.fetchall()
             return [
                 {

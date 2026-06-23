@@ -8,6 +8,7 @@ import { proxyImageUrl } from '../../services/api';
 import { MOODS } from '../../context/MoodContext';
 import { useAuth } from '../../context/AuthContext';
 import RecommendMovieSheet from '../RecommendMovieSheet';
+import FilmDetailModal from '../FilmDetailModal';
 import DailyFilmBanner from '../DailyFilmBanner';
 import TrendingStrip from './TrendingStrip';
 import PeopleDiscovery from './PeopleDiscovery';
@@ -34,6 +35,7 @@ export default function MoodFeed() {
   const [feed, setFeed] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recommendTarget, setRecommendTarget] = useState(null);
+  const [filmDetail, setFilmDetail] = useState(null);
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -187,10 +189,11 @@ export default function MoodFeed() {
               <SectionHeader icon={Eye} text="Arkadas Aktivitesi" />
               <div className="space-y-2">
                 {feed.activities.map((a, i) => (
-                  <motion.div key={`${a.user_id}-${a.tmdb_id}-${i}`}
+                  <motion.button key={`${a.user_id}-${a.tmdb_id}-${i}`}
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-[#1a1310] border border-white/[0.05]"
+                    onClick={() => setFilmDetail({ id: a.tmdb_id, title: a.title, poster_url: a.poster_url })}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#1a1310] border border-white/[0.05] hover:border-amber/20 transition-all text-left"
                   >
                     <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 shrink-0">
                       {a.avatar ? (
@@ -218,7 +221,7 @@ export default function MoodFeed() {
                         : <Bookmark size={14} className="text-amber/50" />}
                       <span className="text-[9px] text-white/25 mt-1">{timeAgo(a.action_at)}</span>
                     </div>
-                  </motion.div>
+                  </motion.button>
                 ))}
               </div>
             </section>
@@ -230,9 +233,10 @@ export default function MoodFeed() {
               <SectionHeader icon={Send} text="Son Gelen Oneriler" />
               <div className="space-y-2">
                 {feed.recommendations.map((r) => (
-                  <motion.div key={r.id}
+                  <motion.button key={r.id}
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-[#1a1310] border border-white/[0.05]"
+                    onClick={() => setFilmDetail({ id: r.movie_id, title: r.movie_title, poster_url: r.poster_url })}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#1a1310] border border-white/[0.05] hover:border-amber/20 transition-all text-left"
                   >
                     {r.poster_url ? (
                       <img src={proxyImageUrl(r.poster_url)} alt=""
@@ -252,7 +256,7 @@ export default function MoodFeed() {
                       )}
                     </div>
                     <span className="text-[9px] text-white/25 shrink-0">{timeAgo(r.created_at)}</span>
-                  </motion.div>
+                  </motion.button>
                 ))}
               </div>
             </section>
@@ -274,6 +278,9 @@ export default function MoodFeed() {
 
       {recommendTarget && (
         <RecommendMovieSheet targetUser={recommendTarget} onClose={() => setRecommendTarget(null)} />
+      )}
+      {filmDetail && (
+        <FilmDetailModal movieId={filmDetail.id} initialMovie={filmDetail} onClose={() => setFilmDetail(null)} />
       )}
     </motion.div>
     </>
