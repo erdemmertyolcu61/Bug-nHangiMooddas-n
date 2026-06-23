@@ -46,7 +46,7 @@ function MoodCard({ fm, onRecommend, onReact }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-      className="shrink-0 w-[120px] sm:w-[164px] p-2.5 sm:p-3.5 rounded-2xl bg-[#1a1310] border border-white/[0.06] space-y-2 sm:space-y-2.5 relative"
+      className="shrink-0 w-[104px] sm:w-[124px] p-2.5 sm:p-3.5 rounded-2xl bg-[#1a1310] border border-white/[0.06] space-y-2 sm:space-y-2.5 relative"
     >
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-white/10 shrink-0">
@@ -67,50 +67,13 @@ function MoodCard({ fm, onRecommend, onReact }) {
         </span>
       </div>
 
-      {/* Gelen Reaksiyonlar */}
-      {fm.reactions?.length > 0 && (
-        <div className="flex items-center gap-0.5 flex-wrap">
-          {fm.reactions.slice(0, 5).map((r, i) => (
-            <span key={i} className="text-sm" title={`@${r.username}`}>{r.emoji}</span>
-          ))}
-        </div>
-      )}
-
       <p className="text-[10px] sm:text-[11px] text-white/30">{timeAgo(fm.updated_at)}</p>
 
       {/* Aksiyon butonları */}
-      <div className="flex gap-1.5">
-        {/* Emoji Reaksiyon Butonu */}
-        <div className="relative flex-1">
-          <button
-            onClick={() => setShowReactions(!showReactions)}
-            className="w-full flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-[10px] font-bold
-              bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white/70 transition-all"
-          >
-            {sentEmoji || '😊'}
-          </button>
-          <AnimatePresence>
-            {showReactions && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8, y: 5 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: 5 }}
-                className="absolute bottom-full left-0 right-0 mb-1.5 flex items-center justify-center gap-1 bg-[#2a2015] border border-amber/20 rounded-xl p-1.5 shadow-xl z-20"
-              >
-                {REACTION_EMOJIS.map((e) => (
-                  <button key={e} onClick={() => handleReact(e)}
-                    className="text-lg hover:scale-125 active:scale-95 transition-transform p-0.5">
-                    {e}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        {/* Film Öner butonu */}
+      <div className="flex gap-1.5 mt-1">
         <button
           onClick={() => onRecommend({ id: fm.user_id, name: fm.name, username: fm.username, avatar: fm.avatar })}
-          className="flex-1 flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-[10px] font-bold uppercase tracking-wider
+          className="w-full flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-[10px] font-bold uppercase tracking-wider
             bg-amber/12 border border-amber/20 text-amber hover:bg-amber/20 transition-all"
         >
           <Send size={9} className="sm:size-[10px]" /> Öner
@@ -121,40 +84,7 @@ function MoodCard({ fm, onRecommend, onReact }) {
 }
 
 // ─── Aktivite Kartı (Beğeni + Yorum destekli, Ambient Glow) ───────────
-function ActivityCard({ a, i, onFilmClick, onLike, onComment }) {
-  const [liked, setLiked] = useState(a.is_liked || false);
-  const [likeCount, setLikeCount] = useState(a.like_count || 0);
-  const [showComment, setShowComment] = useState(false);
-  const [commentText, setCommentText] = useState('');
-  const [sending, setSending] = useState(false);
-  const [likeAnimating, setLikeAnimating] = useState(false);
-
-  const handleLike = async () => {
-    const wasLiked = liked;
-    // Optimistic update
-    setLiked(!wasLiked);
-    setLikeCount(c => wasLiked ? Math.max(0, c - 1) : c + 1);
-    setLikeAnimating(true);
-    setTimeout(() => setLikeAnimating(false), 400);
-
-    if (wasLiked) {
-      await unlikeActivity(a.user_id, a.tmdb_id, a.action_type);
-    } else {
-      await likeActivity(a.user_id, a.tmdb_id, a.action_type);
-    }
-    onLike?.();
-  };
-
-  const handleComment = async () => {
-    if (!commentText.trim() || sending) return;
-    setSending(true);
-    await commentOnActivity(a.user_id, a.tmdb_id, a.action_type, commentText.trim());
-    setCommentText('');
-    setShowComment(false);
-    setSending(false);
-    onComment?.();
-  };
-
+function ActivityCard({ a, i, onFilmClick }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -195,40 +125,9 @@ function ActivityCard({ a, i, onFilmClick, onLike, onComment }) {
         )}
       </button>
 
-      {/* Sosyal Etkileşim Barı */}
-      <div className="flex items-center gap-3 px-3 pb-2.5 pt-0 relative z-[1]">
-        {/* Beğen butonu */}
-        <button
-          onClick={handleLike}
-          className="flex items-center gap-1 group"
-        >
-          <motion.div
-            animate={likeAnimating ? { scale: [1, 1.3, 1] } : {}}
-            transition={{ duration: 0.35 }}
-          >
-            <Heart
-              size={15}
-              className={`transition-colors ${liked ? 'text-rose-400 fill-rose-400' : 'text-white/25 group-hover:text-white/50'}`}
-            />
-          </motion.div>
-          <span className={`text-[11px] font-medium tabular-nums ${liked ? 'text-rose-400/80' : 'text-white/25'}`}>
-            {likeCount > 0 ? likeCount : ''}
-          </span>
-        </button>
-
-        {/* Yorum butonu */}
-        <button
-          onClick={() => setShowComment(!showComment)}
-          className="flex items-center gap-1 group"
-        >
-          <MessageCircle size={14} className="text-white/25 group-hover:text-white/50 transition-colors" />
-          <span className="text-[11px] font-medium text-white/25 tabular-nums">
-            {(a.comment_count || 0) > 0 ? a.comment_count : ''}
-          </span>
-        </button>
-
-        {/* Zaman */}
-        <div className="ml-auto flex items-center gap-1.5">
+      {/* Zaman Barı */}
+      <div className="flex justify-end px-3 pb-2.5 pt-0 relative z-[1]">
+        <div className="flex items-center gap-1.5">
           {a.action_type === 'watched'
             ? <Eye size={12} className="text-emerald-400/40" />
             : <Bookmark size={12} className="text-amber/30" />}
@@ -236,38 +135,6 @@ function ActivityCard({ a, i, onFilmClick, onLike, onComment }) {
         </div>
       </div>
 
-      {/* Yorum Alanı (AnimatePresence ile açılır/kapanır) */}
-      <AnimatePresence>
-        {showComment && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="flex gap-2 px-3 pb-3">
-              <input
-                type="text"
-                value={commentText}
-                onChange={e => setCommentText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleComment(); }}
-                placeholder="Kısa bir yorum yaz..."
-                maxLength={200}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[12px] text-ivory placeholder:text-white/20 focus:outline-none focus:border-amber/30 transition-all"
-                autoFocus
-              />
-              <button
-                onClick={handleComment}
-                disabled={!commentText.trim() || sending}
-                className="px-3 py-2 rounded-xl bg-amber/15 border border-amber/25 text-amber text-[11px] font-bold disabled:opacity-30 hover:bg-amber/25 transition-all"
-              >
-                {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }
