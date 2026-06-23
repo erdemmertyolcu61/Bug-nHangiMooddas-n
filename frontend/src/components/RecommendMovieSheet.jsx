@@ -36,7 +36,7 @@ export default function RecommendMovieSheet({ targetUser, onClose }) {
       setSearching(true);
       try {
         const data = await searchMovies(q, { signal: ctrl.signal });
-        if (!ctrl.signal.aborted) setResults((data.results || []).slice(0, 12));
+        if (!ctrl.signal.aborted) setResults((data?.movies || data?.results || []).slice(0, 12));
       } catch (e) {
         if (e.name !== 'AbortError') setResults([]);
       } finally {

@@ -5,7 +5,9 @@ import { resolveAvatarUrl } from '../../utils/apiConfig';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(String(dateStr).replace(' ', 'T'));
+  let s = String(dateStr).replace(' ', 'T');
+  if (!s.endsWith('Z') && !s.includes('+')) s += 'Z';
+  const d = new Date(s);
   const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 3600) return 'az önce';
   if (diff < 86400) return `${Math.floor(diff / 3600)}sa`;
