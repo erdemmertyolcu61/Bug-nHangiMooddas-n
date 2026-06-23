@@ -320,7 +320,7 @@ export default function MoodSelector() {
                       </div>
 
                       {/* Title */}
-                      <h3 className="font-serif text-lg sm:text-2xl font-bold tracking-tight leading-tight text-ivory group-hover:text-amber transition-colors duration-400 mb-1 sm:mb-3">
+                      <h3 className="font-serif text-lg sm:text-2xl font-bold tracking-tight leading-tight text-ivory md:group-hover:text-amber transition-colors duration-400 mb-1 sm:mb-3">
                         {mood.title}
                       </h3>
 
@@ -333,14 +333,14 @@ export default function MoodSelector() {
                       />
 
                       {/* Intro */}
-                        <p className="font-sans text-[12px] sm:text-[13px] leading-relaxed text-ivory/75 group-hover:text-ivory transition-colors duration-500 flex-1 line-clamp-4 sm:line-clamp-none">
+                        <p className="font-sans text-[12px] sm:text-[13px] leading-relaxed text-ivory/75 md:group-hover:text-ivory transition-colors duration-500 flex-1 line-clamp-4 sm:line-clamp-none">
                           {mood.intro}
                         </p>
 
                       {/* Footer row */}
                       <div className="mt-3 sm:mt-5 flex items-center justify-between">
                         <span
-                          className="font-sans text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.35em] transition-colors duration-400 text-ivory/55 group-hover:text-amber"
+                          className="font-sans text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.35em] transition-colors duration-400 text-ivory/55 md:group-hover:text-amber"
                           style={isHovered ? { color: mood.accentHex } : undefined}
                         >
                           Keşfet
