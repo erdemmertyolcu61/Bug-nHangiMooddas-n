@@ -38,6 +38,7 @@ import ProfileSettings from '../components/profile/ProfileSettings';
 import ReferralCard from '../components/profile/ReferralCard';
 import MilestonesStrip from '../components/MilestonesStrip';
 import StreakBadge from '../components/StreakBadge';
+import PaywallModal from '../components/PaywallModal';
 import WeeklyReportCard from '../components/WeeklyReportCard';
 import { useAchievements } from '../components/AchievementCelebration';
 
@@ -150,6 +151,7 @@ export default function Profil() {
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState('');
   const [notifOpen, setNotifOpen] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   // E-posta formu durumu
   const [emailMode, setEmailMode] = useState('login'); // 'login' | 'register'
@@ -381,7 +383,9 @@ export default function Profil() {
         const now = new Date();
         setThisMonthCount(movies.filter(m => {
           if (!m.added_at) return false;
-          const d = new Date(String(m.added_at).replace(' ', 'T'));
+          let ts = String(m.added_at).replace(' ', 'T');
+          if (!ts.endsWith('Z') && !ts.includes('+')) ts += 'Z';
+          const d = new Date(ts);
           return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         }).length);
 
@@ -556,7 +560,7 @@ export default function Profil() {
           <div className="space-y-8">
             {!loading && <WeeklyReportCard movies={savedMovies} topMood={topMoods[0] || null} />}
             <MilestonesStrip stats={milestoneStats} />
-            {!loading && <ProfileTimeline recentWatched={recentWatched} topMoods={topMoods} />}
+            {!loading && <ProfileTimeline recentWatched={recentWatched} topMoods={topMoods} onDetailMovie={handleMovieDetail} />}
           </div>
         )}
 
@@ -602,12 +606,19 @@ export default function Profil() {
             logout={logout}
             navigate={navigate}
             onNotifOpen={() => setNotifOpen(true)}
+            onPremiumOpen={() => setPaywallOpen(true)}
           />
         )}
 
       </main>
 
       {/* ─── Modals ─── */}
+      {paywallOpen && (
+        <PaywallModal
+          onClose={() => setPaywallOpen(false)}
+          onSubscribed={() => { /* premium state güncellemesi */ }}
+        />
+      )}
       {detailMovie && (
         <FilmDetailModal
           movieId={detailMovie.id}

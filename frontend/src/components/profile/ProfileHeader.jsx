@@ -5,7 +5,9 @@ import { AtSign, CalendarDays } from 'lucide-react';
 const formatDate = (iso) => {
   if (!iso) return 'Bilinmiyor';
   try {
-    const d = new Date(String(iso).trim().replace(' ', 'T'));
+    let s = String(iso).trim().replace(' ', 'T');
+    if (!s.endsWith('Z') && !s.includes('+')) s += 'Z';
+    const d = new Date(s);
     if (isNaN(d.getTime())) return 'Bilinmiyor';
     return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
   } catch { return 'Bilinmiyor'; }

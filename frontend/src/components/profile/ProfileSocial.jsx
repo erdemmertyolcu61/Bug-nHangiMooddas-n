@@ -18,7 +18,9 @@ const IMG_BASE = 'https://image.tmdb.org/t/p/w200';
 /* ── Zaman etiketleri ────────────────────────────────────────── */
 function timeAgo(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(String(dateStr).replace(' ', 'T'));
+  let s = String(dateStr).replace(' ', 'T');
+  if (!s.endsWith('Z') && !s.includes('+')) s += 'Z';
+  const d = new Date(s);
   const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 60) return 'Az önce';
   if (diff < 3600) return `${Math.floor(diff / 60)}dk`;

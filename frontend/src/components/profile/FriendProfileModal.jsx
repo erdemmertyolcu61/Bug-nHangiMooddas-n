@@ -25,7 +25,9 @@ function timeAgo(dateStr) {
 const formatDate = (iso) => {
   if (!iso) return null;
   try {
-    const d = new Date(String(iso).trim().replace(' ', 'T'));
+    let s = String(iso).trim().replace(' ', 'T');
+    if (!s.endsWith('Z') && !s.includes('+')) s += 'Z';
+    const d = new Date(s);
     if (isNaN(d.getTime())) return null;
     return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
   } catch { return null; }
@@ -321,7 +323,7 @@ export default function FriendProfileModal({ friend, onClose, onDetailMovie }) {
                                 hover:border-amber/30 transition-all group relative"
                             >
                               {film.poster_url ? (
-                                <img src={film.poster_url} alt={film.title}
+                                <img src={proxyImageUrl(film.poster_url)} alt={film.title}
                                   className="w-full h-full object-cover" loading="lazy" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
@@ -346,11 +348,12 @@ export default function FriendProfileModal({ friend, onClose, onDetailMovie }) {
                         </p>
                         <div className="space-y-1">
                           {profile.activity.map((a, i) => (
-                            <motion.div key={`${a.tmdb_id}-${i}`}
+                            <motion.button key={`${a.tmdb_id}-${i}`}
                               initial={{ opacity: 0, y: 4 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: i * 0.02 }}
-                              className="flex items-center gap-2.5 py-1.5 px-2 rounded-xl hover:bg-white/[0.02] transition-colors"
+                              onClick={() => onDetailMovie?.({ id: a.tmdb_id, title: a.title, poster_url: a.poster_url })}
+                              className="w-full flex items-center gap-2.5 py-1.5 px-2 rounded-xl hover:bg-white/[0.04] transition-colors text-left"
                             >
                               {a.poster_url ? (
                                 <div className="w-5 h-7 rounded-md overflow-hidden shrink-0 bg-white/[0.03]">
@@ -377,7 +380,7 @@ export default function FriendProfileModal({ friend, onClose, onDetailMovie }) {
                                 }
                                 <span className="text-[8px] text-ivory/25">{timeAgo(a.action_at)}</span>
                               </div>
-                            </motion.div>
+                            </motion.button>
                           ))}
                         </div>
                       </div>

@@ -15,7 +15,9 @@ const MOOD_DOT_COLORS = {
 const formatDate = (iso) => {
   if (!iso) return '';
   try {
-    const d = new Date(String(iso).trim().replace(' ', 'T'));
+    let s = String(iso).trim().replace(' ', 'T');
+    if (!s.endsWith('Z') && !s.includes('+')) s += 'Z';
+    const d = new Date(s);
     if (isNaN(d.getTime())) return '';
     return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
   } catch { return ''; }
@@ -27,7 +29,7 @@ const sanitize = (str) =>
 /**
  * Recent watched movies timeline.
  */
-export default function ProfileTimeline({ recentWatched = [], topMoods = [] }) {
+export default function ProfileTimeline({ recentWatched = [], topMoods = [], onDetailMovie }) {
   if (recentWatched.length === 0) return null;
 
   return (
@@ -49,7 +51,9 @@ export default function ProfileTimeline({ recentWatched = [], topMoods = [] }) {
           {recentWatched.map((movie) => {
             const moodColor = (topMoods.length > 0 && MOOD_DOT_COLORS[topMoods[0]?.mood_id]) || '#d4af37';
             return (
-              <div key={movie.tmdb_id} className="relative flex items-center gap-3 py-2.5">
+              <button key={movie.tmdb_id}
+                onClick={() => onDetailMovie?.({ id: movie.tmdb_id, title: movie.title, poster_url: movie.poster_url })}
+                className="relative flex items-center gap-3 py-2.5 w-full text-left hover:bg-white/[0.03] rounded-lg transition-all">
                 <div className="absolute -left-6 w-[6px] h-[6px] rounded-full"
                   style={{
                     backgroundColor: moodColor,
@@ -77,7 +81,7 @@ export default function ProfileTimeline({ recentWatched = [], topMoods = [] }) {
                     </p>
                   )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
