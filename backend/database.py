@@ -838,8 +838,8 @@ class MovieCache:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS challenge_responses (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    challenge_id INTEGER NOT NULL REFERENCES daily_challenges(id),
-                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    challenge_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
                     tmdb_id INTEGER NOT NULL,
                     comment TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1228,8 +1228,8 @@ class MovieCache:
             )""",
             """CREATE TABLE IF NOT EXISTS challenge_responses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                challenge_id INTEGER NOT NULL REFERENCES daily_challenges(id),
-                user_id INTEGER NOT NULL REFERENCES users(id),
+                challenge_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
                 tmdb_id INTEGER NOT NULL,
                 comment TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1386,6 +1386,30 @@ class MovieCache:
                 await _turso_client.execute(_idx_sql)
             except Exception:
                 pass
+
+        # challenge_responses FK removal migration
+        try:
+            cur = await _turso_client.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='challenge_responses'"
+            )
+            row = await cur.fetchone()
+            if row and "REFERENCES" in (row[0] or ""):
+                await _turso_client.execute("ALTER TABLE challenge_responses RENAME TO _challenge_responses_old")
+                await _turso_client.execute("""CREATE TABLE challenge_responses (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    challenge_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    tmdb_id INTEGER NOT NULL,
+                    comment TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(challenge_id, user_id)
+                )""")
+                await _turso_client.execute("""INSERT INTO challenge_responses (id, challenge_id, user_id, tmdb_id, comment, created_at)
+                    SELECT id, challenge_id, user_id, tmdb_id, comment, created_at FROM _challenge_responses_old""")
+                await _turso_client.execute("DROP TABLE _challenge_responses_old")
+                _mig_logger.info("[Migration] challenge_responses FK constraints removed")
+        except Exception as _cr_e:
+            _mig_logger.warning("[Migration] challenge_responses FK migration: %s", _cr_e)
 
     # --- Mood Feedback Methods ---
     async def save_mood_feedback(self, user_id: int, tmdb_id: int, mood_id: str, feedback: str):
