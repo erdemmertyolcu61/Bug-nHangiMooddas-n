@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Swords, Trophy, Users, Check, X, ChevronLeft, Clock, Zap, Snowflake, Dices, Scissors,
-  Loader2, Crown, ArrowRight, RotateCcw,
+  Loader2, Crown, ArrowRight, RotateCcw, Image,
 } from 'lucide-react';
 import {
   getDuelloCategories, createDuelloRoom, getDuelloState,
@@ -228,7 +228,7 @@ function DuelloIntro({ onCreateRoom, onJoinRoom, onNavigateLeaderboard }) {
       {/* Kategori Seçimi */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-amber/80 uppercase tracking-wider">1-3 Kategori Seç</h2>
+          <h2 className="text-sm font-semibold text-amber/80 uppercase tracking-wider">Kategori Seç</h2>
           <span className="text-xs text-amber/40">{selectedCats.length}/3</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -265,9 +265,9 @@ function DuelloIntro({ onCreateRoom, onJoinRoom, onNavigateLeaderboard }) {
       <button
         onClick={handleCreate}
         disabled={selectedCats.length === 0 || selectedCats.length > 3 || creating}
-        className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-bold
+        className="w-full h-12 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-bold
                    disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]
-                   transition-all flex items-center justify-center gap-2"
+                   transition-all flex items-center justify-center gap-2 whitespace-nowrap"
       >
         {creating ? <Loader2 className="animate-spin" size={18} /> : <Swords size={18} />}
         {creating ? 'Oda kuruluyor...' : 'Oda Kur'}
@@ -277,9 +277,9 @@ function DuelloIntro({ onCreateRoom, onJoinRoom, onNavigateLeaderboard }) {
       <button
         onClick={handleFindMatch}
         disabled={selectedCats.length === 0 || selectedCats.length > 3}
-        className="w-full py-3 rounded-2xl border-2 border-amber/40 text-amber font-bold
+        className="w-full h-12 rounded-2xl border-2 border-amber/40 text-amber font-bold
                    disabled:opacity-30 disabled:cursor-not-allowed hover:bg-amber/10
-                   transition-all flex items-center justify-center gap-2"
+                   transition-all flex items-center justify-center gap-2 whitespace-nowrap"
       >
         <Users size={18} />
         Rakip Bul
@@ -423,6 +423,12 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
               </span>
               <span><strong className="text-fg">Çifte Şans</strong> — yanlış bilirsen tekrar dene</span>
             </div>
+            <div className="flex items-start gap-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-purple-500/10 border border-purple-500/20 shrink-0">
+                <Image size={12} className="text-purple-400" />
+              </span>
+              <span><strong className="text-fg">Poster İpucu</strong> — filmin posteri bulanık gösterilir</span>
+            </div>
           </div>
           <p className="text-fg-subtle">Art arda 3 doğru = <strong className="text-amber">x1.5 Puan Serisi!</strong></p>
         </div>
@@ -497,6 +503,7 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
   const [submitting, setSubmitting] = useState(false);
   const [eliminatedOptions, setEliminatedOptions] = useState([]);
   const [jokerLoading, setJokerLoading] = useState(false);
+  const [posterHint, setPosterHint] = useState(null);
   const timerRef = useRef(null);
   const lastQIdx = useRef(-1);
 
@@ -509,6 +516,7 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
       setEliminatedOptions([]);
       setLocalFeedback(null);
       setAnswerAnim(null);
+      setPosterHint(null);
       const serverRemaining = Math.ceil((question.time_remaining_ms || QUESTION_TIME * 1000) / 1000);
       setTimeLeft(Math.min(QUESTION_TIME, Math.max(0, serverRemaining)));
     }
@@ -586,8 +594,9 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
         setEliminatedOptions(res.eliminated);
       } else if (jokerType === 'freeze_time') {
         setTimeLeft(prev => prev + 10);
+      } else if (jokerType === 'poster_hint' && res.poster_url) {
+        setPosterHint(res.poster_url);
       }
-      // double_chance backend taraflı sessizce handle ediliyor
     } catch (e) {
       console.error("Joker hatası:", e);
     } finally {
@@ -713,6 +722,7 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
             { type: 'fifty_fifty', icon: Scissors, label: '%50', activeColor: 'border-amber/30 bg-amber/10 text-amber', hoverColor: 'hover:bg-amber/20' },
             { type: 'freeze_time', icon: Snowflake, label: '+10s', activeColor: 'border-blue-400/30 bg-blue-400/10 text-blue-400', hoverColor: 'hover:bg-blue-400/20' },
             { type: 'double_chance', icon: Dices, label: 'x2', activeColor: 'border-emerald/30 bg-emerald/10 text-emerald', hoverColor: 'hover:bg-emerald/20' },
+            { type: 'poster_hint', icon: Image, label: '🖼️', activeColor: 'border-purple-400/30 bg-purple-400/10 text-purple-400', hoverColor: 'hover:bg-purple-400/20' },
           ].map(({ type, icon: Icon, label, activeColor, hoverColor }) => {
             const used = player_jokers?.[type] !== undefined;
             return (
@@ -747,6 +757,28 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
       >
         {question.text}
       </motion.p>
+
+      {/* Poster İpucu */}
+      <AnimatePresence>
+        {posterHint && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="flex justify-center"
+          >
+            <div className="relative w-20 h-28 rounded-lg overflow-hidden border border-purple-400/40 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+              <img
+                src={posterHint}
+                alt="Film ipucu"
+                className="w-full h-full object-cover"
+                style={{ filter: 'blur(4px)' }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Seçenekler */}
       <div className="grid grid-cols-1 gap-2">

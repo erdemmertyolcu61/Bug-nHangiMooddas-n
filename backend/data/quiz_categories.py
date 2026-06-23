@@ -37,6 +37,10 @@ QUIZ_CATEGORIES = {
         "label": "Animasyon",
         "emoji": "🧸",
     },
+    "muzik": {
+        "label": "Film Müzikleri",
+        "emoji": "🎵",
+    },
 }
 
 MOOD_ID_LABELS = {

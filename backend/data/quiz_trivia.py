@@ -1617,4 +1617,66 @@ TRIVIA_QUESTIONS = [
     {"question": "Fast & Furious serisinde Dominic Toretto'yu kim canlandırır?", "correct": "Vin Diesel", "wrong": ["Paul Walker", "Dwayne Johnson", "Jason Statham"], "category": "seri", "movie": "Fast & Furious"},
     {"question": "Fast & Furious serisinde Dom'un ünlü sözü nedir?", "correct": "Family (Aile her şeyden önemli)", "wrong": ["Speed is everything", "Ride or die", "No rules"], "category": "seri", "movie": "Fast & Furious"},
     {"question": "Fast & Furious serisinde Dom'un favori arabası nedir?", "correct": "Dodge Charger", "wrong": ["Ford Mustang", "Chevrolet Camaro", "Toyota Supra"], "category": "seri", "movie": "Fast & Furious"},
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # FİLM MÜZİKLERİ — Soundtrack, besteci ve ikonik müzik soruları
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # ─── HOLLYWOOD BESTECİLERİ ────────────────────────────────────────────
+    {"question": "Star Wars, Jurassic Park ve Harry Potter müziklerini besteleyen efsanevi besteci kimdir?", "correct": "John Williams", "wrong": ["Hans Zimmer", "Howard Shore", "Danny Elfman"], "category": "muzik", "movie": "Star Wars"},
+    {"question": "Inception, Interstellar ve The Dark Knight üçlemesinin müziklerini yapan besteci kimdir?", "correct": "Hans Zimmer", "wrong": ["John Williams", "James Horner", "Howard Shore"], "category": "muzik", "movie": "Inception"},
+    {"question": "Yüzüklerin Efendisi üçlemesinin tüm müziklerini besteleyen kişi kimdir?", "correct": "Howard Shore", "wrong": ["Hans Zimmer", "John Williams", "Ennio Morricone"], "category": "muzik", "movie": "The Lord of the Rings"},
+    {"question": "Pirates of the Caribbean filmlerinin ikonik müziğini besteleyen kimdir?", "correct": "Hans Zimmer", "wrong": ["John Williams", "Danny Elfman", "James Newton Howard"], "category": "muzik", "movie": "Pirates of the Caribbean"},
+    {"question": "İtalyan western filmlerinin efsanevi bestecisi kimdir? (İyi, Kötü ve Çirkin vb.)", "correct": "Ennio Morricone", "wrong": ["Hans Zimmer", "John Williams", "Nino Rota"], "category": "muzik", "movie": "The Good, the Bad and the Ugly"},
+    {"question": "Psycho (Sapık) filmindeki duş sahnesinin ünlü keman müziğini besteleyen kimdir?", "correct": "Bernard Herrmann", "wrong": ["John Williams", "Ennio Morricone", "Jerry Goldsmith"], "category": "muzik", "movie": "Psycho"},
+    {"question": "Tim Burton'ın filmlerinin (Batman, Edward Scissorhands, Charlie) müziklerini genellikle kim yapar?", "correct": "Danny Elfman", "wrong": ["Hans Zimmer", "John Williams", "Howard Shore"], "category": "muzik", "movie": "Edward Scissorhands"},
+    {"question": "The Godfather (Baba) filminin ikonik müziğini besteleyen İtalyan besteci kimdir?", "correct": "Nino Rota", "wrong": ["Ennio Morricone", "Hans Zimmer", "John Williams"], "category": "muzik", "movie": "The Godfather"},
+
+    # ─── İKONİK ŞARKILAR & FİLMLER ───────────────────────────────────────
+    {"question": "'My Heart Will Go On' şarkısı hangi filmin müziğidir?", "correct": "Titanic", "wrong": ["The Notebook", "A Star Is Born", "Dirty Dancing"], "category": "muzik", "movie": "Titanic"},
+    {"question": "'My Heart Will Go On' şarkısını seslendiren sanatçı kimdir?", "correct": "Céline Dion", "wrong": ["Whitney Houston", "Mariah Carey", "Adele"], "category": "muzik", "movie": "Titanic"},
+    {"question": "'Stayin' Alive' şarkısı hangi filmin soundtrackinde yer alır?", "correct": "Saturday Night Fever", "wrong": ["Grease", "Footloose", "Dirty Dancing"], "category": "muzik", "movie": "Saturday Night Fever"},
+    {"question": "'Eye of the Tiger' şarkısı hangi film serisiyle özdeşleşmiştir?", "correct": "Rocky", "wrong": ["Rambo", "Karate Kid", "Kickboxer"], "category": "muzik", "movie": "Rocky III"},
+    {"question": "'(I've Had) The Time of My Life' şarkısı hangi filmin final sahnesinde çalar?", "correct": "Dirty Dancing", "wrong": ["Grease", "Footloose", "Flashdance"], "category": "muzik", "movie": "Dirty Dancing"},
+    {"question": "Whitney Houston'ın 'I Will Always Love You' şarkısı hangi filmden tanınır?", "correct": "The Bodyguard (Bodyguard)", "wrong": ["Titanic", "Pretty Woman", "Ghost"], "category": "muzik", "movie": "The Bodyguard"},
+    {"question": "'Let It Go' şarkısı hangi Disney filminin müziğidir?", "correct": "Frozen (Karlar Ülkesi)", "wrong": ["Moana", "Tangled", "Encanto"], "category": "muzik", "movie": "Frozen"},
+    {"question": "'Hakuna Matata' şarkısı hangi filmde geçer?", "correct": "The Lion King (Aslan Kral)", "wrong": ["Jungle Book", "Madagascar", "Tarzan"], "category": "muzik", "movie": "The Lion King"},
+    {"question": "'A Whole New World' düeti hangi Disney filminin müziğidir?", "correct": "Aladdin", "wrong": ["Beauty and the Beast", "Tangled", "The Little Mermaid"], "category": "muzik", "movie": "Aladdin"},
+    {"question": "'Shallow' düeti hangi filmin soundtrackinden çıkmıştır?", "correct": "A Star Is Born (2018)", "wrong": ["La La Land", "Bohemian Rhapsody", "The Greatest Showman"], "category": "muzik", "movie": "A Star Is Born"},
+    {"question": "'Lose Yourself' şarkısıyla Oscar kazanan rapçi kimdir?", "correct": "Eminem", "wrong": ["Jay-Z", "Kanye West", "50 Cent"], "category": "muzik", "movie": "8 Mile"},
+    {"question": "'Bohemian Rhapsody' şarkısı hangi gruba aittir?", "correct": "Queen", "wrong": ["The Beatles", "Led Zeppelin", "Pink Floyd"], "category": "muzik", "movie": "Bohemian Rhapsody"},
+    {"question": "La La Land filminde Ryan Gosling ve Emma Stone'un dans ettiği ünlü sahne nerede geçer?", "correct": "Griffith Gözlemevi (Los Angeles)", "wrong": ["Central Park", "Eyfel Kulesi", "Hollywood Bulvarı"], "category": "muzik", "movie": "La La Land"},
+    {"question": "'This Is Me' şarkısı hangi müzikal filmin güçlendirme marşıdır?", "correct": "The Greatest Showman", "wrong": ["La La Land", "Chicago", "Moulin Rouge!"], "category": "muzik", "movie": "The Greatest Showman"},
+    {"question": "'Don't You (Forget About Me)' şarkısı hangi 80'ler klasiğiyle özdeştir?", "correct": "The Breakfast Club", "wrong": ["Ferris Bueller's Day Off", "Sixteen Candles", "Pretty in Pink"], "category": "muzik", "movie": "The Breakfast Club"},
+    {"question": "'Unchained Melody' şarkısı hangi romantik filmin simgesidir?", "correct": "Ghost (Hayalet)", "wrong": ["Dirty Dancing", "Titanic", "The Notebook"], "category": "muzik", "movie": "Ghost"},
+    {"question": "Grease filminin en bilinen düeti hangisidir?", "correct": "You're the One That I Want", "wrong": ["Summer Nights", "Greased Lightnin'", "Hopelessly Devoted to You"], "category": "muzik", "movie": "Grease"},
+    {"question": "'Happy' şarkısını seslendiren Pharrell Williams hangi animasyon filmi için bu şarkıyı yapmıştır?", "correct": "Despicable Me 2 (Çılgın Hırsız 2)", "wrong": ["Inside Out", "Trolls", "Minions"], "category": "muzik", "movie": "Despicable Me 2"},
+    {"question": "'Everything I Do (I Do It for You)' şarkısı hangi filmin soundtrackindedir?", "correct": "Robin Hood: Prince of Thieves", "wrong": ["Braveheart", "Gladiator", "The Last of the Mohicans"], "category": "muzik", "movie": "Robin Hood: Prince of Thieves"},
+    {"question": "'Skyfall' şarkısını seslendiren sanatçı kimdir?", "correct": "Adele", "wrong": ["Sam Smith", "Billie Eilish", "Madonna"], "category": "muzik", "movie": "Skyfall"},
+
+    # ─── TÜRK FİLM MÜZİKLERİ ─────────────────────────────────────────────
+    {"question": "'Selvi Boylum Al Yazmalım' filminin unutulmaz müziğini besteleyen kimdir?", "correct": "Zülfü Livaneli", "wrong": ["Barış Manço", "Orhan Gencebay", "Kayahan"], "category": "muzik", "movie": "Selvi Boylum Al Yazmalım"},
+    {"question": "Eşkıya filminin 'Fırat'ın Türküsü' müziğini yapan besteci kimdir?", "correct": "Erkan Oğur", "wrong": ["Zülfü Livaneli", "Bülent Ortaçgil", "Cahit Berkay"], "category": "muzik", "movie": "Eşkıya"},
+    {"question": "Vizontele filminin müziklerini besteleyen sanatçı kimdir?", "correct": "Kardeş Türküler", "wrong": ["Zülfü Livaneli", "Mazhar Fuat Özkan", "Cahit Berkay"], "category": "muzik", "movie": "Vizontele"},
+    {"question": "'Kara Sevda' müziğiyle bilinen 'Bir Zamanlar Anadolu'da' filminin yönetmeni kimdir?", "correct": "Nuri Bilge Ceylan", "wrong": ["Ferzan Özpetek", "Zeki Demirkubuz", "Semih Kaplanoğlu"], "category": "muzik", "movie": "Bir Zamanlar Anadolu'da"},
+    {"question": "GORA filminde Arif'in uzay gemisinde çalan komik Türk pop şarkısı hangi sanatçıya aittir?", "correct": "Tarkan", "wrong": ["Sezen Aksu", "Ajda Pekkan", "Kenan Doğulu"], "category": "muzik", "movie": "GORA"},
+    {"question": "'Babam ve Oğlum' filminin duygusal müziklerini besteleyen kimdir?", "correct": "Evanthia Reboutsika", "wrong": ["Fahir Atakoğlu", "Zülfü Livaneli", "Goran Bregović"], "category": "muzik", "movie": "Babam ve Oğlum"},
+    {"question": "Hababam Sınıfı filminin ikonik müziğini hangi besteci yapmıştır?", "correct": "Cahit Berkay", "wrong": ["Zülfü Livaneli", "Barış Manço", "Erkan Oğur"], "category": "muzik", "movie": "Hababam Sınıfı"},
+    {"question": "'Ayla' filminde kullanılan ve izleyicileri ağlatan Kore şarkısının adı nedir?", "correct": "Arirang", "wrong": ["Gangnam Style", "Doraji", "Banga"], "category": "muzik", "movie": "Ayla"},
+    {"question": "Kış Uykusu filminin müzikleri hangi ünlü klasik bestecinin eserlerinden alınmıştır?", "correct": "Franz Schubert", "wrong": ["Ludwig van Beethoven", "Frédéric Chopin", "Johann Sebastian Bach"], "category": "muzik", "movie": "Kış Uykusu"},
+    {"question": "'Recep İvedik' filmlerinde sıkça kullanılan komedi müzik tarzı hangisidir?", "correct": "Arabesk parodi", "wrong": ["Rock", "Klasik müzik", "Jazz"], "category": "muzik", "movie": "Recep İvedik"},
+    {"question": "Nefes: Vatan Sağolsun filminin müziğini yapan ünlü besteci kimdir?", "correct": "Tamer Çıray", "wrong": ["Fahir Atakoğlu", "Gökhan Kırdar", "Rahman Altın"], "category": "muzik", "movie": "Nefes: Vatan Sağolsun"},
+
+    # ─── OSCAR & MÜZİKAL ─────────────────────────────────────────────────
+    {"question": "Film tarihinde 'En İyi Orijinal Şarkı' Oscar'ını en çok kazanan besteci kimdir?", "correct": "Alan Menken", "wrong": ["John Williams", "Hans Zimmer", "Elton John"], "category": "muzik", "movie": "The Little Mermaid"},
+    {"question": "Moulin Rouge! filminde Nicole Kidman ve Ewan McGregor'un söylediği aşk şarkısı hangisidir?", "correct": "Come What May", "wrong": ["Your Song", "Elephant Love Medley", "One Day I'll Fly Away"], "category": "muzik", "movie": "Moulin Rouge!"},
+    {"question": "'Beauty and the Beast' (Güzel ve Çirkin) şarkısının orijinal versiyonunu kim söylemiştir?", "correct": "Angela Lansbury", "wrong": ["Celine Dion", "Emma Thompson", "Julie Andrews"], "category": "muzik", "movie": "Beauty and the Beast"},
+    {"question": "Whiplash filminde çalınan ve filmin adını taşıyan parça hangi müzik türündedir?", "correct": "Jazz", "wrong": ["Klasik", "Blues", "Rock"], "category": "muzik", "movie": "Whiplash"},
+    {"question": "2001: Bir Uzay Destanı filminin açılış sahnesinde çalan ünlü klasik eser hangisidir?", "correct": "Also sprach Zarathustra (Richard Strauss)", "wrong": ["Ay Işığı Sonatı (Beethoven)", "Dört Mevsim (Vivaldi)", "Bolero (Ravel)"], "category": "muzik", "movie": "2001: A Space Odyssey"},
+    {"question": "'Somewhere Over the Rainbow' şarkısı hangi klasik filmden gelir?", "correct": "Oz Büyücüsü (The Wizard of Oz)", "wrong": ["Mary Poppins", "Singin' in the Rain", "The Sound of Music"], "category": "muzik", "movie": "The Wizard of Oz"},
+    {"question": "Amelie filminin ikonik piyano müziklerini besteleyen Fransız müzisyen kimdir?", "correct": "Yann Tiersen", "wrong": ["Ludovico Einaudi", "Erik Satie", "Claude Debussy"], "category": "muzik", "movie": "Amélie"},
+    {"question": "Kill Bill filmlerinde çalan ıslık melodisi ('Twisted Nerve') kimin eseridir?", "correct": "Bernard Herrmann", "wrong": ["Ennio Morricone", "Quentin Tarantino", "RZA"], "category": "muzik", "movie": "Kill Bill"},
+    {"question": "Interstellar filmindeki org (organ) ağırlıklı müziği besteleyen kimdir?", "correct": "Hans Zimmer", "wrong": ["John Williams", "Thomas Newman", "Alexandre Desplat"], "category": "muzik", "movie": "Interstellar"},
+    {"question": "Requiem for a Dream filminin tekrarlayan, rahatsız edici müziğini besteleyen kimdir?", "correct": "Clint Mansell", "wrong": ["Hans Zimmer", "Trent Reznor", "Johnny Greenwood"], "category": "muzik", "movie": "Requiem for a Dream"},
+    {"question": "'Circle of Life' şarkısıyla açılan Disney filmi hangisidir?", "correct": "The Lion King (Aslan Kral)", "wrong": ["Tarzan", "Bambi", "The Jungle Book"], "category": "muzik", "movie": "The Lion King"},
 ]

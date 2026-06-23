@@ -842,6 +842,7 @@ async def use_joker(room_id: str, body: JokerBody, user: dict = Depends(verify_u
         await db.commit()
         
         eliminated = []
+        poster_url = None
         if body.joker_type == "fifty_fifty":
             cur_q = await db.execute("SELECT options, correct_answer FROM quiz_questions WHERE room_id = ? AND question_index = ?", (room_id, body.question_index))
             q_row = await cur_q.fetchone()
@@ -852,8 +853,25 @@ async def use_joker(room_id: str, body: JokerBody, user: dict = Depends(verify_u
                 if len(wrong_opts) >= 2:
                     import random
                     eliminated = random.sample(wrong_opts, 2)
-                    
-        return {"ok": True, "eliminated": eliminated}
+        elif body.joker_type == "poster_hint":
+            cur_q = await db.execute(
+                "SELECT extra_data FROM quiz_questions WHERE room_id = ? AND question_index = ?",
+                (room_id, body.question_index),
+            )
+            q_row = await cur_q.fetchone()
+            if q_row:
+                extra = json.loads(q_row[0] or "{}")
+                movie_title = extra.get("movie", "")
+                if movie_title:
+                    cur_p = await db.execute(
+                        "SELECT poster_url FROM movie_repository WHERE title LIKE ? LIMIT 1",
+                        (f"%{movie_title}%",),
+                    )
+                    p_row = await cur_p.fetchone()
+                    if p_row and p_row[0]:
+                        poster_url = p_row[0]
+
+        return {"ok": True, "eliminated": eliminated, "poster_url": poster_url}
 
 @router.post("/rooms/{room_id}/answer")
 async def submit_answer(room_id: str, body: AnswerBody, user: dict = Depends(verify_user)):
