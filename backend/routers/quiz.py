@@ -863,13 +863,24 @@ async def use_joker(room_id: str, body: JokerBody, user: dict = Depends(verify_u
                 extra = json.loads(q_row[0] or "{}")
                 movie_title = extra.get("movie", "")
                 if movie_title:
+                    # 1) movie_repository'den ara
                     cur_p = await db.execute(
-                        "SELECT poster_url FROM movie_repository WHERE title LIKE ? LIMIT 1",
+                        "SELECT poster_url FROM movie_repository WHERE title LIKE ? AND poster_url IS NOT NULL LIMIT 1",
                         (f"%{movie_title}%",),
                     )
                     p_row = await cur_p.fetchone()
                     if p_row and p_row[0]:
                         poster_url = p_row[0]
+                    else:
+                        # 2) TMDB API fallback
+                        try:
+                            from backend.services.tmdb_service import TMDBService
+                            tmdb = TMDBService()
+                            results = await tmdb.search_movies(movie_title)
+                            if results and results[0].get("poster_url"):
+                                poster_url = results[0]["poster_url"]
+                        except Exception:
+                            logger.warning(f"[poster_hint] TMDB search failed for: {movie_title}")
 
         return {"ok": True, "eliminated": eliminated, "poster_url": poster_url}
 

@@ -494,6 +494,16 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
 
     setLocalFeedback(null);
     setDisplayState(roomState);
+
+    // Çifte şans retry window'unda poll gelirse selected'ı sıfırla
+    if (roomState?.my_answer && !roomState.my_answer.is_correct) {
+      const jokers = roomState.player_jokers || {};
+      const qIdx = roomState.current_question;
+      if (jokers.double_chance === qIdx && !doubleChanceUsedRef.current) {
+        setSelected(null);
+        setAnswerAnim(null);
+      }
+    }
   }, [roomState]);
 
   const { question, opponent_answered, scores, current_question, total_questions, player_jokers, my_streak, room_id } = displayState || {};
@@ -544,9 +554,15 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
   }, [question?.index]);
 
   const handleSelect = async (option) => {
-    const isDoubleRetry = !!(my_answer && !my_answer.is_correct && player_jokers?.double_chance === question?.index && !doubleChanceUsedRef.current);
-    if (selected || submitting || timeLeft <= 0) return;
-    if (my_answer && !isDoubleRetry) return;
+    const hasDoubleChance = player_jokers?.double_chance === question?.index && !doubleChanceUsedRef.current;
+    const isDoubleRetry = !!(my_answer && !my_answer.is_correct && hasDoubleChance);
+
+    if (submitting || timeLeft <= 0) return;
+    if (isDoubleRetry) {
+      // İkinci deneme: selected'ı sıfırla, eski seçimi yok say
+    } else if (selected || my_answer) {
+      return;
+    }
 
     setSelected(option);
     setSubmitting(true);
@@ -567,13 +583,19 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
           sounds?.playWrong();
           setAnswerAnim('wrong');
         }
-        if (result.is_correct || isDoubleRetry) {
+
+        if (isDoubleRetry) {
+          // İkinci deneme bitti (doğru veya yanlış), artık kilitli
           doubleChanceUsedRef.current = true;
           feedbackUntil.current = Date.now() + 2000;
-        } else if (player_jokers?.double_chance === question.index && !doubleChanceUsedRef.current) {
-          setSelected(null);
-          setAnswerAnim(null);
+        } else if (hasDoubleChance && !result.is_correct) {
+          // İlk deneme yanlış + çifte şans aktif → ikinci hak ver
+          setTimeout(() => {
+            setSelected(null);
+            setAnswerAnim(null);
+          }, 600);
         } else {
+          // Normal cevap veya çifte şans olmadan
           feedbackUntil.current = Date.now() + 2000;
         }
       }
@@ -594,8 +616,8 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
         setEliminatedOptions(res.eliminated);
       } else if (jokerType === 'freeze_time') {
         setTimeLeft(prev => prev + 10);
-      } else if (jokerType === 'poster_hint' && res.poster_url) {
-        setPosterHint(res.poster_url);
+      } else if (jokerType === 'poster_hint') {
+        setPosterHint(res.poster_url || 'not_found');
       }
     } catch (e) {
       console.error("Joker hatası:", e);
@@ -767,15 +789,21 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
             exit={{ opacity: 0, scale: 0.8 }}
             className="flex justify-center"
           >
-            <div className="relative w-20 h-28 rounded-lg overflow-hidden border border-purple-400/40 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
-              <img
-                src={posterHint}
-                alt="Film ipucu"
-                className="w-full h-full object-cover"
-                style={{ filter: 'blur(4px)' }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-            </div>
+            {posterHint === 'not_found' ? (
+              <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-400/30 text-purple-300 text-xs">
+                Bu film için poster bulunamadı
+              </div>
+            ) : (
+              <div className="relative w-20 h-28 rounded-lg overflow-hidden border border-purple-400/40 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                <img
+                  src={posterHint}
+                  alt="Film ipucu"
+                  className="w-full h-full object-cover"
+                  style={{ filter: 'blur(4px)' }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -793,7 +821,7 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
 
           const isEliminated = eliminatedOptions.includes(option);
 
-          const isDisabled = (!!my_answer && !isDoubleChanceActive) || !!selected || timeLeft <= 0 || isEliminated || (isDoubleChanceActive && isMyPick);
+          const isDisabled = (!!my_answer && !isDoubleChanceActive) || (!!selected && !isDoubleChanceActive) || timeLeft <= 0 || isEliminated || (isDoubleChanceActive && isMyPick);
 
           const shakeAnim = isWrong && answerAnim === 'wrong';
           const popAnim = isCorrect && answerAnim === 'correct';
