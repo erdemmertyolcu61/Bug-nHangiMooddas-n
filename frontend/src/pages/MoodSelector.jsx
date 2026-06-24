@@ -13,6 +13,7 @@ import { playMoodAudio, preloadMoodAudio } from '../utils/moodAudioManager';
 import QuizModal from '../components/QuizModal';
 import MovieCard from '../components/MovieCard';
 import FilmDetailModal from '../components/FilmDetailModal';
+import LottieAnimation from '../components/LottieAnimation';
 import { searchMovies, shareMood } from '../services/api';
 import { rankMoods, recordMoodPick } from '../utils/moodRanking';
 
@@ -263,7 +264,10 @@ export default function MoodSelector() {
               </div>
             )}
             {!searchLoading && searchResults === null && (
-              <div className="py-28 text-center">
+              <div className="py-20 sm:py-28 flex flex-col items-center justify-center text-center">
+                <div className="w-32 h-32 sm:w-40 sm:h-40 mb-2 opacity-50">
+                  <LottieAnimation path="/lottie/search-empty.json" />
+                </div>
                 <p className="text-ivory/30 font-serif italic text-lg">Bir film adı yaz, bakalım ne çıkacak...</p>
               </div>
             )}
