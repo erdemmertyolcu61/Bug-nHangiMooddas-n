@@ -482,6 +482,22 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(_cleanup_posterless())
 
+    # ── Yeni vizyon filmleri: günlük otomatik ingest ───────────────────────────
+    # Son ~120 günün filmlerini (Amerikan/Türk/Avrupa) oy barajı olmadan ilgili
+    # mood'lara ekler ve oyları/puanı tazeler. Mood havuzu dolu olsa bile çalışır
+    # (normal seed dolu moodları atlıyordu → yeni filmler hiç girmiyordu).
+    async def _recent_releases_job():
+        await asyncio.sleep(30)  # Önce seed/startup otursun
+        while True:
+            try:
+                res = await cache.ingest_recent_releases(tmdb_service, days=120, pages=6)
+                logger.info("[RecentReleases] Günlük ingest: %s", res)
+            except Exception as e:
+                logger.warning("[RecentReleases] Ingest hatası: %s", e)
+            await asyncio.sleep(24 * 3600)  # 24 saatte bir tekrar
+
+    asyncio.create_task(_recent_releases_job())
+
     # ── All heavy initializations deferred to background ──
     # Fast Search, Semantic Search, NPZ Cache, Embedding, Model pre-warm
     # run as a single background task so server starts in <2s.
@@ -776,6 +792,7 @@ _CACHE_CONTROL_TTL = {
     "/api/movies/now-playing":   300,
     "/api/movies/discover":      300,
     "/api/movies/search":        120,
+    "/api/person/":              120,
     "/api/repository":            60,
     "/api/movies/":              600,
 }
@@ -1412,14 +1429,37 @@ async def get_now_playing():
 
 @app.get("/api/movies/search", dependencies=[Depends(rate_limit_general)])
 async def search_movies(q: str = Query(..., min_length=1, max_length=200)):
-    """Search TMDB for movies by title (6h cache)."""
+    """Search TMDB for movies AND persons by query (6h cache)."""
     q_clean = q.strip()
     if not q_clean:
         raise HTTPException(status_code=422, detail="Arama terimi boş olamaz.")
-    result = await _cached_tmdb("search", f"q:{q_clean}", lambda: tmdb_service.search_movies(q_clean))
-    if result is None:
+    import asyncio
+    movie_task = _cached_tmdb("search", f"q:{q_clean}", lambda: tmdb_service.search_movies(q_clean))
+    person_task = _cached_tmdb("person_search", f"pq:{q_clean}", lambda: tmdb_service.search_person(q_clean))
+    movie_result, person_result = await asyncio.gather(movie_task, person_task, return_exceptions=True)
+    if isinstance(movie_result, Exception):
+        movie_result = None
+    if isinstance(person_result, Exception):
+        person_result = []
+    if movie_result is None and not person_result:
         raise HTTPException(status_code=500, detail="Film araması başarısız.")
-    return {"movies": result, "query": q_clean}
+    return {"movies": movie_result or [], "persons": person_result or [], "query": q_clean}
+
+
+@app.get("/api/person/{person_id}/movies", dependencies=[Depends(rate_limit_general)])
+async def get_person_movies(person_id: int):
+    """Get a person's movie filmography (sorted by popularity, 6h cache)."""
+    try:
+        raw = await _cached_tmdb(
+            "person_credits", f"pc:{person_id}",
+            lambda: tmdb_service.get_person_movie_credits(person_id),
+        )
+        if raw is None:
+            return {"movies": []}
+        movies = sorted(raw, key=lambda m: m.get("popularity", 0), reverse=True)[:30]
+        return {"movies": movies}
+    except Exception as e:
+        return {"movies": []}
 
 
 @app.get("/api/movies/discover", dependencies=[Depends(rate_limit_general)])
@@ -1561,6 +1601,20 @@ async def seed_repository(mood_id: str = Query(None), deep: bool = Query(False))
             "details": results,
             "cleanup": {"posterless_removed": posterless, "niche_removed": niche.get("removed", 0)},
         }
+    except Exception as e:
+        raise _safe_http_500(e)
+
+
+@app.post("/api/repository/ingest-recent", dependencies=[Depends(verify_admin)])
+async def ingest_recent_releases_endpoint(
+    days: int = Query(120, ge=7, le=365, description="Son kaç günün vizyonları"),
+    pages: int = Query(6, ge=1, le=15, description="TMDB sayfa sayısı"),
+):
+    """Yeni vizyon filmlerini (Amerikan/Türk/Avrupa) oy barajı olmadan ilgili
+    mood'lara ekler. Günlük otomatik de çalışır; bu endpoint manuel tetikler."""
+    try:
+        res = await cache.ingest_recent_releases(tmdb_service, days=days, pages=pages)
+        return {"status": "success", **res}
     except Exception as e:
         raise _safe_http_500(e)
 

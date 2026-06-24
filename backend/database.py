@@ -3501,6 +3501,89 @@ class MovieCache:
             return len(unique)
         return 0
 
+    # Yeni vizyon filmleri için izinli diller: Amerikan + Türk + Avrupa.
+    # Hint/Kore/Japon/Çin ve diğer Asya dilleri HARİÇ (ürün kararı — bu menşeli
+    # yeni filmler oy barajı olmadan eklenmez).
+    RECENT_RELEASE_ALLOWED_LANGS = frozenset({
+        "en", "tr", "fr", "de", "it", "es", "pt", "nl", "da", "sv", "no",
+        "fi", "is", "pl", "cs", "sk", "hu", "ro", "el", "hr", "sr", "bg",
+        "uk", "ru", "ca", "et", "lv", "lt", "sl",
+    })
+
+    async def ingest_recent_releases(self, tmdb_service_obj, days: int = 120,
+                                     pages: int = 6) -> dict:
+        """Yeni vizyon filmlerini (son `days` gün) ilgili mood'lara ekler.
+
+        Kalite (min_vote) barajı YOK — yeni filmlerin oyu henüz oturmamış olabilir.
+        Yalnız Amerikan/Türk/Avrupa menşeili filmler alınır (Asya dilleri hariç).
+        Her film classify_movie ile sınıflandırılıp en uygun 2 mood'una yazılır.
+        Günlük tekrar çalışınca INSERT OR REPLACE oyları/puanı tazeler — böylece
+        "puanı oluşunca uygulamada da görünsün" davranışı kendiliğinden sağlanır.
+        """
+        from datetime import datetime, timedelta, timezone
+        from backend.mood_scoring import classify_movie
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        # Son vizyonlar — tür filtresi yok, oy barajı yok, popülerlik sırasıyla
+        raw = await tmdb_service_obj.discover_pages_parallel(
+            [], list(range(1, pages + 1)),
+            sort_by="popularity.desc",
+            min_vote_average=None,
+            min_vote_count=0,
+            primary_release_date_gte=cutoff,
+            primary_release_date_lte=today,
+        )
+
+        # Dil kapısı + temel kalite (poster/overview) + dedupe
+        seen = set()
+        candidates = []
+        for m in raw:
+            mid = m.get("id")
+            if mid is None or mid in seen:
+                continue
+            seen.add(mid)
+            lang = (m.get("original_language") or "").lower()
+            if lang not in self.RECENT_RELEASE_ALLOWED_LANGS:
+                continue
+            if not m.get("poster_url") or not m.get("overview"):
+                continue
+            candidates.append(m)
+
+        # Her filmi sınıflandır → en uygun 2 mood'a dağıt (skor >= 45, bloklu değil)
+        by_mood = {}
+        for m in candidates:
+            cls = classify_movie(
+                m.get("genre_ids", []), m.get("vote_average"),
+                tmdb_id=m["id"], vote_count=m.get("vote_count"),
+                overview=m.get("overview"), release_date=m.get("release_date"),
+                popularity=m.get("popularity"),
+                original_language=(m.get("original_language") or ""),
+            )
+            blocked = set(cls.get("blockedMoods", []))
+            ranked = sorted(
+                ((mid, s) for mid, s in cls.get("moodScores", {}).items()
+                 if mid not in blocked and s >= 45),
+                key=lambda x: -x[1],
+            )[:2]
+            for mid, _s in ranked:
+                by_mood.setdefault(mid, []).append(m)
+
+        saved_total = 0
+        for mid, movies in by_mood.items():
+            await self.bulk_save_repository_movies(movies, mid)
+            await self.update_mood_scores_for_mood(mid)
+            saved_total += len(movies)
+
+        logger.info("[RecentReleases] %d aday → %d mood ataması (son %d gün).",
+                    len(candidates), saved_total, days)
+        return {
+            "candidates": len(candidates),
+            "assignments": saved_total,
+            "moods": {k: len(v) for k, v in by_mood.items()},
+        }
+
     # --- Mood Classification Methods ---
     async def save_mood_classification(self, tmdb_id: int, mood_id: str):
         """Save a Claude-classified mood for a movie."""
@@ -3935,9 +4018,21 @@ class MovieCache:
         order_by = order_clauses.get(sort_by, order_clauses["recommended"])
         offset = (page - 1) * per_page
 
+        # Yeni vizyon istisnası: son 120 günde çıkmış ve oyu henüz oturmamış
+        # (vote_count < 50) filmler min_vote barajını BYPASS eder → puanı oluşmadan
+        # da mood'unda görünür. Oy birikince (>=50) normal kaliteye tabi olur,
+        # kötü çıkanlar (düşük puan + çok oy) listeden kendiliğinden düşer.
+        from datetime import datetime, timedelta, timezone
+        recent_cutoff = (datetime.now(timezone.utc) - timedelta(days=120)).strftime("%Y-%m-%d")
+
         # WHERE clauses
-        where_clauses = ["mood_id = ?", "vote_average >= ?", "COALESCE(mood_score, 0) >= ?", "poster_url IS NOT NULL AND poster_url != ''"]
-        where_params = [mood_id, min_vote, min_mood_score]
+        where_clauses = [
+            "mood_id = ?",
+            "(vote_average >= ? OR (release_date >= ? AND COALESCE(vote_count, 0) < 50))",
+            "COALESCE(mood_score, 0) >= ?",
+            "poster_url IS NOT NULL AND poster_url != ''",
+        ]
+        where_params = [mood_id, min_vote, recent_cutoff, min_mood_score]
         if min_vote_count > 0:
             where_clauses.append("vote_count >= ?")
             where_params.append(min_vote_count)
