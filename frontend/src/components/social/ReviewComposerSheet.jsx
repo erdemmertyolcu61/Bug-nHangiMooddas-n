@@ -45,11 +45,12 @@ export default function ReviewComposerSheet({ movie, initialContent = '', initia
 
   return (
     <AnimatePresence>
-      <motion.div className="fixed inset-0 z-[1000] bg-black/70 backdrop-blur-sm"
+      <motion.div className="fixed inset-0 z-[1000] bg-black/90 backdrop-blur-sm"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
       <motion.div
         className="fixed bottom-0 left-0 right-0 z-[1001] flex flex-col max-h-[88dvh]
                    bg-[#161010] border-t border-amber/20 rounded-t-[2rem] shadow-[0_-20px_60px_rgba(0,0,0,0.6)] pb-safe"
+        style={{ boxShadow: '0 100px 0 100px #161010' }}
         initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 32, stiffness: 320 }}>
         <div className="flex justify-center pt-3 pb-1 shrink-0">
