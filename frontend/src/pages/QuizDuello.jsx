@@ -204,13 +204,13 @@ function DuelloIntro({ onCreateRoom, onJoinRoom, onNavigateLeaderboard }) {
             value={joinCode}
             onChange={e => setJoinCode(e.target.value.toUpperCase())}
             maxLength={8}
-            className="flex-1 bg-surface-2/50 border border-amber/20 rounded-xl px-4 py-3 text-sm text-amber font-mono font-bold tracking-[0.3em] text-center uppercase placeholder:text-fg-subtle placeholder:tracking-normal placeholder:font-normal focus:outline-none focus:border-amber/50"
+            className="flex-1 min-w-0 bg-surface-2/50 border border-amber/20 rounded-xl px-4 py-3 text-sm text-amber font-mono font-bold tracking-[0.3em] text-center uppercase placeholder:text-fg-subtle placeholder:tracking-normal placeholder:font-normal focus:outline-none focus:border-amber/50"
             onKeyDown={e => { if (e.key === 'Enter') handleJoin(); }}
           />
           <button
             onClick={handleJoin}
             disabled={joinCode.trim().length < 4 || joining}
-            className="px-5 py-3 rounded-xl bg-amber-600 text-black font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:bg-amber-500 transition-all flex items-center gap-1.5"
+            className="shrink-0 whitespace-nowrap px-5 py-3 rounded-xl bg-amber-600 text-black font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:bg-amber-500 transition-all flex items-center gap-1.5"
           >
             {joining ? <Loader2 className="animate-spin" size={16} /> : <ArrowRight size={16} />}
             Katıl
