@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Quote, Heart, MoreHorizontal, Flag, Trash2, PenLine, MessageCircle, Send, X } from 'lucide-react';
+import { Quote, Heart, MoreHorizontal, Flag, Trash2, PenLine, MessageCircle, Send, X, EyeOff } from 'lucide-react';
 import { getMovieReviews, deleteMovieReview, likeReview, isLoggedIn, getReviewReplies, createReviewReply, deleteReviewReply } from '../../services/api';
 import { resolveAvatarUrl } from '../../utils/apiConfig';
 import { useAuth } from '../../context/AuthContext';
@@ -241,14 +241,14 @@ export default function FilmReviews({ movie }) {
                 <div className="mt-1.5 pl-[42px]">
                   {spoilerHidden ? (
                     <button onClick={() => setRevealed((s) => new Set(s).add(r.id))}
-                      className="text-left w-full">
-                      <p className="text-[13px] font-serif text-white/90 blur-[6px] select-none line-clamp-3" aria-hidden>{r.content}</p>
-                      <span className="mt-0.5 inline-block text-[11px] sm:text-[10px] font-bold uppercase tracking-wider text-rose-400/70">
-                        Spoiler içerir, görmek için dokun
+                      className="w-full text-left rounded-xl border border-rose-400/30 bg-rose-500/[0.07] px-3 py-2.5 transition-colors hover:bg-rose-500/[0.12]">
+                      <p className="text-[13px] font-serif text-fg/85 blur-[6px] select-none line-clamp-2" aria-hidden>{r.content}</p>
+                      <span className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] sm:text-[10px] font-bold uppercase tracking-wider text-rose-500/90">
+                        <EyeOff size={12} className="shrink-0" /> Spoiler · görmek için dokun
                       </span>
                     </button>
                   ) : (
-                    <p className="text-sm sm:text-[13.5px] font-serif text-ivory/90 leading-snug break-words whitespace-pre-wrap">{r.content}</p>
+                    <p className="text-sm sm:text-[13.5px] font-serif text-fg/90 leading-snug break-words whitespace-pre-wrap">{r.content}</p>
                   )}
                 </div>
 
