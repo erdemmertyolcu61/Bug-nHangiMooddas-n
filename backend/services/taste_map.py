@@ -665,131 +665,85 @@ class TasteMapEngine:
                           style: Optional[dict] = None,
                           pacing: Optional[dict] = None,
                           note_stats: Optional[dict] = None) -> list[str]:
+        """Üstad'ın kısa ve şık zevk okuması (sıfır-maliyet, LLM'siz).
+
+        Çok sayıda paragraf yerine en güçlü 3 sinyali seçip kısa, vurucu
+        cümlelere döker. Öncelik: notların → mood imzası → stil/dönem/tür.
+        """
         if total_signals < 3:
             return []
 
-        summaries = []
         top_mid = mood_ids[0] if mood_ids else None
-
-        # ── 0. Not tonuna dayalı kişisel içgörü (defterdeki yazılı notlar) ──
-        # Yüksek öncelik: yazılı notlar zevk haritasının en güçlü sinyali.
-        if note_stats and note_stats.get("count", 0) >= 2:
-            pos = note_stats.get("positive", 0)
-            neg = note_stats.get("negative", 0)
-            if pos >= 2 and pos >= neg * 2:
-                summaries.append(
-                    "Notların çoğu övgü dolu — sevdiğin filmleri tek tek işaretleyip arşivliyorsun. "
-                    "Bu, zevk haritanı en çok netleştiren şey."
-                )
-            elif neg > pos:
-                summaries.append(
-                    "Notlarında eleştirel bir ton var — neyi sevmediğini açıkça yazıyorsun. "
-                    "Bu, haritanı daha da keskinleştiriyor; beğenmediklerin önerilerden eleniyor."
-                )
-            else:
-                summaries.append(
-                    "Film notları tutan az sayıda izleyiciden birisin — yazdığın her satır, "
-                    "zevk haritanı zenginleştiren güçlü bir imza."
-                )
-
-        # ── 1. Stil profili — Blockbuster/Indie/Hibrit ──
-        if style:
-            indie_pct = style.get("indie_pct", 0)
-            main_pct = style.get("mainstream_pct", 0)
-            if main_pct >= 70:
-                summaries.append(
-                    "Blockbuster ruhlusun — büyük bütçeli, geniş kitlelere hitap eden yapımlar seni çekiyor. "
-                    "Görsel efektler, yıldız kadrolar ve epik anlatılar senin alanın."
-                )
-            elif main_pct >= 50:
-                summaries.append(
-                    "Popüler sinemaya yakınsın ama zaman zaman bağımsız yapımların derinliğini de arıyorsun. "
-                    "Ana akımın kaliteli örneklerini seçen seçici bir izleyicisin."
-                )
-            elif indie_pct >= 70:
-                summaries.append(
-                    "Bağımsız sinema ruhu taşıyorsun — festival filmleri, küçük yapımlar ve yönetmen odaklı "
-                    "hikayeler seni daha çok etkiliyor. Kalabalıktan ayrışan seçimler yapıyorsun."
-                )
-            elif indie_pct >= 50:
-                summaries.append(
-                    "Sanatsal yapımlara eğilimin belirgin ama popüler sinemanın enerjisinden de kopuk değilsin. "
-                    "İki dünya arasında dengeli bir tat var zevkinde."
-                )
-            else:
-                summaries.append(
-                    "Her türden beslenen bir sinema ruhu — bağımsız yapımlardan blockbuster'lara, "
-                    "küçük hikayelerden büyük prodüksiyonlara kadar geniş bir yelpazedesin."
-                )
-
-        # ── 2. Tempo/ritim profili ──
-        if pacing and pacing.get("label"):
-            summaries.append(f"{pacing['label']}: {pacing['description']}")
-
-        # ── 3. Top mood özel açıklama ──
-        if top_mid and top_mid in _MOOD_SPECIAL_DESC:
-            summaries.append(_MOOD_SPECIAL_DESC[top_mid])
-
-        # ── 4. Mood kombinasyon açıklamaları ──
         slow_moods = [m for m in mood_ids if MOOD_TEMPO.get(m) == "slow"]
         fast_moods = [m for m in mood_ids if MOOD_TEMPO.get(m) == "fast"]
         dark_moods = [m for m in mood_ids if MOOD_ATMOSPHERE.get(m) == "dark"]
-
-        if len(slow_moods) >= 2 and len(dark_moods) >= 1:
-            summaries.append("Ağır tempolu, karanlık atmosferli ve düşündüren filmler — sinema senin meditasyon aracın.")
-        elif len(slow_moods) >= 2:
-            summaries.append(_MOOD_SLOW_DESC)
-        elif len(fast_moods) >= 2:
-            summaries.append(_MOOD_FAST_DESC)
-
-        if len(dark_moods) >= 2:
-            summaries.append(_MOOD_DARK_DESC)
-
-        # Romantic
         romantic_moods = [m for m in mood_ids if MOOD_ATMOSPHERE.get(m) == "romantic"]
-        if len(romantic_moods) >= 1:
-            summaries.append("Romantikte sıcak, kırılgan ve gerçekçi hikayelere daha çok yaklaşıyorsun.")
 
-        # ── 5. Dönem profili (detaylı) ──
-        dyn_label = era.get("dynamic_era_label")
-        dyn_desc = era.get("dynamic_era_desc")
+        # ── 1. Açılış: mood imzası (en kişisel, en vurucu cümle) ──
+        opener = None
+        if len(slow_moods) >= 2 and len(dark_moods) >= 1:
+            opener = "Karanlığı ve sükûneti seviyorsun; sinema senin için bir kaçış değil, bir tefekkür."
+        elif top_mid and top_mid in _MOOD_SPECIAL_DESC:
+            opener = _MOOD_SPECIAL_DESC[top_mid]
+        elif len(slow_moods) >= 2:
+            opener = "Acelen yok; karakterin nefesini, sahnenin sessizliğini sindirerek izliyorsun."
+        elif len(fast_moods) >= 2:
+            opener = "Tempoyu seviyorsun; nabzını yükselten, koltuğa yapıştıran filmler senin dilin."
+        elif len(dark_moods) >= 2:
+            opener = "Gölgeli, gizemli atmosferler sana iyi geliyor; aydınlıktan çok derinliğin peşindesin."
+        elif romantic_moods:
+            opener = "Kalbin yumuşak; büyük jestlerden çok kırılgan, gerçek dokunuşlara kanıyorsun."
+
+        # ── 2. Karakter çizgisi: stil + dönem tek cümlede ──
+        body = None
+        indie_pct = (style or {}).get("indie_pct", 0)
+        main_pct = (style or {}).get("mainstream_pct", 0)
         mean_year = era.get("mean_year")
-        if dyn_label and dyn_desc:
-            era_detail = f"{dyn_label}: {dyn_desc}"
-            # Ekstra zenginleştirme
-            if mean_year:
-                if mean_year >= 2015:
-                    era_detail += " Son 10 yılın ödüllü yapımları ve yeni nesil yönetmenler seni besliyor."
-                elif mean_year >= 2000:
-                    era_detail += " 2000'ler sinemasının olgun dönemi — Nolan, Villeneuve, Fincher kuşağı sana yakın."
-                elif mean_year >= 1990:
-                    era_detail += " 90'ların altın çağı — Tarantino, Coen Kardeşler, David Lynch atmosferi var zevkinde."
-            summaries.append(era_detail)
+        if main_pct >= 65:
+            body = "Büyük perdenin çocuğusun — yıldız kadrolar ve epik anlatılar seni çağırıyor."
+        elif indie_pct >= 65:
+            body = "Festival köşelerinin sakini — küçük bütçeli, yönetmen imzalı hikâyeler senin hazinen."
+        elif main_pct >= 45 or indie_pct >= 45:
+            body = "Bir tarafın gişeye, bir tarafın sanata dönük; dengeyi ustaca kuran seçici bir göz."
+        else:
+            body = "Her tabaktan tadıyorsun — bağımsızdan blockbuster'a damağın sınır tanımıyor."
+        # Döneme küçük bir dokunuş ekle (varsa)
+        if mean_year:
+            if mean_year >= 2015:
+                body += " Yönün yeniye dönük: son dönemin parlak işlerini takip ediyorsun."
+            elif mean_year < 2000:
+                body += " Ama kalbin klasiklerde; köklü, zamansız yapımlar seni besliyor."
 
-        # ── 6. Runtime açıklaması ──
-        if runtime_stats and runtime_stats.get("category") and runtime_stats["category"] != "unknown":
-            summaries.append(runtime_stats["description"])
+        # ── 3. Kapanış: not tonu ya da öne çıkan tür ──
+        closer = None
+        if note_stats and note_stats.get("count", 0) >= 2:
+            pos = note_stats.get("positive", 0)
+            neg = note_stats.get("negative", 0)
+            if neg > pos:
+                closer = "Notlarında keskin bir dürüstlük var; neyi sevmediğini saklamıyorsun, bu da haritanı netleştiriyor."
+            else:
+                closer = "İzlediğin filmlere not düşüyorsun — yazdığın her satır bu haritanın gizli imzası."
+        if closer is None:
+            genre_one_liners = {
+                18: "Dram senin ana yurdun; duygunun ve karakterin derinliğine güveniyorsun.",
+                27: "Korkuda ucuz korkutmaca değil, içe işleyen atmosferin peşindesin.",
+                35: "Gülmeyi seviyorsun; zekâyla yazılmış bir komedi senin için en iyi terapi.",
+                10749: "Aşkı abartısız seviyorsun; samimi, gerçek hikâyeler kalbine dokunuyor.",
+                878: "Bilim kurgu zihnini açıyor; gelecek, teknoloji ve felsefe bir arada.",
+                53: "Gerilim senin alanın; süspans ve sürpriz dönüşler gözünü ekrandan alamıyor.",
+                28: "Aksiyonun ritmi seni besliyor; hareket, hız ve koreografi sana hitap ediyor.",
+                80: "Suç hikâyeleri çekiyor seni; karanlık planlar ve ahlaki ikilemler ilgini çekiyor.",
+                16: "Animasyona yaşına bakmadan açıksın; bunu bir sanat dili olarak görüyorsun.",
+                99: "Belgesellere meraklısın; gerçeğin gücüne ve bilginin estetiğine inanıyorsun.",
+            }
+            for g in top_genres[:2]:
+                desc = genre_one_liners.get(g.get("genre_id"))
+                if desc:
+                    closer = desc
+                    break
 
-        # ── 7. Tür tercihleri ──
-        genre_descs = {
-            18: "Drama senin temel besin kaynağın — karakter gelişimi ve duygusal derinlik her zaman önceliğin.",
-            27: "Korku türüne yakınsın — özellikle atmosferik ve psikolojik gerilimler seni daha çok çekiyor.",
-            35: "Komedi senin rahatlama aracın — zekice yazılmış diyaloglar ve absürt durumlar seni güldürüyor.",
-            10749: "Romantik filmlere sıcak bakıyorsun — büyük jestlerden çok samimi ve gerçekçi aşk hikayeleri.",
-            878: "Bilim kurgu seni büyülüyor — gelecek vizyonları, teknoloji ve felsefe bir arada.",
-            53: "Gerilim senin alanın — beklenmedik dönüşler ve süspans seni ekrana kilitleyen şey.",
-            28: "Aksiyon filmleri seni besliyor — koreografi, hız ve fiziksel sinema sana hitap ediyor.",
-            80: "Suç filmleri ilgini çekiyor — karmaşık planlar, ahlaki ikilemler ve sokak hikayeleri.",
-            16: "Animasyona ilgin var — sadece çocuk filmi değil, sanatsal ve yetişkin animasyonlar da dahil.",
-            99: "Belgeseller seni çekiyor — gerçek hikayelerin gücüne ve bilginin estetiğine inanan bir izleyicisin.",
-        }
-        for g in top_genres[:2]:
-            gid = g.get("genre_id")
-            if gid in genre_descs:
-                summaries.append(genre_descs[gid])
-                break
-
-        return summaries[:7]
+        summaries = [s for s in (opener, body, closer) if s]
+        return summaries[:3]
 
     # ── Pure helpers ─────────────────────────────────────────────────────
 
