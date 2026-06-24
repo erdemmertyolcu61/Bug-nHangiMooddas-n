@@ -122,7 +122,7 @@ export default function QuizLeaderboard() {
 
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-amber font-medium truncate">
-                      {p.name || p.username}
+                      @{p.username || p.name}
                     </div>
                     <div className="text-[10px] text-amber/40">
                       {p.games_won}G {p.win_rate}% WR
