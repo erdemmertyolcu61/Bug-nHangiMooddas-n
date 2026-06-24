@@ -149,6 +149,8 @@ export default function MoodFeed() {
   const [recommendTarget, setRecommendTarget] = useState(null);
   const [filmDetail, setFilmDetail] = useState(null);
 
+  const [feedError, setFeedError] = useState(false);
+
   // Pagination state
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -165,6 +167,7 @@ export default function MoodFeed() {
   // Veriyi çek (ilk yükleme veya yenileme)
   const fetchFeed = useCallback(async (pageNum = 1, append = false) => {
     try {
+      setFeedError(false);
       const data = await getSocialFeed(pageNum);
       if (append && feed) {
         setFeed(prev => ({
@@ -178,6 +181,7 @@ export default function MoodFeed() {
       setHasMore(data.has_more || false);
       setPage(pageNum);
     } catch {
+      setFeedError(true);
       if (!append) setFeed({ friend_moods: [], activities: [], recommendations: [], has_more: false });
     }
   }, [feed]);
@@ -258,12 +262,19 @@ export default function MoodFeed() {
         <DailyChallenge />
         <DailyFilmBanner />
         <PeopleDiscovery loggedIn={false} />
-        <div className="flex flex-col items-center justify-center py-10 text-center rounded-2xl bg-[#1a1310] border border-white/[0.05]">
-          <Users size={36} className="text-white/15 mb-3" />
-          <p className="font-serif text-lg text-ivory/60">Arkadaşlarının aktivitesini görmek için giriş yap</p>
+        <div className="flex flex-col items-center justify-center py-14 text-center rounded-2xl bg-[#1a1310] border border-white/[0.06]">
+          <div className="w-16 h-16 rounded-full bg-amber/10 border border-amber/20 flex items-center justify-center mb-4">
+            <Compass size={28} className="text-amber/50" />
+          </div>
+          <p className="font-serif text-lg text-ivory/60 mb-1">Akışın henüz sessiz</p>
+          <p className="text-[12px] text-white/30 max-w-[240px] mb-5 leading-relaxed">
+            Arkadaşlarının aktivitesini görmek ve sinema dünyasına katılmak için giriş yap!
+          </p>
           <button onClick={() => navigate('/profil')}
-            className="mt-4 px-6 py-2.5 rounded-full bg-amber/15 text-amber border border-amber/30 text-xs font-bold uppercase tracking-wider hover:bg-amber/25 transition-all">
-            Giriş Yap
+            className="px-6 py-2.5 rounded-full bg-amber/15 text-amber border border-amber/30 text-xs font-bold uppercase tracking-wider hover:bg-amber/25 transition-all">
+            <span className="flex items-center gap-2">
+              <Users size={14} /> Giriş Yap
+            </span>
           </button>
         </div>
       </div>
@@ -459,22 +470,44 @@ export default function MoodFeed() {
 
           {/* Geliştirilmiş Empty State */}
           {!hasFeedContent && (
-            <div className="flex flex-col items-center justify-center py-14 text-center rounded-2xl bg-gradient-to-b from-[#1a1310] to-[#15100d] border border-white/[0.06]">
-              <div className="w-16 h-16 rounded-full bg-amber/10 border border-amber/20 flex items-center justify-center mb-4">
-                <Compass size={28} className="text-amber/50" />
-              </div>
-              <p className="font-serif text-lg text-ivory/60 mb-1">Akışın henüz sessiz</p>
-              <p className="text-[12px] text-white/30 max-w-[240px] mb-5 leading-relaxed">
-                Film gurularını keşfet, arkadaş ekle ve birlikte sinema dünyasını keşfedin!
-              </p>
-              <button
-                onClick={() => navigate('/profil?tab=social')}
-                className="px-6 py-2.5 rounded-full bg-gradient-to-r from-amber/20 to-amber/10 text-amber border border-amber/25 text-xs font-bold uppercase tracking-wider hover:from-amber/30 hover:to-amber/15 transition-all shadow-[0_0_20px_rgba(212,175,55,0.08)]"
-              >
-                <span className="flex items-center gap-2">
-                  <Users size={14} /> Film Gurularını Keşfet
-                </span>
-              </button>
+            <div className="flex flex-col items-center justify-center py-14 text-center rounded-2xl bg-[#1a1310] border border-white/[0.06]">
+              {feedError ? (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">
+                    <Activity size={28} className="text-rose-400" />
+                  </div>
+                  <p className="font-serif text-lg text-ivory/60 mb-1">Bağlantı Sorunu</p>
+                  <p className="text-[12px] text-white/30 max-w-[240px] mb-5 leading-relaxed">
+                    Sunucuya ulaşılamadı veya uyanıyor olabilir. Lütfen tekrar dene.
+                  </p>
+                  <button
+                    onClick={() => { setLoading(true); fetchFeed(1).finally(() => setLoading(false)); }}
+                    className="px-6 py-2.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 text-xs font-bold uppercase tracking-wider hover:bg-rose-500/25 transition-all"
+                  >
+                    <span className="flex items-center gap-2">
+                      <RefreshCw size={14} /> Tekrar Dene
+                    </span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-amber/10 border border-amber/20 flex items-center justify-center mb-4">
+                    <Compass size={28} className="text-amber/50" />
+                  </div>
+                  <p className="font-serif text-lg text-ivory/60 mb-1">Akışın henüz sessiz</p>
+                  <p className="text-[12px] text-white/30 max-w-[240px] mb-5 leading-relaxed">
+                    Film gurularını keşfet, arkadaş ekle ve birlikte sinema dünyasını keşfedin!
+                  </p>
+                  <button
+                    onClick={() => navigate('/profil?tab=social')}
+                    className="px-6 py-2.5 rounded-full bg-amber/15 text-amber border border-amber/30 text-xs font-bold uppercase tracking-wider hover:bg-amber/25 transition-all"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Users size={14} /> Film Gurularını Keşfet
+                    </span>
+                  </button>
+                </>
+              )}
             </div>
           )}
 
