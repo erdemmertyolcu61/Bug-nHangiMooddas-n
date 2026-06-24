@@ -5682,7 +5682,7 @@ async def post_confused_recommendation(req: ConfusedRequest):
     # yanlış sınıflamasına izin verme — "deniz"/"yılbaşı filmi" film adı sanılıyordu.)
     from backend.services.chat_engine import KNOWN_PERSONS as _KNOWN_PERSONS, _normalize as _norm
     _skip_theme = (
-        local_intent.type in ("similar_to_movie", "director_recommendation", "feedback")
+        local_intent.type in ("similar_to_movie", "director_recommendation", "actor_recommendation", "multi_person", "feedback")
         or (local_intent.person_name and _norm(local_intent.person_name) in _KNOWN_PERSONS)
     )
     if not _skip_theme:

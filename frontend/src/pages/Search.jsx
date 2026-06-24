@@ -6,8 +6,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Search as SearchIcon, X, Users, RotateCcw } from 'lucide-react';
-import { searchMovies, proxyImageUrl, recommendToCommunity, unrecommendFromCommunity, getCommunityRecommendations } from '../services/api';
+import { ChevronLeft, Search as SearchIcon, X, Users, RotateCcw, User, ChevronRight, Film } from 'lucide-react';
+import { searchMovies, getPersonMovies, proxyImageUrl, recommendToCommunity, unrecommendFromCommunity, getCommunityRecommendations } from '../services/api';
 import { getApiUrl, resolveAvatarUrl } from '../utils/apiConfig';
 import { useAuth } from '../context/AuthContext';
 import LottieAnimation from '../components/LottieAnimation';
@@ -27,7 +27,11 @@ export default function SearchPage() {
 
   const [query, setQuery] = useState(initialQ);
   const [results, setResults] = useState(null);
+  const [persons, setPersons] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expandedPerson, setExpandedPerson] = useState(null);
+  const [personMovies, setPersonMovies] = useState([]);
+  const [personMoviesLoading, setPersonMoviesLoading] = useState(false);
   const debounce = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
@@ -49,9 +53,11 @@ export default function SearchPage() {
       try {
         const data = await searchMovies(q, { signal: ctrl.signal });
         setResults(data.movies || []);
+        setPersons(data.persons || []);
+        setExpandedPerson(null);
+        setPersonMovies([]);
       } catch (e) {
-        // İptal edilen istek bir hata değildir — sonuçları silme
-        if (e?.name !== 'AbortError') setResults([]);
+        if (e?.name !== 'AbortError') { setResults([]); setPersons([]); }
       } finally {
         // Yalnızca hâlâ güncel istek isek loading'i kapat
         if (abortRef.current === ctrl) setLoading(false);
@@ -76,8 +82,29 @@ export default function SearchPage() {
   const clear = () => {
     setQuery('');
     setResults(null);
+    setPersons([]);
+    setExpandedPerson(null);
+    setPersonMovies([]);
     setSearchParams({}, { replace: true });
     inputRef.current?.focus();
+  };
+
+  const togglePerson = async (person) => {
+    if (expandedPerson?.id === person.id) {
+      setExpandedPerson(null);
+      setPersonMovies([]);
+      return;
+    }
+    setExpandedPerson(person);
+    setPersonMoviesLoading(true);
+    try {
+      const data = await getPersonMovies(person.id);
+      setPersonMovies(data.movies || []);
+    } catch {
+      setPersonMovies([]);
+    } finally {
+      setPersonMoviesLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -147,7 +174,7 @@ export default function SearchPage() {
               type="text"
               value={query}
               onChange={onChange}
-              placeholder="Film ara: isim, konu, yönetmen..."
+              placeholder="Film, oyuncu veya yönetmen ara..."
               aria-label="Film ara"
               className="w-full pl-11 pr-11 py-3.5 bg-white/5 border border-white/10 rounded-full text-[15px] text-ivory placeholder:text-ivory/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber/60 focus:border-amber/50 focus:bg-white/[0.07] transition-all"
             />
@@ -189,7 +216,7 @@ export default function SearchPage() {
         )}
 
         {/* Sonuç yok */}
-        {!loading && results !== null && results.length === 0 && (
+        {!loading && results !== null && results.length === 0 && persons.length === 0 && (
           <div className="flex flex-col items-center text-center py-24 sm:py-32 gap-4">
             <LottieAnimation
               path="/lottie/empty-state.json"
@@ -203,9 +230,115 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Sonuçlar */}
+        {/* Kişi sonuçları */}
+        {!loading && persons.length > 0 && (
+          <div className="mb-8">
+            <p className="font-sans text-[11px] font-bold uppercase tracking-[0.25em] text-ivory/30 mb-4">
+              Kişiler
+            </p>
+            <div className="flex flex-col gap-3">
+              {persons.map((p) => (
+                <div key={p.id}>
+                  <motion.button
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3 }}
+                    onClick={() => togglePerson(p)}
+                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl border transition-all duration-300 text-left ${expandedPerson?.id === p.id ? 'bg-amber/10 border-amber/30' : 'bg-white/[0.03] border-white/8 hover:bg-white/[0.06] hover:border-white/15'}`}
+                  >
+                    <div className="w-14 h-14 shrink-0 rounded-full overflow-hidden bg-white/5 border border-white/10">
+                      {p.profile_path ? (
+                        <img
+                          src={proxyImageUrl(`${IMG_BASE}${p.profile_path}`)}
+                          alt={p.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="w-full h-full flex items-center justify-center">
+                          <User size={22} className="text-ivory/20" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-sans text-[15px] font-semibold text-ivory/90">{p.name}</p>
+                      <p className="font-sans text-[12px] text-ivory/35 mt-0.5">
+                        {p.known_for_department === 'Acting' ? 'Oyuncu' : p.known_for_department === 'Directing' ? 'Yönetmen' : p.known_for_department || 'Sanatçı'}
+                        {p.known_for?.length > 0 && (
+                          <span className="text-ivory/25"> — {p.known_for.filter((k) => k.title).slice(0, 2).map((k) => k.title).join(', ')}</span>
+                        )}
+                      </p>
+                    </div>
+                    <ChevronRight size={18} className={`shrink-0 text-ivory/20 transition-transform duration-300 ${expandedPerson?.id === p.id ? 'rotate-90 text-amber' : ''}`} />
+                  </motion.button>
+
+                  {expandedPerson?.id === p.id && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="mt-3 ml-2 pl-4 border-l-2 border-amber/20"
+                    >
+                      {personMoviesLoading ? (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                          {[...Array(6)].map((_, i) => (
+                            <div key={i} className="aspect-[2/3] rounded-xl bg-white/5 border border-white/10 animate-pulse" />
+                          ))}
+                        </div>
+                      ) : personMovies.length > 0 ? (
+                        <>
+                          <p className="font-sans text-[11px] text-ivory/30 mb-3">
+                            <Film size={12} className="inline mr-1.5 -mt-0.5" />
+                            {personMovies.length} film
+                          </p>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                            {personMovies.map((m, i) => (
+                              <motion.button
+                                key={m.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, delay: Math.min(i * 0.02, 0.3) }}
+                                onClick={() => openMovie(m)}
+                                className="group text-left"
+                                title={m.title}
+                              >
+                                <div className="aspect-[2/3] rounded-xl overflow-hidden bg-white/5 border border-white/10 group-hover:border-amber/40 transition-all duration-500 shadow-md">
+                                  <img
+                                    src={proxyImageUrl(m.poster_url || (m.poster_path ? `${IMG_BASE}${m.poster_path}` : null)) || 'https://via.placeholder.com/300x450'}
+                                    alt={m.title}
+                                    loading="lazy"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                  />
+                                </div>
+                                <p className="mt-1.5 text-[11px] font-sans font-semibold text-ivory/60 group-hover:text-amber transition-colors line-clamp-2 leading-tight">
+                                  {m.title}
+                                </p>
+                                {m.release_date && (
+                                  <p className="text-[10px] text-ivory/20 font-sans mt-0.5">{m.release_date.split('-')[0]}</p>
+                                )}
+                              </motion.button>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-[12px] text-ivory/30 py-4">Filmografi bulunamadı.</p>
+                      )}
+                    </motion.div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Film sonuçları */}
         {!loading && results !== null && results.length > 0 && (
           <>
+            {persons.length > 0 && (
+              <p className="font-sans text-[11px] font-bold uppercase tracking-[0.25em] text-ivory/30 mb-4 mt-2">
+                Filmler
+              </p>
+            )}
             <p className="font-sans text-[11px] font-bold uppercase tracking-[0.25em] text-ivory/30 mb-6">
               {results.length} sonuç
             </p>

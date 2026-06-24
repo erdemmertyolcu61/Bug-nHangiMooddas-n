@@ -130,6 +130,10 @@ export async function searchMovies(query, { signal } = {}) {
   return getJson(`${BASE}/movies/search?q=${encodeURIComponent(query)}`, { errorMsg: 'Arama başarısız', signal });
 }
 
+export async function getPersonMovies(personId) {
+  return getJson(`${BASE}/person/${personId}/movies`, { errorMsg: 'Filmografi yüklenemedi' });
+}
+
 export async function getSimilarMovies(movieId) {
   try {
     const res = await fetch(`${BASE}/movies/${movieId}/similar`);

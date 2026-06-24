@@ -1102,7 +1102,8 @@ _GENRE_TYPO_DIRECT: dict[str, str] = {
 
 
 def _fuzzy_correct_genre(word_folded: str) -> str | None:
-    """Tek kelime (fold edilmiş) bir tür adının typo'su mu? ≥0.80 eşik.
+    """Tek kelime (fold edilmiş) bir tür adının typo'su mu?
+    Kısa kelimeler (≤5) için ≥0.85, uzunlar için ≥0.80 eşik.
     Önce direkt typo haritasına bakar, sonra fuzzy dener.
     Dönüş: düzeltilmiş tür adı veya None."""
     if word_folded in _GENRE_SINGLES_FOLDED:
@@ -1110,11 +1111,12 @@ def _fuzzy_correct_genre(word_folded: str) -> str | None:
     # Direkt typo haritası
     if word_folded in _GENRE_TYPO_DIRECT:
         return _GENRE_TYPO_DIRECT[word_folded]
-    # Fuzzy eşleştirme
+    # Fuzzy eşleştirme — kısa kelimelerde eşik sıkı
+    threshold = 0.85 if len(word_folded) <= 5 else 0.80
     best, best_r = None, 0.0
     for gf, gname in _GENRE_SINGLES_FOLDED.items():
         r = SequenceMatcher(None, word_folded, gf).ratio()
-        if r >= 0.80 and r > best_r:
+        if r >= threshold and r > best_r:
             best, best_r = gname, r
     return best
 
@@ -1135,7 +1137,8 @@ _PERSON_TYPO_DIRECT: dict[str, str] = {
 
 
 def _fuzzy_correct_person(word_folded: str) -> str | None:
-    """Tek kelime (fold edilmiş) bir bilinen kişi adının typo'su mu? ≥0.80 eşik.
+    """Tek kelime (fold edilmiş) bir bilinen kişi adının typo'su mu?
+    Kısa kelimeler (≤5) için ≥0.85, uzunlar için ≥0.80 eşik.
     Önce direkt typo haritasına bakar, sonra fuzzy dener.
     Dönüş: düzeltilmiş kişi adı veya None."""
     if word_folded in _PERSON_SINGLES_FOLDED:
@@ -1143,11 +1146,13 @@ def _fuzzy_correct_person(word_folded: str) -> str | None:
     # Direkt typo haritası
     if word_folded in _PERSON_TYPO_DIRECT:
         return _PERSON_TYPO_DIRECT[word_folded]
-    # Fuzzy eşleştirme
+    # Fuzzy eşleştirme — kısa kelimelerde tek harf farkı çok yüksek oran
+    # verir (sezer→sener %80), eşiği sıkılaştır
+    threshold = 0.85 if len(word_folded) <= 5 else 0.80
     best, best_r = None, 0.0
     for pf, pname in _PERSON_SINGLES_FOLDED.items():
         r = SequenceMatcher(None, word_folded, pf).ratio()
-        if r >= 0.80 and r > best_r:
+        if r >= threshold and r > best_r:
             best, best_r = pname, r
     return best
 
