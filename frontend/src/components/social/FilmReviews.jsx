@@ -164,18 +164,18 @@ export default function FilmReviews({ movie }) {
 
   return (
     <section className="mt-6">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Quote size={14} className="text-amber/60" />
-          <p className="font-sans text-[12px] sm:text-[11px] font-bold uppercase tracking-[0.25em] text-amber/50">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Quote size={14} className="text-amber/60 shrink-0" />
+          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.2em] text-amber/50 truncate">
             Topluluk Sözleri{reviews?.length > 0 ? ` · ${reviews.length}` : ''}
           </p>
         </div>
         {loggedIn && (
           <button onClick={() => setComposerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber/12 border border-amber/25 text-amber
-                       text-[10px] font-bold uppercase tracking-wider hover:bg-amber/20 transition-all">
-            <PenLine size={11} /> {mine ? 'Sözünü Düzenle' : 'Söz Bırak'}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber/12 border border-amber/25 text-amber
+                       text-[10px] font-bold uppercase tracking-wider hover:bg-amber/20 transition-all whitespace-nowrap">
+            <PenLine size={11} /> {mine ? 'Düzenle' : 'Söz Bırak'}
           </button>
         )}
       </div>
@@ -191,78 +191,85 @@ export default function FilmReviews({ movie }) {
       ) : (
         <div className="space-y-2.5">
           {reviews.map((r, i) => {
-            const spoilerHidden = r.has_spoiler && !revealed.has(r.id) && !r.is_mine;
+            const spoilerHidden = r.has_spoiler && !revealed.has(r.id);
             return (
               <motion.div key={r.id}
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
-                className="relative p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-                <div className="flex items-start gap-2.5">
+                className="relative p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                {/* Başlık: avatar + ad/zaman/spoiler + menü */}
+                <div className="flex items-center gap-2.5">
                   <span className="w-8 h-8 rounded-full overflow-hidden bg-white/10 shrink-0 ring-1 ring-amber/15">
                     {r.avatar
                       ? <img src={resolveAvatarUrl(r.avatar)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       : <span className="w-full h-full flex items-center justify-center text-[12px] font-serif font-bold text-amber/70">{(r.username || '?')[0].toUpperCase()}</span>}
                   </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[13px] sm:text-[12px] font-semibold text-amber/75 truncate">@{r.username}</p>
-                      <span className="text-[10px] text-white/25">{timeAgo(r.created_at)}</span>
-                      {r.has_spoiler && (
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-rose-400/70 bg-rose-500/10 px-1.5 py-0.5 rounded-full">
-                          ⚠ Spoiler
-                        </span>
-                      )}
-                    </div>
-                    {spoilerHidden ? (
-                      <button onClick={() => setRevealed((s) => new Set(s).add(r.id))}
-                        className="mt-1 text-left w-full">
-                        <p className="text-[13px] font-serif text-white/90 blur-[6px] select-none" aria-hidden>{r.content}</p>
-                        <span className="text-[11px] sm:text-[10px] font-bold uppercase tracking-wider text-rose-400/70">
-                          Spoiler içerir, görmek için dokun
-                        </span>
-                      </button>
-                    ) : (
-                      <p className="mt-0.5 text-sm sm:text-[13.5px] font-serif text-ivory/90 leading-snug break-words">{r.content}</p>
+                  <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+                    <p className="text-[13px] sm:text-[12px] font-semibold text-amber/75 truncate max-w-[160px]">@{r.username}</p>
+                    <span className="text-[10px] text-white/25">{timeAgo(r.created_at)}</span>
+                    {r.has_spoiler && (
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-rose-400/70 bg-rose-500/10 px-1.5 py-0.5 rounded-full">
+                        ⚠ Spoiler
+                      </span>
                     )}
                   </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <div className="relative">
-                      <button onClick={() => setMenuFor(menuFor === r.id ? null : r.id)}
-                        aria-label="Seçenekler"
-                        className="p-1 rounded-full hover:bg-white/10 transition-all">
-                        <MoreHorizontal size={15} className="text-white/40" />
-                      </button>
-                      {menuFor === r.id && (
-                        <div className="absolute right-0 top-7 z-20 min-w-[140px] py-1 rounded-xl bg-[#221a16] border border-white/10 shadow-xl">
-                          {r.is_mine ? (
-                            <button onClick={handleDelete}
-                              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[12px] text-rose-400/90 hover:bg-white/5 transition-all">
-                              <Trash2 size={13} /> Sözü Sil
-                            </button>
-                          ) : (
-                            <button onClick={() => { setMenuFor(null); setReportTarget(r); }}
-                              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[12px] text-ivory/80 hover:bg-white/5 transition-all">
-                              <Flag size={13} /> Bildir / Engelle
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <button onClick={() => toggleLike(r)} disabled={!loggedIn}
-                      aria-label={r.liked_by_me ? 'Beğenmekten vazgeç' : 'Beğen'}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-full transition-all ${
-                        r.liked_by_me ? 'text-rose-400' : 'text-white/35 hover:text-rose-300/70'
-                      } ${!loggedIn ? 'opacity-40' : ''}`}>
-                      <Heart size={13} fill={r.liked_by_me ? 'currentColor' : 'none'} />
-                      {r.like_count > 0 && <span className="text-[11px] font-bold">{r.like_count}</span>}
+                  <div className="relative shrink-0">
+                    <button onClick={() => setMenuFor(menuFor === r.id ? null : r.id)}
+                      aria-label="Seçenekler"
+                      className="p-1 rounded-full hover:bg-white/10 transition-all">
+                      <MoreHorizontal size={15} className="text-white/40" />
                     </button>
-                    <button
-                      onClick={() => setOpenReplies((s) => { const n = new Set(s); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; })}
-                      className="flex items-center gap-1 px-2 py-1 rounded-full text-white/35 hover:text-amber/70 transition-all">
-                      <MessageCircle size={13} />
-                    </button>
+                    {menuFor === r.id && (
+                      <div className="absolute right-0 top-7 z-20 min-w-[140px] py-1 rounded-xl bg-[#221a16] border border-white/10 shadow-xl">
+                        {r.is_mine ? (
+                          <button onClick={handleDelete}
+                            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[12px] text-rose-400/90 hover:bg-white/5 transition-all">
+                            <Trash2 size={13} /> Sözü Sil
+                          </button>
+                        ) : (
+                          <button onClick={() => { setMenuFor(null); setReportTarget(r); }}
+                            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[12px] text-ivory/80 hover:bg-white/5 transition-all">
+                            <Flag size={13} /> Bildir / Engelle
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* İçerik (avatarın altına hizalı) */}
+                <div className="mt-1.5 pl-[42px]">
+                  {spoilerHidden ? (
+                    <button onClick={() => setRevealed((s) => new Set(s).add(r.id))}
+                      className="text-left w-full">
+                      <p className="text-[13px] font-serif text-white/90 blur-[6px] select-none line-clamp-3" aria-hidden>{r.content}</p>
+                      <span className="mt-0.5 inline-block text-[11px] sm:text-[10px] font-bold uppercase tracking-wider text-rose-400/70">
+                        Spoiler içerir, görmek için dokun
+                      </span>
+                    </button>
+                  ) : (
+                    <p className="text-sm sm:text-[13.5px] font-serif text-ivory/90 leading-snug break-words whitespace-pre-wrap">{r.content}</p>
+                  )}
+                </div>
+
+                {/* Aksiyonlar: yatay satır (kart yükselmesin) */}
+                <div className="mt-1.5 pl-[42px] flex items-center gap-1">
+                  <button onClick={() => toggleLike(r)} disabled={!loggedIn}
+                    aria-label={r.liked_by_me ? 'Beğenmekten vazgeç' : 'Beğen'}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-full transition-all ${
+                      r.liked_by_me ? 'text-rose-400' : 'text-white/35 hover:text-rose-300/70'
+                    } ${!loggedIn ? 'opacity-40' : ''}`}>
+                    <Heart size={13} fill={r.liked_by_me ? 'currentColor' : 'none'} />
+                    {r.like_count > 0 && <span className="text-[11px] font-bold">{r.like_count}</span>}
+                  </button>
+                  <button
+                    onClick={() => setOpenReplies((s) => { const n = new Set(s); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; })}
+                    aria-label="Yanıtlar"
+                    className="flex items-center gap-1 px-2 py-1 rounded-full text-white/35 hover:text-amber/70 transition-all">
+                    <MessageCircle size={13} />
+                  </button>
+                </div>
+
                 {openReplies.has(r.id) && <ReplyThread reviewId={r.id} />}
               </motion.div>
             );
