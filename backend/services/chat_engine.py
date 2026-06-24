@@ -267,6 +267,13 @@ MOOD_KEYWORDS = {
     "boğuluyorum", "yalnızlık", "yalnızım", "hüzünlüyüm", "özlem", "özledim",
     "ısıtacak", "ısıtsın", "feels", "duygulanmak", "dağıtmak", "dağılmak",
     "buruk", "kırgın", "yorgunum", "bitkin", "tükendim", "ağlatsın",
+    # Argo / betimleyici tekil — _is_short_title_like engeli
+    "garip", "acayip", "tuhaf", "tripli", "efsane", "düzgün",
+    "hmm", "hmmm", "bilmem", "hadi", "farketmez",
+    # Mevsim / tatil
+    "yılbaşı", "noel",
+    # İngilizce tarz
+    "survival", "heist", "whodunit",
 }
 
 # Tümce düzeyinde ruh hali/distraction ifadeleri — kelime bazlı mood kontrolünden ÖNCE kontrol edilir.
@@ -345,6 +352,44 @@ MOOD_PHRASES = {
     "görsel olarak etkileyici", "görsel şölen",
     "herkesin izlemesi gereken", "ödüllü",
     "arkadaşlarla izlenecek", "arkadaşla izlenecek",
+    # ── Betimleyici sıfat/tema cümleleri (actor misfire engeli) ──
+    "diyalog ağırlıklı", "diyalog odaklı",
+    "sinematografisi güzel", "sinematografisi iyi", "sinematografi",
+    "oyunculukları çok iyi", "oyunculukları iyi", "oyunculuğu iyi",
+    "müzikleri çok iyi", "müzikleri güzel", "film müziği güzel",
+    "görsel olarak güzel", "güzel çekilmiş", "iyi çekilmiş",
+    "açık uçlu biten", "açık uçlu", "açık uçlu son",
+    "twist sonu olan", "twist sonu", "sürpriz sonlu",
+    "tek mekanda geçen", "tek mekan", "kapalı mekan",
+    "kitaptan uyarlanan", "kitaptan uyarlama", "romandan uyarlanan",
+    "gerçekçi savaş sahneleri", "gerçekçi", "realistik",
+    "hayatta kalma", "hayatta kalma mücadelesi", "survival",
+    "overrated olmayan", "abartılmamış",
+    # ── Mevsim / tatil ──
+    "yılbaşı filmi", "yılbaşı", "noel filmi", "noel",
+    "yaz filmi", "kış filmi", "sonbahar filmi", "bahar filmi",
+    # ── Argo / sıfat tek sözcükler ──
+    "garip film", "garip", "acayip film", "acayip", "tuhaf film", "tuhaf",
+    "tripli film", "tripli", "kafası güzel film", "kafası güzel",
+    "adam gibi film", "adam gibi", "düzgün film", "düzgün",
+    "efsane film", "efsane", "fena bişey", "bişi at", "bişey at",
+    # ── Çok kısa / belirsiz girdiler ──
+    "hmm", "hmmm", "ee", "eee", "bilmem", "bak", "ver", "hadi",
+    "şey", "yaa", "ya", "peki", "tamam", "olur", "farketmez", "fark etmez",
+    # ── "hem X hem Y" ruh hali çelişkileri ──
+    "hem güldürsün hem düşündürsün", "hem güldürsün hem ağlatsın",
+    "hem komik hem düşündürücü", "hem korkunç hem komik",
+    "hem ağlatsın hem güldürsün", "hem eğlenceli hem derin",
+    # ── İngilizce alt-tür / tema ──
+    "coming of age", "road movie", "road trip", "one man show",
+    "whodunit", "heist movie", "heist film", "buddy movie", "buddy cop",
+    "found footage", "mockumentary", "neo noir", "neo-noir",
+    "slice of life", "fish out of water", "man vs nature",
+    # ── Sosyal bağlam ──
+    "ilk buluşmada izlenecek", "ilk buluşma filmi",
+    "sevgililer günü filmi", "valentine",
+    # ── Soru / kararsızlık ifadeleri ──
+    "hangisini izlesem", "ne izlesem bilmiyorum", "karar veremiyorum",
     # ── Ek İngilizce ifadeler ──
     "something like", "i want a movie about", "show me something",
     "i want something", "give me a movie", "i need a movie",
@@ -542,6 +587,7 @@ GENRE_KEYWORDS = {
     "hapishane": [18, 80], "cezaevi": [18, 80],
     "okul": [18], "lise": [18],
     "seyahat": [12], "yolculuk": [12],
+    "soğuk savaş": [18, 10752], "dünya savaşı": [18, 10752],
 }
 
 # Kelime-sınırı (word-boundary) regex'leri — "savaş" ∉ "yavaş" garantisi.
@@ -566,6 +612,11 @@ NEGATIVE_WORDS = [
     "olmasın", "istemiyorum", "değil", "hariç", "dışında", "yok",
     "olmadan", "kaçının", "uzak", "ama", "fakat",
 ]
+_NEG_WORD_RE = {nw: re.compile(r"(?<!\w)" + re.escape(nw) + r"(?!\w)") for nw in NEGATIVE_WORDS}
+
+def _has_neg_word(text: str) -> bool:
+    """NEGATIVE_WORDS kelime-sınırı bazlı arama (amazon içinde 'ama' eşleşmez)."""
+    return any(p.search(text) for p in _NEG_WORD_RE.values())
 
 # İçerik bazlı reddetme: tür adı geçmeden "şiddet/kan/korkutma" gibi içerik
 # kısıtları → ilgili türleri hariç tut. (phrase → exclude genre_ids)
@@ -877,6 +928,8 @@ _NON_NAME_WORDS = {
     "dark", "light", "fast", "based", "true", "real", "events",
     "twist", "ending", "single", "location", "adapted",
     "book", "novel", "story",
+    "visually", "stunning", "gritty", "intense", "epic",
+    "beautiful", "amazing", "awesome", "brilliant", "masterpiece",
     # Platform / servis adları (kişi adı değil)
     "netflix", "amazon", "prime", "mubi", "disney", "hulu", "hbo",
     "blutv", "exxen", "puhu", "gain", "tabii", "youtube", "imdb",
@@ -900,6 +953,16 @@ _NON_NAME_WORDS = {
     "akıllıca", "güzelce", "derince", "sessizce", "ustalıkla",
     "yazılmış", "çekilmiş", "yapılmış", "kurgulanmış", "tasarlanmış",
     "etkileyici", "sarsıcı", "dokunaklı", "heyecanlı", "gerilimli",
+    "gerçekçi", "realistik", "diyalog", "ağırlıklı", "odaklı",
+    "sinematografisi", "sinematografi", "oyunculukları", "oyunculuğu",
+    "müzikleri", "açık", "uçlu", "twist", "mekanda",
+    "tripli", "acayip", "tuhaf", "garip", "efsane", "düzgün",
+    # Mevsim / tatil kelimeleri (kişi adı değil)
+    "yılbaşı", "noel", "yaz", "kış", "sonbahar", "bahar",
+    "bayram", "tatil", "mevsim",
+    # Nitelik / ölçü (kişi adı değil)
+    "overrated", "underrated", "abartılmış", "abartılmamış",
+    "soğuk", "sıcak",
     # "X filmi/filmleri" bare ifadesinde takı (PERSON_KEYWORD yolu zaten önce
     # çalışır; bu yalnız bare _looks_like_person_name yolunu korur)
     "filmi", "filmler", "filmleri", "filmini", "filmleriyle", "filmiyle",
@@ -1110,6 +1173,14 @@ _FUZZY_STOP_WORDS = _NON_NAME_WORDS | {
     "zombi", "vampir", "hayalet", "uzay", "mafya", "gangster",
     "soygun", "dedektif", "polisiye", "casusluk", "robot",
     "intikam", "kıyamet", "felaket", "afet",
+    # Franchise / karakter adları — fuzzy kişi düzeltmesi bozmasın
+    "harry", "potter", "marvel", "avengers", "batman", "superman",
+    "spider", "spiderman", "lotr", "hobbit", "star", "wars",
+    "indiana", "jones", "james", "bond", "mission", "impossible",
+    "rocky", "rambo", "terminator", "matrix", "alien", "predator",
+    # Mevsim / tatil / betimleyici — fuzzy düzeltme engeli
+    "yılbaşı", "noel", "garip", "acayip", "tripli", "efsane",
+    "soğuk", "sıcak",
 }
 _FUZZY_STOP_FOLDED = {_fold(w) for w in _FUZZY_STOP_WORDS}
 
@@ -1489,8 +1560,8 @@ def _parse_complex_negation(text: str) -> tuple[list[int], list[int]]:
         if pos >= 0:
             before_text = t[max(0, pos - 30):pos]
             after_text = t[pos + len(gname):pos + len(gname) + 15]
-            neg_b = any(nw in before_text for nw in _NEG_BEFORE)
-            neg_a = any(nw in after_text for nw in _NEG_AFTER)
+            neg_b = any(re.search(r"(?<!\w)" + re.escape(nw) + r"(?!\w)", before_text) for nw in _NEG_BEFORE)
+            neg_a = any(re.search(r"(?<!\w)" + re.escape(nw) + r"(?!\w)", after_text) for nw in _NEG_AFTER)
             if neg_b:
                 intervening = any(
                     _genre_kw_pos(before_text, g2) >= 0
@@ -2082,9 +2153,14 @@ class ChatEngine:
                 if len(ref_title) >= 2:
                     # Guard: referans mood phrase / genre keyword'üyse atla
                     ref_norm = _normalize(ref_title)
-                    if len(ref_norm.split()) <= 2 and any(mp in ref_norm for mp in ("bir şey", "birsey", "şey", "film", "sey", "bisey")):
+                    if len(ref_norm.split()) <= 2 and any(mp in ref_norm for mp in ("bir şey", "birsey", "şey", "film", "sey", "bisey", "dizi", "filmi")):
                         break
                     if any(_genre_kw_in(ref_norm, gw) for gw in GENRE_KEYWORDS):
+                        break
+                    _ref_ws = ref_norm.split()
+                    _trivial = {"ve", "ile", "bir", "the", "a", "of", "and"}
+                    _ref_content = [w for w in _ref_ws if w not in _trivial]
+                    if (len(_ref_content) <= 2 and all(w in _NON_NAME_WORDS for w in _ref_content)) or _has_mood_words(ref_norm):
                         break
                     alias_check = ref_norm
                     if alias_check in TURKISH_TITLE_ALIASES:
@@ -2136,7 +2212,7 @@ class ChatEngine:
             if pos >= 0:
                 before = text_lower[max(0, pos - 20):pos]
                 after = text_lower[pos + len(genre_name):pos + len(genre_name) + 15]
-                neg_b = any(nw in before for nw in NEGATIVE_WORDS)
+                neg_b = any(_NEG_WORD_RE[nw].search(before) for nw in NEGATIVE_WORDS)
                 neg_a = any(nw in after for nw in _POST_NEG)
                 if neg_b:
                     has_intervening = any(
