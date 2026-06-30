@@ -1249,6 +1249,9 @@ class MovieCache:
             "CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)",
             "ALTER TABLE push_subscriptions ADD COLUMN is_pwa INTEGER DEFAULT 0",
             "ALTER TABLE push_subscriptions ADD COLUMN notify_hour INTEGER DEFAULT 18",
+            # Backfill: ALTER ... DEFAULT 18 Turso'da mevcut satırları geri-doldurmuyordu →
+            # NULL notify_hour'lar günün filmi (saat-bazlı) push'unda hiç eşleşmiyordu.
+            "UPDATE push_subscriptions SET notify_hour = 18 WHERE notify_hour IS NULL",
             "ALTER TABLE direct_recommendations ADD COLUMN dismissed INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN last_active TIMESTAMP",
             "ALTER TABLE watchlist ADD COLUMN watched_at TIMESTAMP",
@@ -1680,12 +1683,13 @@ class MovieCache:
             return False
         async with _get_connection(self.db_path, user_data=True) as db:
             await db.execute(
-                """INSERT INTO push_subscriptions (endpoint, user_id, p256dh, auth, is_pwa, sub_type)
-                   VALUES (?, ?, ?, ?, ?, ?)
+                """INSERT INTO push_subscriptions (endpoint, user_id, p256dh, auth, is_pwa, sub_type, notify_hour)
+                   VALUES (?, ?, ?, ?, ?, ?, 18)
                    ON CONFLICT(endpoint) DO UPDATE SET
                        user_id=excluded.user_id, p256dh=excluded.p256dh,
                        auth=excluded.auth, is_pwa=excluded.is_pwa,
-                       sub_type=excluded.sub_type""",
+                       sub_type=excluded.sub_type,
+                       notify_hour=COALESCE(push_subscriptions.notify_hour, 18)""",
                 (endpoint, user_id, p256dh, auth, is_pwa, sub_type),
             )
             await db.commit()
@@ -1717,10 +1721,14 @@ class MovieCache:
             return int(row[0]) if row and row[0] is not None else 18
 
     async def get_push_subscriptions_by_hour(self, hour: int) -> list:
-        """notify_hour == hour olan tüm abonelikleri döndürür (saatlik günlük push)."""
+        """notify_hour == hour olan tüm abonelikleri döndürür (saatlik günlük push).
+
+        notify_hour NULL olan abonelikler varsayılan 18 kabul edilir (COALESCE) —
+        aksi halde Turso'da geri-doldurulmamış NULL kolonlar yüzünden günün filmi
+        push'u hiç eşleşmez ve sessizce kimseye gitmez."""
         async with _get_connection(self.db_path, user_data=True) as db:
             cur = await db.execute(
-                "SELECT endpoint, p256dh, auth, user_id, is_pwa, sub_type FROM push_subscriptions WHERE notify_hour = ?",
+                "SELECT endpoint, p256dh, auth, user_id, is_pwa, sub_type FROM push_subscriptions WHERE COALESCE(notify_hour, 18) = ?",
                 (int(hour),),
             )
             rows = await cur.fetchall()
