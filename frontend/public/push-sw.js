@@ -2,7 +2,7 @@
 /* eslint-disable no-restricted-globals */
 
 self.addEventListener('push', (event) => {
-  let data = {};
+  let data;
   try {
     data = event.data ? event.data.json() : {};
   } catch {

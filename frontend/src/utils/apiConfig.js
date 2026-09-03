@@ -64,9 +64,9 @@ export const checkBackendHealth = async () => {
           // healthy
           return true;
         }
-      } catch (_) {}
+      } catch {}
     }
-  } catch (err) {
+  } catch {
     console.warn("[API] Backend unreachable at", API_BASE_URL);
   }
   return false;

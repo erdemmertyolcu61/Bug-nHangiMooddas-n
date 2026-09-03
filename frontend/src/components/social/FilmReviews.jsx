@@ -45,8 +45,6 @@ export default function FilmReviews({ movie }) {
     return () => { alive = false; };
   }, [movieId]);
 
-  if (!movieId) return null;
-
   const mine = reviews?.find((r) => r.is_mine);
 
   const handleReviewSaved = useCallback((review) => {
@@ -85,6 +83,8 @@ export default function FilmReviews({ movie }) {
     setReviews((rs) => rs.filter((r) => r.user_id !== blockedUserId));
     setReportTarget(null);
   };
+
+  if (!movieId) return null;
 
   return (
     <section className="mt-6">

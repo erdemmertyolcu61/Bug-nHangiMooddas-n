@@ -14,6 +14,7 @@ export default function TrailerPlayer({ youtubeKey, posterSrc, title = 'Film', p
   const iframeRef = useRef(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [iframeFailed, setIframeFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const isMobilePWA = useRef(isPWA());
 
   useEffect(() => {
@@ -66,6 +67,7 @@ export default function TrailerPlayer({ youtubeKey, posterSrc, title = 'Film', p
 
         {/* iframe — PWA'da da dene, başarısız olursa fallback göster */}
         <iframe
+          key={retryCount}
           ref={iframeRef}
           src={`/youtube.html?v=${encodeURIComponent(youtubeKey)}`}
           title={`${title} | Fragman`}
@@ -83,7 +85,7 @@ export default function TrailerPlayer({ youtubeKey, posterSrc, title = 'Film', p
             <div className="text-center space-y-3 px-6">
               <p className="text-sm text-rose/70 font-medium">Fragman yüklenemedi</p>
               <div className="flex gap-2.5 justify-center">
-                <button onClick={() => { setIframeFailed(false); setIframeLoaded(false); iframeRef.current?.src && (iframeRef.current.src = iframeRef.current.src); }}
+                <button onClick={() => { setIframeFailed(false); setIframeLoaded(false); setRetryCount((c) => c + 1); }}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/10 border border-white/15 text-xs font-bold uppercase tracking-wider text-white/70 hover:bg-white/15 hover:text-white transition-all"
                 >
                   <RefreshCw size={12} /> Tekrar Dene

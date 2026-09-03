@@ -105,7 +105,7 @@ export function AuthProvider({ children }) {
     } catch (e) {
       // Teşhis: gerçek hata tipi/mesajı + hedef host. "Failed to fetch" → ağ/CORS,
       // host onrender ise eski bundle, railway ise farklı bir sorun.
-      let host = '';
+      let host;
       try { host = new URL(authUrl).host; } catch { host = authUrl; }
       const msg = e?.name === 'AbortError'
         ? 'Sunucu yanıt vermedi (uyanıyor olabilir, birkaç saniye sonra tekrar dene).'
@@ -170,7 +170,7 @@ export function AuthProvider({ children }) {
       initPurchases(data.user?.user_id).then(() => loginPurchases(data.user?.user_id));
       return { ok: true };
     } catch (e) {
-      let host = '';
+      let host;
       try { host = new URL(authUrl).host; } catch { host = authUrl; }
       return { ok: false, error: `Bağlantı hatası [${e?.name || 'Error'}: ${e?.message || e}] · hedef: ${host}` };
     }

@@ -9,7 +9,7 @@ import {
   getDuelloCategories, createDuelloRoom, getDuelloState,
   joinDuelloRoom, setDuelloReady, startDuello,
   submitDuelloAnswer, getDuelloResults, leaveDuelloRoom, rematchDuello,
-  isLoggedIn, useDuelloJoker,
+  isLoggedIn, callDuelloJoker,
   joinMatchmaking, pollMatchmaking, leaveMatchmaking,
 } from '../services/api';
 import useDuelloPoll from '../hooks/useDuelloPoll';
@@ -475,6 +475,8 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
   const [localFeedback, setLocalFeedback] = useState(null);
   const [answerAnim, setAnswerAnim] = useState(null); // 'correct' | 'wrong' | null
   const feedbackUntil = useRef(0);
+  const [selected, setSelected] = useState(null);
+  const doubleChanceUsedRef = useRef(false);
 
   useEffect(() => {
     const now = Date.now();
@@ -509,7 +511,6 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
   const { question, opponent_answered, scores, current_question, total_questions, player_jokers, my_streak, room_id } = displayState || {};
   const my_answer = displayState?.my_answer || localFeedback;
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME);
-  const [selected, setSelected] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [eliminatedOptions, setEliminatedOptions] = useState([]);
   const [jokerLoading, setJokerLoading] = useState(false);
@@ -546,8 +547,6 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
     }, 1000);
     return () => clearInterval(timerRef.current);
   }, [question?.index, my_answer]);
-
-  const doubleChanceUsedRef = useRef(false);
 
   useEffect(() => {
     if (question?.index !== undefined) doubleChanceUsedRef.current = false;
@@ -610,7 +609,7 @@ function DuelloGame({ roomState, onAnswer, sounds }) {
     if (jokerLoading || !question || timeLeft <= 0 || my_answer) return;
     setJokerLoading(true);
     try {
-      const res = await useDuelloJoker(room_id, question.index, jokerType);
+      const res = await callDuelloJoker(room_id, question.index, jokerType);
       sounds?.playJoker();
       if (jokerType === 'fifty_fifty' && res.eliminated) {
         setEliminatedOptions(res.eliminated);

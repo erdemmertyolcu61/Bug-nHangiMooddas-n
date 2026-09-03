@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMood } from '../context/MoodContext';
 import { Users, RotateCcw } from 'lucide-react';
@@ -12,18 +12,15 @@ import QuizModal from '../components/QuizModal';
 import { getApiUrl, resolveAvatarUrl } from '../utils/apiConfig';
 import StreamingConsentModal from '../components/StreamingConsentModal';
 import useDocumentMeta from '../utils/useDocumentMeta';
-import SimilarFilmsStrip from '../components/SimilarFilmsStrip';
 import FilmDetailModal from '../components/FilmDetailModal';
 import MovieCard from '../components/MovieCard';
 import { isPlatformLinked, linkPlatform, getPlatformInfo, buildWatchUrl } from '../utils/streamingMemory';
+import { playMoodAudio } from '../utils/moodAudioManager';
 import { useCache } from '../hooks/useCache';
 import MoodBackdrop from '../components/discover/MoodBackdrop';
 import DiscoverHeader from '../components/discover/DiscoverHeader';
 import SortControl from '../components/discover/SortControl';
 
-
-const IMG_BASE = 'https://image.tmdb.org/t/p/w500';         // Grid posters (küçük, hızlı)
-const IMG_BASE_LG = 'https://image.tmdb.org/t/p/original';  // Modal detail poster (tam kalite)
 
 // Caching logic using localStorage (V3) — 7 gün TTL
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 gün
@@ -42,32 +39,6 @@ const getCachedAnalysis = (id) => {
 const setCachedAnalysis = (id, data) => {
   localStorage.setItem(`analysis_v3_${id}`, JSON.stringify({ data, ts: Date.now() }));
 };
-
-// TMDB vote_average az oyda şişer (2 oy → 10.0). Güvenilir puanı seç:
-// IMDb varsa onu, yoksa yeterli oy sayısı olan TMDB ortalamasını göster.
-const reliableRating = (movie) => {
-  if (movie.imdb_rating) {
-    const n = parseFloat(movie.imdb_rating);
-    if (!isNaN(n) && n > 0) return n.toFixed(1);
-  }
-  const avg = movie.vote_average;
-  if (avg == null || avg <= 0) return null;
-  const count = movie.vote_count;
-  if (count != null) {
-    return count >= 50 ? avg.toFixed(1) : null;
-  }
-  // Oy sayısı bilinmiyorsa: 9.0 üzeri ortalamalar genelde az oydan gelir, güvenme
-  return avg <= 9.0 ? avg.toFixed(1) : null;
-};
-
-const SkeletonGurme = () => (
-  <div className="space-y-6 py-6 w-full animate-pulse">
-    <div className="h-4 bg-white/10 rounded-full w-3/4" />
-    <div className="h-4 bg-white/10 rounded-full w-full" />
-    <div className="h-4 bg-white/10 rounded-full w-5/6" />
-    <div className="h-4 bg-white/10 rounded-full w-2/3" />
-  </div>
-);
 
 const MovieCardSkeleton = () => (
   <div className="bg-white/5 rounded-2xl overflow-hidden border border-white/10 animate-pulse h-[400px]">
@@ -213,7 +184,7 @@ export default function Discover() {
 
   // SWR: önce önbellek, sonra arkaplan güncelleme
   const cacheKey = selectedMood ? `discover_${selectedMood.id}_p${currentPage}_s${sortBy}_r${refreshKey}` : null;
-  const { data: swrData, isLoading: swrLoading, error: swrError, revalidate } = useCache(
+  const { data: swrData, isLoading: swrLoading, error: swrError } = useCache(
     cacheKey,
     async () => {
       const moviesData = await fetchMoodMovies(selectedMood.id, currentPage, sortBy);
