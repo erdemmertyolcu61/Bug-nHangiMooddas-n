@@ -2929,9 +2929,14 @@ async def health_check():
         "semantic_movie_count": semantic_engine.movie_count,
     }
 
-@app.get("/api/diag")
+@app.get("/api/diag", dependencies=[Depends(verify_admin)])
 async def diag_endpoint():
-    """Production'da 500 alınıyorsa bu endpoint ile temel hata tespiti."""
+    """Production'da 500 alınıyorsa bu endpoint ile temel hata tespiti.
+
+    Admin korumalı: db_path, ham sürücü hata metinleri ve altyapı topolojisi
+    döndürür — bunlar herkese açık olursa saldırgana yığın parmak izi verir.
+    Kullanım: header `X-Admin-Password: <ADMIN_PASSWORD>`.
+    """
     from backend.database import _turso_client as _tc
 
     # DB connectivity
