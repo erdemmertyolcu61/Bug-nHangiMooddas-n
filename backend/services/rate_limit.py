@@ -31,12 +31,26 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _rate_limit_identity(request: Request) -> str:
+    """Limit anahtarı. Giriş yapmış kullanıcıda user_id (imzalı JWT'den gelir →
+    taklit edilemez), aksi halde IP. X-Forwarded-For istemci tarafından
+    uydurulabildiği için kimliği doğrulanmış çağrılarda IP'ye güvenilmez."""
+    try:
+        from backend.auth_utils import optional_user_id
+        uid = optional_user_id(request)
+        if uid:
+            return f"u{uid}"
+    except Exception:
+        pass
+    return _client_ip(request)
+
+
 def _check_rate_limit(request: Request, limit: int) -> None:
-    """Dakikada `limit` istek (IP + path başına). Aşılırsa 429."""
-    ip = _client_ip(request)
+    """Dakikada `limit` istek (kimlik + path başına). Aşılırsa 429."""
+    ident = _rate_limit_identity(request)
     now = time.time()
     window = 60  # 1 dakika
-    key = f"{ip}:{request.url.path}"
+    key = f"{ident}:{request.url.path}"
     _rate_store[key] = [t for t in _rate_store[key] if now - t < window]
     if len(_rate_store[key]) >= limit:
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
