@@ -2424,6 +2424,10 @@ async def get_watchlist(request: Request):
     """Get all movies in the watchlist (kullanıcıya özel)."""
     try:
         uid = optional_user_id(request)
+        # Anonim ziyaretçi (uid=0): sunucuda ortak bir kova paylaşılmasın —
+        # misafir verisi yalnızca istemcinin localStorage'ında yaşar.
+        if not uid:
+            return {"movies": []}
         movies = await cache.get_watchlist(user_id=uid)
         return {"movies": movies}
     except Exception as e:
@@ -2434,9 +2438,10 @@ async def add_to_watchlist(req: WatchlistRequest, request: Request):
     """Add a movie to the watchlist."""
     try:
         uid = optional_user_id(request)
+        if not uid:
+            return {"status": "success"}  # misafir: yalnız localStorage
         await cache.add_to_watchlist(req.tmdb_id, req.title, req.poster_url, user_id=uid)
-        if uid:
-            await cache.invalidate_taste_profile(uid)
+        await cache.invalidate_taste_profile(uid)
         # Seed movie metadata into movie_cache so taste analysis can use it
         try:
             details = await tmdb_service.get_movie_details(req.tmdb_id)
@@ -2453,9 +2458,10 @@ async def remove_from_watchlist(tmdb_id: int, request: Request):
     """Remove a movie from the watchlist."""
     try:
         uid = optional_user_id(request)
+        if not uid:
+            return {"status": "success"}  # misafir: yalnız localStorage
         await cache.remove_from_watchlist(tmdb_id, user_id=uid)
-        if uid:
-            await cache.invalidate_taste_profile(uid)
+        await cache.invalidate_taste_profile(uid)
         return {"status": "success"}
     except Exception as e:
         raise _safe_http_500(e)
@@ -2465,9 +2471,11 @@ async def toggle_watched(request: Request, tmdb_id: int = Path(..., ge=1)):
     """Toggle the watched status of a movie in the watchlist."""
     try:
         uid = optional_user_id(request)
+        if not uid:
+            # Misafir: sunucuda durum tutulmaz; watched=None → istemci yerel duruma güvenir.
+            return {"tmdb_id": tmdb_id, "watched": None}
         new_state = await cache.toggle_watched(tmdb_id, user_id=uid)
-        if uid:
-            await cache.invalidate_taste_profile(uid)
+        await cache.invalidate_taste_profile(uid)
         return {"tmdb_id": tmdb_id, "watched": new_state}
     except Exception as e:
         logger.error(f"Toggle watched error: {e}")
@@ -2480,6 +2488,8 @@ async def get_movie_note(movie_id: int, request: Request):
     """Get the personal note for a movie."""
     try:
         uid = optional_user_id(request)
+        if not uid:
+            return {"note": ""}  # misafir notları sunucuda paylaşılmaz
         note = await cache.get_note(movie_id, user_id=uid)
         return {"note": note}
     except Exception as e:
@@ -2490,9 +2500,10 @@ async def save_movie_note(movie_id: int, req: NoteRequest, request: Request):
     """Save or update a personal note for a movie."""
     try:
         uid = optional_user_id(request)
+        if not uid:
+            return {"status": "success"}  # misafir: yalnız localStorage
         await cache.save_note(movie_id, req.content, user_id=uid)
-        if uid:
-            await cache.invalidate_taste_profile(uid)
+        await cache.invalidate_taste_profile(uid)
         return {"status": "success"}
     except Exception as e:
         raise _safe_http_500(e)
@@ -2530,9 +2541,10 @@ async def analyze_movie(request: Request, movie_id: int = Path(..., ge=1)):
     # 1. Check cache
     cached_data = await cache.get_movie(movie_id)
 
-    # Check watchlist status and notes (dynamic, kullanıcıya özel)
-    in_watchlist = await cache.is_in_watchlist(movie_id, user_id=uid)
-    personal_note = await cache.get_note(movie_id, user_id=uid)
+    # Check watchlist status and notes (dynamic, kullanıcıya özel).
+    # Misafir (uid=0) ortak kovadan okumasın → başkasının notu görünmesin.
+    in_watchlist = await cache.is_in_watchlist(movie_id, user_id=uid) if uid else False
+    personal_note = await cache.get_note(movie_id, user_id=uid) if uid else ""
 
     if cached_data:
         cached_data["in_watchlist"] = in_watchlist
@@ -2988,6 +3000,8 @@ async def get_future_plans(request: Request):
     """Get all movies in future plans (kullanıcıya özel)."""
     try:
         uid = optional_user_id(request)
+        if not uid:
+            return {"movies": []}  # misafir: yalnız localStorage
         movies = await cache.get_future_plans(user_id=uid)
         return {"movies": movies}
     except Exception as e:
@@ -2998,9 +3012,10 @@ async def add_to_future(req: FuturePlanRequest, request: Request):
     """Add a movie to future plans."""
     try:
         uid = optional_user_id(request)
+        if not uid:
+            return {"status": "success"}  # misafir: yalnız localStorage
         await cache.add_to_future(req.tmdb_id, req.title, req.poster_url, req.priority, req.watch_date, req.notes, user_id=uid)
-        if uid:
-            await cache.invalidate_taste_profile(uid)
+        await cache.invalidate_taste_profile(uid)
         return {"status": "success"}
     except Exception as e:
         raise _safe_http_500(e)
@@ -3010,9 +3025,10 @@ async def remove_from_future(tmdb_id: int, request: Request):
     """Remove a movie from future plans."""
     try:
         uid = optional_user_id(request)
+        if not uid:
+            return {"status": "success"}  # misafir: yalnız localStorage
         await cache.remove_from_future(tmdb_id, user_id=uid)
-        if uid:
-            await cache.invalidate_taste_profile(uid)
+        await cache.invalidate_taste_profile(uid)
         return {"status": "success"}
     except Exception as e:
         raise _safe_http_500(e)
@@ -3022,9 +3038,10 @@ async def update_future_priority(tmdb_id: int, request: Request, priority: int =
     """Update priority of a future plan."""
     try:
         uid = optional_user_id(request)
+        if not uid:
+            return {"status": "success"}  # misafir: yalnız localStorage
         await cache.update_future_priority(tmdb_id, priority, user_id=uid)
-        if uid:
-            await cache.invalidate_taste_profile(uid)
+        await cache.invalidate_taste_profile(uid)
         return {"status": "success"}
     except Exception as e:
         raise _safe_http_500(e)
@@ -3034,9 +3051,10 @@ async def update_future_date(tmdb_id: int, request: Request, watch_date: str = Q
     """Update watch date of a future plan."""
     try:
         uid = optional_user_id(request)
+        if not uid:
+            return {"status": "success"}  # misafir: yalnız localStorage
         await cache.update_future_date(tmdb_id, watch_date, user_id=uid)
-        if uid:
-            await cache.invalidate_taste_profile(uid)
+        await cache.invalidate_taste_profile(uid)
         return {"status": "success"}
     except Exception as e:
         raise _safe_http_500(e)
@@ -6186,7 +6204,7 @@ async def get_user_taste_map(request: Request):
     """
     try:
         uid = optional_user_id(request)
-        if uid is None:
+        if not uid:
             return {
                 "dynamic_title": "Sinema Ruhu",
                 "summary": [],
@@ -6247,7 +6265,7 @@ async def get_for_you(request: Request, limit: int = Query(18, ge=6, le=40)):
     """
     try:
         uid = optional_user_id(request)
-        if uid is None:
+        if not uid:
             return {"movies": [], "personalized": False}
 
         # Profil: cache-first, yoksa hesapla

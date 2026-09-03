@@ -161,6 +161,10 @@ export async function getWatchlist() {
   // localStorage'dan anında döndür
   const local = localGetWatchlist();
 
+  // Misafir: backend'de kullanıcıya özel kayıt yok (ortak kova paylaşılmaz) →
+  // senkron atlanır, yerel liste tek doğru kaynaktır.
+  if (!isLoggedIn()) return { movies: local };
+
   // Arka planda backend ile senkronize et (sessizce)
   try {
     const res = await fetch(`${BASE}/watchlist`, { headers: { ...authHeaders() } });
@@ -188,6 +192,10 @@ export async function getWatchlist() {
 export async function addToWatchlist(movie) {
   // localStorage'a hemen ekle
   localAddToWatchlist(movie);
+  if (!isLoggedIn()) {
+    try { window.dispatchEvent(new CustomEvent('check-achievements')); } catch {}
+    return { success: true };
+  }
   // Backend'e de gönder (başarısız olsa sorun değil)
   try {
     await fetch(`${BASE}/watchlist`, {
@@ -207,8 +215,10 @@ export async function addToWatchlist(movie) {
 export async function removeFromWatchlist(movieId) {
   // localStorage'dan hemen sil
   localRemoveFromWatchlist(movieId);
-  // Backend'den de sil (başarısız olsa sorun değil)
-  try { await fetch(`${BASE}/watchlist/${movieId}`, { method: 'DELETE', headers: { ...authHeaders() } }); } catch {}
+  // Backend'den de sil (başarısız olsa sorun değil); misafirde backend kaydı yok.
+  if (isLoggedIn()) {
+    try { await fetch(`${BASE}/watchlist/${movieId}`, { method: 'DELETE', headers: { ...authHeaders() } }); } catch {}
+  }
   try { window.dispatchEvent(new CustomEvent('check-achievements')); } catch {}
   return { success: true };
 }
@@ -217,14 +227,17 @@ export async function toggleWatched(tmdbId) {
   // localStorage'da toggle et
   const updatedList = localToggleWatched(tmdbId);
   const localState = updatedList.find(m => m.tmdb_id === tmdbId);
-  // Backend'e bildir ve yanıtı oku
-  try {
-    const res = await fetch(`${BASE}/watchlist/${tmdbId}/toggle-watched`, { method: 'POST', headers: { ...authHeaders() } });
-    if (res.ok) {
-      const data = await res.json();
-      return data; // {tmdb_id, watched: boolean}
-    }
-  } catch {}
+  // Backend'e bildir ve yanıtı oku; misafirde sunucu durumu tutulmaz.
+  if (isLoggedIn()) {
+    try {
+      const res = await fetch(`${BASE}/watchlist/${tmdbId}/toggle-watched`, { method: 'POST', headers: { ...authHeaders() } });
+      if (res.ok) {
+        const data = await res.json();
+        // watched null ise sunucuda kayıt yok → yerel duruma düş.
+        if (data && data.watched !== null && data.watched !== undefined) return data;
+      }
+    } catch {}
+  }
   // Backend başarısızsa localStorage durumuna güven
   try { window.dispatchEvent(new CustomEvent('check-achievements')); } catch {}
   return { tmdb_id: tmdbId, watched: localState ? localState.watched : false };
@@ -235,14 +248,16 @@ export async function toggleWatched(tmdbId) {
 export async function saveNote(movieId, content) {
   // localStorage'a hemen kaydet
   localSaveNote(movieId, content);
-  // Backend'e de gönder
-  try {
-    await fetch(`${BASE}/movies/${movieId}/notes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ content })
-    });
-  } catch {}
+  // Backend'e de gönder; misafir notu sunucuda tutulmaz (ortak kova paylaşılmaz).
+  if (isLoggedIn()) {
+    try {
+      await fetch(`${BASE}/movies/${movieId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ content })
+      });
+    } catch {}
+  }
   try { window.dispatchEvent(new CustomEvent('check-achievements')); } catch {}
   return { success: true };
 }
@@ -251,6 +266,7 @@ export async function getNote(movieId) {
   // Önce localStorage'dan al
   const local = localGetNote(movieId);
   if (local) return { note: local };
+  if (!isLoggedIn()) return { note: '' };  // misafir: sunucuda not yok
   // Yoksa backend'den dene
   try {
     const res = await fetch(`${BASE}/movies/${movieId}/notes`, { headers: { ...authHeaders() } });
