@@ -134,7 +134,15 @@ async def _get_credits(tmdb_id: int) -> dict:
 
 # ─── Soru Üretim Motoru (Trivia tabanlı) ────────────────────────────────────
 
-from backend.data.quiz_trivia import TRIVIA_QUESTIONS
+from backend.data.quiz_trivia import TRIVIA_QUESTIONS as _BASE_TRIVIA_QUESTIONS
+from backend.data.quiz_trivia_new_batch import NEW_TRIVIA_QUESTIONS as _EXTRA_TRIVIA_QUESTIONS
+
+# quiz_trivia_new_batch.py daha önce hiçbir yerde import edilmiyordu (335 soru atıl duruyordu).
+# Aynı soru metniyle üst üste binenleri (11 adet) eleyip ana havuza ekle.
+_seen_trivia_questions = {q["question"] for q in _BASE_TRIVIA_QUESTIONS}
+TRIVIA_QUESTIONS = _BASE_TRIVIA_QUESTIONS + [
+    q for q in _EXTRA_TRIVIA_QUESTIONS if q["question"] not in _seen_trivia_questions
+]
 
 async def _fetch_films_for_category(cat_slug: str, limit: int = 60) -> list:
     """Kategoriye göre movie_repository'den film çek."""
@@ -316,7 +324,11 @@ async def _check_advance_question(db, room: dict) -> dict:
     started_ms = int(datetime.fromisoformat(started_at).timestamp() * 1000)
     now_ms = _now_ms()
     elapsed = now_ms - started_ms
-    time_expired = elapsed >= QUESTION_TIME_MS + 2000
+
+    jokers = json.loads(room.get("player_jokers") or "{}")
+    has_freeze_time = any(pj.get("freeze_time") == q_idx for pj in jokers.values())
+    max_time_ms = QUESTION_TIME_MS + (10000 if has_freeze_time else 0)
+    time_expired = elapsed >= max_time_ms + 2000
 
     cur = await db.execute(
         "SELECT COUNT(*) FROM quiz_answers WHERE room_id = ? AND question_index = ?",
@@ -725,11 +737,13 @@ async def join_room(room_id: str, user: dict = Depends(verify_user)):
             if room["opponent_id"] and room["opponent_id"] != me:
                 raise HTTPException(status_code=400, detail="Odada zaten bir rakip var")
 
-            await db.execute(
-                "UPDATE quiz_rooms SET opponent_id = ? WHERE id = ?",
-                (me, room_id),
+            cur = await db.execute(
+                "UPDATE quiz_rooms SET opponent_id = ? WHERE id = ? AND (opponent_id IS NULL OR opponent_id = ?)",
+                (me, room_id, me),
             )
             await db.commit()
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=400, detail="Odada zaten bir rakip var")
 
         return {"ok": True, "status": "WAITING"}
     except HTTPException:

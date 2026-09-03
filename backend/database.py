@@ -196,6 +196,9 @@ async def _get_connection(db_path: str, user_data: bool = False):
         conn = _sqlite_pool.popleft()
         try:
             yield conn
+        except BaseException:
+            await conn.rollback()
+            raise
         finally:
             _sqlite_pool.append(conn)
     else:
@@ -1734,11 +1737,17 @@ class MovieCache:
             rows = await cur.fetchall()
             return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2], "user_id": r[3], "is_pwa": r[4] or 0, "sub_type": r[5] or "vapid"} for r in rows]
 
-    async def delete_push_subscription(self, endpoint: str) -> bool:
+    async def delete_push_subscription(self, endpoint: str, user_id: int = None) -> bool:
         if not endpoint:
             return False
         async with _get_connection(self.db_path, user_data=True) as db:
-            await db.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,))
+            if user_id is not None:
+                await db.execute(
+                    "DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id = ?",
+                    (endpoint, user_id),
+                )
+            else:
+                await db.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,))
             await db.commit()
             return True
 

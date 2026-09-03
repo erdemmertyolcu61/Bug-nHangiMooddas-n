@@ -53,7 +53,7 @@ async def push_subscribe(body: PushSubscribeBody, user=Depends(verify_user)):
 
 @router.post("/push/unsubscribe")
 async def push_unsubscribe(body: PushUnsubscribeBody, user=Depends(verify_user)):
-    await cache.delete_push_subscription(body.endpoint)
+    await cache.delete_push_subscription(body.endpoint, user_id=user["user_id"])
     return {"ok": True}
 
 

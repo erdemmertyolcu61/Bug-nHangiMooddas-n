@@ -25,6 +25,7 @@ Optimizations vs. previous version:
 import logging
 import asyncio
 import random
+import hashlib
 from typing import Optional
 
 logger = logging.getLogger("fast_search")
@@ -99,7 +100,8 @@ def _build_ustad_notu(title: str, genre_ids: list, release_date: str) -> str:
     genre_id = genre_ids[0] if genre_ids else 18
     genre = _GENRE_NAMES.get(genre_id, "sinema")
     year = (release_date or "")[:4] or "günümüzün"
-    idx = abs(hash(title)) % len(_USTAD_TEMPLATES)
+    # Python hash() süreç-başı tuzlandığı için deterministik değil; md5 kullan.
+    idx = int(hashlib.md5(title.encode("utf-8")).hexdigest(), 16) % len(_USTAD_TEMPLATES)
     template = _USTAD_TEMPLATES[idx]
     return template.format(title=title, genre=genre, year=year)
 

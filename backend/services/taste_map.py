@@ -7,8 +7,14 @@ Uses only: user signals data + movie_repository table + mood profiles.
 import json
 import logging
 import asyncio
+import hashlib
 from collections import Counter, defaultdict
 from typing import Optional
+
+
+def _stable_hash(s: str) -> int:
+    """Python `hash()` süreç-başı tuzlandığı için deterministik değildir; md5 kullan."""
+    return int(hashlib.md5(s.encode("utf-8")).hexdigest(), 16)
 
 logger = logging.getLogger(__name__)
 
@@ -650,11 +656,11 @@ class TasteMapEngine:
         mood_candidates = _TITLE_TEMPLATES.get(top)
         if mood_candidates:
             # Use hash of mood_ids for deterministic selection
-            idx = hash("|".join(mood_ids[:3])) % len(mood_candidates)
+            idx = _stable_hash("|".join(mood_ids[:3])) % len(mood_candidates)
             return mood_candidates[idx]
 
         # Fall back to style-based
-        idx = hash("|".join(mood_ids[:2])) % len(candidates)
+        idx = _stable_hash("|".join(mood_ids[:2])) % len(candidates)
         return candidates[idx]
 
     # ── Summary generation ──────────────────────────────────────────────

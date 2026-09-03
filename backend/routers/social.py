@@ -817,6 +817,9 @@ async def delete_account(user: dict = Depends(get_current_user)):
             "DELETE FROM direct_recommendations WHERE sender_id = ? OR receiver_id = ?",
             "DELETE FROM referrals WHERE referrer_id = ? OR referred_id = ?",
             "DELETE FROM user_blocks WHERE blocker_id = ? OR blocked_id = ?",
+            "DELETE FROM feed_likes WHERE user_id = ? OR target_user_id = ?",
+            "DELETE FROM feed_comments WHERE user_id = ? OR target_user_id = ?",
+            "DELETE FROM mood_reactions WHERE user_id = ? OR target_user_id = ?",
         ):
             try:
                 await db.execute(stmt, (uid, uid))
@@ -1036,6 +1039,8 @@ async def like_activity(body: FeedLikeBody, user: dict = Depends(get_current_use
     uid = user["user_id"]
     if body.target_user_id == uid:
         raise HTTPException(400, "Kendi aktiviteni beğenemezsin")
+    if not await cache.are_friends(uid, body.target_user_id):
+        raise HTTPException(403, "Bu kullanıcı arkadaşın değil")
     ok = await cache.add_feed_like(uid, body.target_user_id, body.tmdb_id, body.action_type)
     return {"ok": ok}
 
@@ -1059,6 +1064,8 @@ class FeedCommentBody(BaseModel):
 async def comment_activity(body: FeedCommentBody, user: dict = Depends(get_current_user)):
     """Bir aktiviteye yorum yap."""
     uid = user["user_id"]
+    if body.target_user_id != uid and not await cache.are_friends(uid, body.target_user_id):
+        raise HTTPException(403, "Bu kullanıcı arkadaşın değil")
     info = await cache.get_user_by_username_by_id(uid)
     result = await cache.add_feed_comment(
         uid, body.target_user_id, body.tmdb_id, body.action_type, body.content
@@ -1083,6 +1090,9 @@ async def get_comments(
     user: dict = Depends(get_current_user),
 ):
     """Bir aktivitenin yorumlarını getir."""
+    uid = user["user_id"]
+    if target_user_id != uid and not await cache.are_friends(uid, target_user_id):
+        raise HTTPException(403, "Bu kullanıcı arkadaşın değil")
     comments = await cache.get_feed_comments(target_user_id, tmdb_id, action_type)
     return {"comments": comments}
 
@@ -1103,5 +1113,7 @@ async def react_to_mood(body: MoodReactBody, user: dict = Depends(get_current_us
         raise HTTPException(400, "Kendi mooduna reaksiyon veremezsin")
     if body.reaction_emoji not in VALID_MOOD_EMOJIS:
         raise HTTPException(400, f"Geçersiz emoji. Seçenekler: {VALID_MOOD_EMOJIS}")
+    if not await cache.are_friends(uid, body.target_user_id):
+        raise HTTPException(403, "Bu kullanıcı arkadaşın değil")
     ok = await cache.add_mood_reaction(uid, body.target_user_id, body.reaction_emoji)
     return {"ok": ok}

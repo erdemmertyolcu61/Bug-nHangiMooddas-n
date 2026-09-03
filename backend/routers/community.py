@@ -563,6 +563,8 @@ async def search_users(q: str = "", request: Request = None):
 async def taste_compatibility(friend_id: int, user: dict = Depends(verify_user)):
     """İki kullanıcı arasındaki sinema zevki uyum skoru."""
     me = user["user_id"]
+    if me != friend_id and not await cache.are_friends(me, friend_id):
+        raise HTTPException(403, "Bu kullanıcı arkadaşın değil")
     async with _db_conn(cache.db_path, user_data=True) as db:
         cur = await db.execute(
             "SELECT profile_data FROM user_taste_profiles WHERE user_id = ?", (me,)
