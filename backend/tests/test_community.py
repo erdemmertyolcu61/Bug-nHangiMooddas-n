@@ -12,6 +12,8 @@ from fastapi.testclient import TestClient
 from backend.auth_utils import _create_token
 from backend.database import cache, _get_connection as _db_conn
 
+TEST_ADMIN_PASSWORD = "test-admin-pw"
+
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -52,10 +54,11 @@ def app_client(tmp_path, monkeypatch):
     comm._trending_cache["ts"] = 0.0
     comm._trending_cache["data"] = None
 
-    # Admin guard'ı dev moduna çek (IS_PRODUCTION=False + ADMIN_PASSWORD boş → bypass)
+    # verify_admin ADMIN_PASSWORD boşken fail-closed davranır (güvenli varsayılan).
+    # Test gerçek admin yolunu doğrular: parola tanımla, çağrılarda X-Admin-Password gönder.
     import backend.auth_utils as au
     monkeypatch.setattr(au, "IS_PRODUCTION", False)
-    monkeypatch.setattr(au, "ADMIN_PASSWORD", "")
+    monkeypatch.setattr(au, "ADMIN_PASSWORD", TEST_ADMIN_PASSWORD)
 
     from backend.routers.community import router as community_router
     from backend.routers.lists_user import router as lists_router
@@ -71,6 +74,10 @@ def app_client(tmp_path, monkeypatch):
 def _auth(user_id: int) -> dict:
     token = _create_token({"type": "user", "user_id": user_id}, expires_hours=1)
     return {"Authorization": f"Bearer {token}"}
+
+
+def _admin() -> dict:
+    return {"X-Admin-Password": TEST_ADMIN_PASSWORD}
 
 
 # ─── Söz (reviews) ───────────────────────────────────────────────────────────
@@ -159,17 +166,20 @@ def test_report_and_admin_hide_flow(app_client):
                         headers=_auth(1))
     assert r.status_code == 200
 
-    reports = app_client.get("/api/admin/reports").json()["reports"]
+    # Admin uçları kimlik ister: parolasız çağrı 403 olmalı
+    assert app_client.get("/api/admin/reports").status_code == 403
+
+    reports = app_client.get("/api/admin/reports", headers=_admin()).json()["reports"]
     assert len(reports) == 1
     assert reports[0]["review_content"] == "Sorunlu içerik."
     report_id = reports[0]["id"]
 
-    r = app_client.post(f"/api/admin/reports/{report_id}/resolve?action=hide")
+    r = app_client.post(f"/api/admin/reports/{report_id}/resolve?action=hide", headers=_admin())
     assert r.status_code == 200
     # Gizlenen Söz artık listelenmez
     assert app_client.get("/api/movies/800/reviews").json()["reviews"] == []
     # Kuyruk temizlendi
-    assert app_client.get("/api/admin/reports").json()["reports"] == []
+    assert app_client.get("/api/admin/reports", headers=_admin()).json()["reports"] == []
 
 
 def test_report_invalid_type_rejected(app_client):
