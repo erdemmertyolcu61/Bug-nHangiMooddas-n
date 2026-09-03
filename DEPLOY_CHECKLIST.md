@@ -5,8 +5,9 @@ Bu liste, sistemi canlıya alırken Render (veya benzeri) ortamında yapılması
 
 ## 1. Backend env (film-connoisseur-api — FastAPI servisi)
 - [ ] **`JWT_SECRET`** — güçlü, sabit bir değer ata (örn. `openssl rand -hex 32`).
-      ⚠️ Verilmezse koda dosyaya üretilir; Render redeploy/restart'ta değişir ve
-      tüm kullanıcı oturumları (token) geçersiz olur. **Mutlaka sabit ata.**
+      ⚠️ **`ENVIRONMENT=production` iken bu değişken yoksa backend hiç açılmaz**
+      (`config.py` `RuntimeError` fırlatır) — sessizce rastgele anahtar üretilmez.
+      Dev'de yoksa oturumluk rastgele anahtar üretilir (token'lar restart'ta düşer).
 - [ ] **`BETA_PASSWORD`** — **boş bırak / tanımlama** → beta kapısı kapanır, site herkese açılır.
       (Dolu olursa tüm organik ziyaretçiler şifre ekranına takılır.)
 - [ ] **`ALLOWED_ORIGINS`** — güncel frontend domain'ini içermeli. ŞU AN canlı domain
@@ -17,6 +18,8 @@ Bu liste, sistemi canlıya alırken Render (veya benzeri) ortamında yapılması
 - [ ] **API anahtarları** tanımlı mı: `TMDB_API_KEY`, `OMDB_API_KEY`, `ANTHROPIC_API_KEY`,
       `GEMINI_API_KEY`.
 - [ ] **`ADMIN_PASSWORD`** — günlük push / yönetim uçları için güçlü bir değer ata.
+      Boş bırakılırsa admin uçları **kapalı** kalır (403 — güvenli varsayılan).
+      Teşhis ucu `/api/diag` de admin korumalıdır: `X-Admin-Password: <ADMIN_PASSWORD>`.
 - [ ] (Kalıcı veri istiyorsan) **Turso** env'leri (libsql URL + token) — yoksa lokal SQLite kullanılır.
 - [ ] (Web push istiyorsan) **`VAPID_PUBLIC_KEY`**, **`VAPID_PRIVATE_KEY`**, `VAPID_SUBJECT`
       → `npx web-push generate-vapid-keys` ile üret. Yoksa push tamamen no-op (sorun değil).
@@ -49,6 +52,9 @@ Bu liste, sistemi canlıya alırken Render (veya benzeri) ortamında yapılması
 - [ ] Ana sayfa → mood seç → Discover akışı çalışıyor.
 - [ ] Sürpriz Film, Kafan Mı Karışık, Listeler, Arama açılıyor.
 - [ ] Google ile giriş + profil + watchlist senkron.
+- [ ] **Misafir veri izolasyonu:** iki ayrı tarayıcıda (giriş YAPMADAN) farklı filmler
+      kaydet → biri diğerinin Defterim'inde görünmemeli. (Misafir verisi yalnız
+      localStorage'da tutulur; sunucuda ortak `user_id=0` kovası kullanılmaz.)
 - [ ] Paylaşım linkleri (`/share/u/<kullanıcı>`, `/share/<film_id>`) crawler'a doğru OG kartı veriyor
       (`curl -A "facebookexternalhit" ...`).
 - [ ] `robots.txt` ve `sitemap.xml` canlıda erişilebilir; sitemap doğru host'u gösteriyor.
