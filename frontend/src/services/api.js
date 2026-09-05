@@ -590,6 +590,16 @@ export async function setNotifyTime(hour) {
 }
 
 /**
+ * KVKK md. 11 kapsamında hesaptaki TÜM kişisel verileri indirir.
+ * Hata sessizce yutulmaz: çağıran kullanıcıya durumu bildirebilsin.
+ */
+export async function exportMyData() {
+  const res = await fetch(`${BASE}/auth/export`, { headers: { ...authHeaders() } });
+  if (!res.ok) throw new Error(`Veri dışa aktarılamadı (${res.status})`);
+  return res.json();
+}
+
+/**
  * Quick mood mix — rule-based, no Claude API.
  * @param {Array} moodMix - [{mood_id, percentage}, ...]
  * @param {Object} opts

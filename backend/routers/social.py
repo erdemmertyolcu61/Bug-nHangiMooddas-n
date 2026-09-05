@@ -17,6 +17,7 @@ import uuid
 from typing import Optional
 
 import jwt as pyjwt
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
@@ -752,6 +753,68 @@ async def react_to_recommendation(rec_id: int, body: ReactionBody,
 
 
 # ─── Hesap Silme (store zorunluluğu: Apple hesap silme ister) ───────────────
+
+# KVKK md. 11 / GDPR md. 15 & 20 — veri erişim ve taşınabilirlik hakkı.
+# Kullanıcının kendi ürettiği tüm kayıtlar; silme akışının (delete_account)
+# aynası. Yeni bir kullanıcı tablosu eklenirse İKİ listeye birden eklenmeli.
+_EXPORT_TABLES = (
+    ("hesap", "SELECT email, name, username, picture, created_at, last_active, hide_activity FROM users WHERE id = ?"),
+    ("izleme_listesi", "SELECT tmdb_id, title, watched, added_at, watched_at FROM watchlist WHERE user_id = ?"),
+    ("notlar", "SELECT tmdb_id, note_content, updated_at FROM movie_notes WHERE user_id = ?"),
+    ("puanlar", "SELECT tmdb_id, rating, reaction, updated_at FROM movie_ratings WHERE user_id = ?"),
+    ("sozler", "SELECT tmdb_id, content, status, created_at FROM movie_reviews WHERE user_id = ?"),
+    ("soz_yanitlari", "SELECT review_id, content, created_at FROM review_replies WHERE user_id = ?"),
+    ("listelerim", "SELECT id, name, emoji, is_public, created_at FROM user_lists WHERE user_id = ?"),
+    ("liste_filmleri", "SELECT list_id, tmdb_id, title, added_at FROM list_items WHERE list_id IN (SELECT id FROM user_lists WHERE user_id = ?)"),
+    ("gelecek_planlari", "SELECT tmdb_id, title, priority, watch_date, notes, added_at FROM future_plans WHERE user_id = ?"),
+    ("zevk_profili", "SELECT profile_data, updated_at FROM user_taste_profiles WHERE user_id = ?"),
+    ("moodlarim", "SELECT mood_id, updated_at FROM user_moods WHERE user_id = ?"),
+    ("topluluk_onerileri", "SELECT tmdb_id, created_at FROM community_recommendations WHERE user_id = ?"),
+    ("quiz_istatistikleri", "SELECT games_played, games_won, total_score, best_score, win_streak, best_streak, elo_rating, elo_peak, updated_at FROM quiz_stats WHERE user_id = ?"),
+    ("oyun_skorlari", "SELECT correct, total, date_key, created_at FROM oracle_scores WHERE user_id = ?"),
+    ("bildirim_abonelikleri", "SELECT sub_type, is_pwa, notify_hour, created_at FROM push_subscriptions WHERE user_id = ?"),
+    ("engellediklerim", "SELECT blocked_id, created_at FROM user_blocks WHERE blocker_id = ?"),
+)
+
+_EXPORT_TABLES_PAIRED = (
+    ("arkadasliklar", "SELECT user_id, friend_id, status, created_at FROM friendships WHERE user_id = ? OR friend_id = ?"),
+    ("film_onerileri", "SELECT sender_id, receiver_id, movie_id, user_note, created_at FROM direct_recommendations WHERE sender_id = ? OR receiver_id = ?"),
+)
+
+
+@router.get("/auth/export")
+async def export_my_data(user: dict = Depends(get_current_user)):
+    """Kullanıcının tüm verilerini makine-okunur (JSON) biçimde döndürür."""
+    uid = user["user_id"]
+    from backend.database import _get_connection as _db_conn
+
+    async def _rows(db, sql, params):
+        cur = await db.execute(sql, params)
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in await cur.fetchall()]
+
+    data, missing = {}, []
+    async with _db_conn(cache.db_path, user_data=True) as db:
+        for key, sql in _EXPORT_TABLES:
+            try:
+                data[key] = await _rows(db, sql, (uid,))
+            except Exception:
+                # Tablo bu kurulumda yoksa dışa aktarım tümden çökmesin;
+                # ama sessizce yutulmasın — yanıtta hangi bölüm eksik yazsın.
+                missing.append(key)
+        for key, sql in _EXPORT_TABLES_PAIRED:
+            try:
+                data[key] = await _rows(db, sql, (uid, uid))
+            except Exception:
+                missing.append(key)
+
+    return {
+        "olusturulma_tarihi": datetime.now(timezone.utc).isoformat(),
+        "aciklama": "Sinemood hesabınızda saklanan tüm kişisel verileriniz (KVKK md. 11).",
+        "veriler": data,
+        "eksik_bolumler": missing,
+    }
+
 
 @router.delete("/auth/account")
 async def delete_account(user: dict = Depends(get_current_user)):
