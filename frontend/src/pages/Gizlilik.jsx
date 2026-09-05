@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -21,7 +21,7 @@ export default function Gizlilik() {
     description: "Sinemood'da hangi verilerin neden işlendiği, çerez/analitik kullanımı ve KVKK kapsamındaki haklarınız.",
   });
 
-  const updated = '10 Haziran 2026';
+  const updated = '5 Eylül 2026';
 
   return (
     <motion.div
@@ -65,9 +65,28 @@ export default function Gizlilik() {
             <ul className="list-disc pl-5 space-y-1.5">
               <li><span className="text-fg">Hesap bilgileri:</span> Google ile giriş yaptığınızda ad, e-posta ve profil görseliniz (yalnızca kimlik doğrulama ve profilinizi oluşturmak için).</li>
               <li><span className="text-fg">Uygulama içi veriler:</span> izleme listeniz, notlarınız, zevk haritanız, arkadaş/öneri etkileşimleriniz; hizmeti size sunmak için.</li>
+              <li><span className="text-fg">Bildirim verileri:</span> bildirimlere izin verirseniz cihazınızın push adresi/jetonu (web push endpoint veya FCM token) ve seçtiğiniz bildirim saati. Bu jeton yalnız size bildirim ulaştırmak için kullanılır; reklam veya profilleme amacıyla kullanılmaz.</li>
+              <li><span className="text-fg">Abonelik durumu:</span> Premium kullanıyorsanız yalnızca aboneliğin aktif olup olmadığı bilgisi. <span className="text-fg">Kart/ödeme bilgilerinizi görmez ve saklamayız</span> — ödeme tamamen Apple App Store veya Google Play üzerinden yürür.</li>
               <li><span className="text-fg">Anonim analitik:</span> sayfa görüntüleme ve özellik kullanımı (çerezsiz, IP saklanmaz, kişisel kimlik içermez). İstediğiniz zaman aşağıdan kapatabilirsiniz.</li>
               <li><span className="text-fg">Teknik veriler:</span> hata/performans amaçlı sınırlı günlükler.</li>
             </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-lg font-bold text-fg">2a. Bildirimler</h2>
+            <p>
+              Bildirimler <span className="text-fg">tamamen isteğe bağlıdır</span> ve yalnızca siz
+              cihazınızda izin verdikten sonra gönderilir. İki tür bildirim vardır: size özel
+              olanlar (arkadaşlık isteği, gelen film önerisi) ve günlük/haftalık içerik
+              hatırlatmaları (günün filmi, haftalık rapor).
+            </p>
+            <p>
+              Günlük bildirimin saatini Profil → Ayarlar → "Günlük Film Saati" bölümünden
+              seçebilirsiniz. <span className="text-fg">Gece 00:00–08:00 arasında bildirim
+              göndermeyiz.</span> Bildirimleri tamamen kapatmak için zil menüsündeki anahtarı
+              kapatmanız veya cihaz ayarlarınızdan izni geri almanız yeterlidir; izni geri
+              aldığınızda cihaz kaydınız silinir.
+            </p>
           </section>
 
           <section className="space-y-2">
@@ -120,19 +139,57 @@ export default function Gizlilik() {
           <section className="space-y-2">
             <h2 className="text-lg font-bold text-fg">6. Üçüncü Taraf Servisler</h2>
             <p>
-              Film verileri için TMDB ve OMDb, kimlik doğrulama için Google, öneri/analiz için yapay
-              zeka servisleri kullanılır. Bu servislerin kendi gizlilik politikaları geçerlidir.
+              Hizmeti sunabilmek için aşağıdaki sağlayıcılardan yararlanırız. Her birinin kendi
+              gizlilik politikası geçerlidir:
+            </p>
+            <ul className="list-disc pl-5 space-y-1.5">
+              <li><span className="text-fg">TMDB &amp; OMDb</span> — film verileri, afiş ve künye bilgileri.</li>
+              <li><span className="text-fg">Google</span> — hesabınızla giriş (Google ile Oturum Aç).</li>
+              <li><span className="text-fg">Google Firebase (FCM) &amp; Apple (APNs)</span> — mobil uygulamada bildirim iletimi (cihaz jetonu).</li>
+              <li><span className="text-fg">Anthropic &amp; Google Gemini</span> — film analizi ve öneri metinleri.</li>
+              <li><span className="text-fg">RevenueCat, Apple App Store, Google Play</span> — Premium abonelik doğrulama ve ödeme (ödeme bilgisi bize ulaşmaz).</li>
+              <li><span className="text-fg">Vercel, Railway, Turso</span> — site ve veritabanı barındırma.</li>
+            </ul>
+            <p>
               Film verileri TMDB tarafından sağlanır; Sinemood TMDB tarafından onaylanmamıştır.
             </p>
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-lg font-bold text-fg">7. Saklama & Güvenlik</h2>
+            <h2 className="text-lg font-bold text-fg">6a. Yurt Dışına Veri Aktarımı</h2>
             <p>
-              Verileriniz hizmet sürdüğü sürece saklanır. Profil → Ayarlar → "Hesabı Sil" ile
-              hesabınızı sildiğinizde; izleme listeniz, notlarınız, Sözleriniz, listeleriniz ve tüm
-              sosyal verileriniz <span className="text-fg">kalıcı olarak silinir</span>. Verilere
-              yetkisiz erişime karşı teknik tedbirler uygulanır.
+              Yukarıdaki barındırma ve servis sağlayıcılarının sunucuları Türkiye dışında (başta
+              AB ve ABD) bulunabilir. Bu nedenle verileriniz KVKK md. 9 kapsamında
+              <span className="text-fg"> yurt dışına aktarılmaktadır</span>. Aktarım, hizmetin
+              teknik olarak sunulabilmesi için gereklidir ve sağlayıcılarla yapılan sözleşmeler ile
+              standart koruma taahhütlerine dayanır. Bu aktarımı istemiyorsanız hizmeti
+              kullanmamanız veya hesabınızı silmeniz gerekir.
+            </p>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-lg font-bold text-fg">7. Saklama Süreleri & Güvenlik</h2>
+            <ul className="list-disc pl-5 space-y-1.5">
+              <li><span className="text-fg">Hesap ve uygulama içi verileriniz:</span> hesabınız açık kaldığı sürece.</li>
+              <li><span className="text-fg">Bildirim cihaz jetonu:</span> izni geri aldığınızda veya jeton geçersizleştiğinde silinir.</li>
+              <li><span className="text-fg">Teknik günlükler:</span> en fazla 30 gün.</li>
+              <li><span className="text-fg">Hesap silindiğinde:</span> tüm veriler derhal ve kalıcı olarak silinir.</li>
+            </ul>
+            <p>
+              Profil → Ayarlar → "Hesabı Sil" ile hesabınızı sildiğinizde; izleme listeniz,
+              notlarınız, Sözleriniz, listeleriniz, bildirim kayıtlarınız ve tüm sosyal
+              verileriniz <span className="text-fg">kalıcı olarak silinir</span>. Verilere
+              yetkisiz erişime karşı teknik tedbirler uygulanır (şifreli bağlantı, yetkilendirme
+              kontrolleri, en az yetki ilkesi).
+            </p>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-lg font-bold text-fg">7a. Çocukların Verileri</h2>
+            <p>
+              Sinemood 13 yaş altındaki kullanıcılara yönelik değildir ve bilerek 13 yaş altından
+              veri toplamayız. 13 yaş altında bir kullanıcıya ait veri işlendiğini fark edersek
+              hesabı ve verileri sileriz. Böyle bir durumdan haberdarsanız bize bildirin.
             </p>
           </section>
 
@@ -140,7 +197,17 @@ export default function Gizlilik() {
             <h2 className="text-lg font-bold text-fg">8. KVKK Haklarınız</h2>
             <p>
               KVKK md. 11 kapsamında; verilerinize erişme, düzeltme, silme ve işlemeye itiraz etme
-              haklarına sahipsiniz. Talepleriniz için aşağıdaki adresten bize ulaşabilirsiniz.
+              haklarına sahipsiniz. Bu hakları uygulama içinden doğrudan kullanabilirsiniz:
+            </p>
+            <ul className="list-disc pl-5 space-y-1.5">
+              <li><span className="text-fg">Erişim ve taşınabilirlik:</span> Profil → Ayarlar → "Verilerim" ile tüm verilerinizi JSON dosyası olarak indirin.</li>
+              <li><span className="text-fg">Silme:</span> Profil → Ayarlar → "Hesabı Sil".</li>
+              <li><span className="text-fg">Düzeltme:</span> profil bilgilerinizi Profil ekranından güncelleyin.</li>
+              <li><span className="text-fg">İtiraz / kısıtlama:</span> analitiği bu sayfadan, bildirimleri zil menüsünden kapatın.</li>
+            </ul>
+            <p>
+              Diğer talepleriniz için aşağıdaki adresten bize ulaşabilirsiniz; başvurular en geç
+              30 gün içinde yanıtlanır.
             </p>
           </section>
 
@@ -151,6 +218,14 @@ export default function Gizlilik() {
               <a href="mailto:privacy@sinemood.app" className="text-amber underline underline-offset-2 hover:text-amber/80">
                 privacy@sinemood.app
               </a>
+            </p>
+            <p className="pt-1">
+              Hizmet şartları ve topluluk kuralları için{' '}
+              <button onClick={() => navigate('/kosullar')}
+                className="text-amber underline underline-offset-2 hover:text-amber/80">
+                Kullanım Koşulları
+              </button>
+              {' '}sayfasına bakabilirsiniz.
             </p>
           </section>
         </div>

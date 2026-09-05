@@ -61,6 +61,7 @@ const TasteMapCollision = lazyRetry(() => import('./pages/TasteMapCollision'));
 const PublicProfile = lazyRetry(() => import('./pages/PublicProfile'));
 const DailyFilm = lazyRetry(() => import('./pages/DailyFilm'));
 const Gizlilik = lazyRetry(() => import('./pages/Gizlilik'));
+const Kosullar = lazyRetry(() => import('./pages/Kosullar'));
 const MoodOracle = lazyRetry(() => import('./pages/MoodOracle'));
 const MoodFeed = lazyRetry(() => import('./components/social/MoodFeed'));
 const PublicList = lazyRetry(() => import('./pages/PublicList'));
@@ -163,6 +164,7 @@ function AppContent() {
             <Route path="/carpistir" element={<TasteMapCollision />} />
             <Route path="/gunun-filmi" element={<DailyFilm />} />
             <Route path="/gizlilik" element={<Gizlilik />} />
+            <Route path="/kosullar" element={<Kosullar />} />
             <Route path="/oyun" element={<MoodOracle />} />
             <Route path="/sinequiz" element={<QuizDuello />} />
             <Route path="/sinequiz/skor-tablosu" element={<QuizLeaderboard />} />

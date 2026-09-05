@@ -407,10 +407,17 @@ export default function MoodSelector() {
             <Gem size={15} strokeWidth={1.5} />
           </button>
           <p className="text-[8px] uppercase tracking-[0.5em] text-rose/30 font-medium">sinema bir atmosferdir</p>
-          <button onClick={() => navigate('/gizlilik')}
-            className="text-[9px] uppercase tracking-[0.3em] text-rose/30 hover:text-amber/70 transition-colors duration-500">
-            Gizlilik & KVKK
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/gizlilik')}
+              className="text-[9px] uppercase tracking-[0.3em] text-rose/30 hover:text-amber/70 transition-colors duration-500">
+              Gizlilik & KVKK
+            </button>
+            <span className="text-[9px] text-rose/20">·</span>
+            <button onClick={() => navigate('/kosullar')}
+              className="text-[9px] uppercase tracking-[0.3em] text-rose/30 hover:text-amber/70 transition-colors duration-500">
+              Koşullar
+            </button>
+          </div>
         </motion.footer>
         </>)}
       </div>

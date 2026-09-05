@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Settings, Bell, Palette, Database, AlertTriangle, ChevronRight, ChevronDown, Clock, EyeOff, Ban, Crown,
+  ShieldCheck, FileText,
 } from 'lucide-react';
-import { getWatchlist, getNotifyTime, setNotifyTime, setActivityVisibility, getBlockedUsers, unblockUser } from '../../services/api';
+import { exportMyData, getNotifyTime, setNotifyTime, setActivityVisibility, getBlockedUsers, unblockUser } from '../../services/api';
 import { resolveAvatarUrl } from '../../utils/apiConfig';
 import { getApiUrl } from '../../utils/apiConfig';
 import { isPushSubscribed } from '../../utils/push';
@@ -198,17 +199,27 @@ export default function ProfileSettings({ theme, toggleTheme, logout, navigate, 
       badge: theme === 'dark' ? 'Karanlık' : 'Aydınlık',
     },
     {
-      icon: Database, label: 'Verilerim', desc: 'Dışa aktar veya yedekle',
+      icon: Database, label: 'Verilerim', desc: 'Tüm verilerini indir (KVKK md. 11)',
       action: async () => {
         try {
-          const wl = await getWatchlist();
-          const blob = new Blob([JSON.stringify(wl, null, 2)], { type: 'application/json' });
+          // Yalnız izleme listesi indiriliyordu; gizlilik metni ise tüm
+          // verilere erişim hakkı vaat ediyor. Sunucu artık hepsini döndürür.
+          const data = await exportMyData();
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url; a.download = 'sinemood-verilerim.json'; a.click();
           URL.revokeObjectURL(url);
-        } catch { alert('Veri dışa aktarılamadı.'); }
+        } catch { alert('Veri dışa aktarılamadı. Lütfen tekrar deneyin.'); }
       },
+    },
+    {
+      icon: ShieldCheck, label: 'Gizlilik & KVKK', desc: 'Hangi veriler, neden işleniyor',
+      action: () => navigate('/gizlilik'),
+    },
+    {
+      icon: FileText, label: 'Kullanım Koşulları', desc: 'Hizmet şartları ve topluluk kuralları',
+      action: () => navigate('/kosullar'),
     },
     {
       icon: AlertTriangle, label: 'Hesabı Sil', desc: 'Tüm verileri kalıcı olarak sil', danger: true,

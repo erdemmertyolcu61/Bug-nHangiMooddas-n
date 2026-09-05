@@ -16,7 +16,7 @@ const HOST = (process.env.VITE_SITEMAP_HOST || 'https://bug-n-hangi-mooddas-n.ve
 // Botların indekslemesini istediğimiz herkese açık route'lar
 const STATIC_ROUTES = [
   '/', '/discover', '/listeler', '/surprise',
-  '/kafan-mi-karisik', '/carpistir', '/gunun-filmi', '/oyun', '/gizlilik',
+  '/kafan-mi-karisik', '/carpistir', '/gunun-filmi', '/oyun', '/gizlilik', '/kosullar',
 ];
 
 function loadListSlugs() {
