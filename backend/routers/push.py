@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from backend.auth_utils import verify_user
 from backend.config import VAPID_PUBLIC_KEY
-from backend.database import cache
+from backend.database import cache, NOTIFY_CATEGORIES
 from backend.services.push_service import PUSH_ENABLED
 from backend.services.rate_limit import rate_limit_strict, rate_limit_general
 
@@ -28,6 +28,14 @@ class PushUnsubscribeBody(BaseModel):
 
 class NotifyTimeBody(BaseModel):
     hour: int
+
+
+class NotifyPrefsBody(BaseModel):
+    """Kısmi güncelleme: yalnız gönderilen kategoriler değişir."""
+    social: Optional[bool] = None
+    daily: Optional[bool] = None
+    game: Optional[bool] = None
+    digest: Optional[bool] = None
 
 
 @router.get("/push/public-key")
@@ -68,3 +76,23 @@ async def set_notify_time(body: NotifyTimeBody, user=Depends(verify_user)):
     hour = max(8, min(23, int(body.hour)))
     ok = await cache.set_notify_hour(user["user_id"], hour)
     return {"ok": ok, "hour": hour}
+
+
+@router.get("/push/preferences")
+async def get_notify_preferences(user=Depends(verify_user)):
+    """Kategori bazlı bildirim tercihleri. Aboneliği olmayan kullanıcıda hepsi açık."""
+    prefs = await cache.get_notify_prefs(user["user_id"])
+    return {"preferences": prefs, "categories": list(NOTIFY_CATEGORIES)}
+
+
+@router.post("/push/preferences", dependencies=[Depends(rate_limit_general)])
+async def set_notify_preferences(body: NotifyPrefsBody, user=Depends(verify_user)):
+    """Gönderilen kategorileri kullanıcının tüm cihazlarında günceller."""
+    # exclude_none: istemci yalnız değiştirdiği anahtarı yollar; gönderilmeyen
+    # kategori mevcut değerinde kalır.
+    changes = body.model_dump(exclude_none=True)
+    if not changes:
+        return {"ok": False, "detail": "Değiştirilecek kategori yok",
+                "preferences": await cache.get_notify_prefs(user["user_id"])}
+    stored = await cache.set_notify_prefs(user["user_id"], changes)
+    return {"ok": stored, "preferences": await cache.get_notify_prefs(user["user_id"])}

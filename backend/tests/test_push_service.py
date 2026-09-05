@@ -215,3 +215,190 @@ def test_hourly_push_matches_only_chosen_hour(db, spy, monkeypatch):
 
     at_nine, at_eighteen = asyncio.run(run())
     assert (at_nine, at_eighteen) == (1, 0)
+
+
+# ─── Kategori bazlı kapatma ──────────────────────────────────────────────────
+
+def test_categories_have_matching_columns(db):
+    """NOTIFY_CATEGORIES ile şema kolonları ayrışmamalı."""
+    from backend.database import NOTIFY_CATEGORIES
+
+    async def run():
+        async with _db_conn(cache.db_path, user_data=True) as conn:
+            cur = await conn.execute("PRAGMA table_info(push_subscriptions)")
+            return {r[1] for r in await cur.fetchall()}
+
+    cols = asyncio.run(run())
+    for cat in NOTIFY_CATEGORIES:
+        assert f"notify_{cat}" in cols, f"notify_{cat} kolonu yok"
+
+
+def test_unknown_category_rejected():
+    """Kategori adı SQL'e gömülüyor — beyaz liste dışı değer hata vermeli."""
+    from backend.database import _notify_column
+    with pytest.raises(ValueError):
+        _notify_column("game; DROP TABLE push_subscriptions")
+
+
+def test_defaults_are_all_on(db):
+    """Yeni abone hiçbir bildirimi kaçırmamalı (mevcut davranış korunur)."""
+    async def run():
+        await cache.save_push_subscription(1, "ep", "p", "a")
+        return await cache.get_notify_prefs(1)
+
+    assert asyncio.run(run()) == {"social": True, "daily": True, "game": True, "digest": True}
+
+
+def test_disabled_category_is_not_delivered(db, spy, monkeypatch):
+    """Kapatılan kategori gönderilmez, açık olan gönderilir."""
+    monkeypatch.setattr(ps, "PUSH_ENABLED", True)
+    monkeypatch.setattr(ps, "in_quiet_hours", lambda now=None: False)
+
+    async def run():
+        await cache.save_push_subscription(1, "ep", "p", "a")
+        await cache.set_notify_prefs(1, {"game": False})
+        game = await ps.send_push_broadcast("T", "B", category="game")
+        digest = await ps.send_push_broadcast("T", "B", category="digest")
+        return game, digest
+
+    game, digest = asyncio.run(run())
+    assert game == 0, "kapatılan kategori gönderildi"
+    assert digest == 1, "kapatılmayan kategori engellendi"
+
+
+def test_disabling_marketing_keeps_transactional(db, spy, monkeypatch):
+    """Pazarlama kapatılınca arkadaşlık/öneri bildirimi çalışmaya devam etmeli."""
+    monkeypatch.setattr(ps, "PUSH_ENABLED", True)
+
+    async def run():
+        await cache.save_push_subscription(1, "ep", "p", "a")
+        await cache.set_notify_prefs(1, {"game": False, "digest": False, "daily": False})
+        return await ps.send_push_to_user(1, "T", "B")  # category="social"
+
+    assert asyncio.run(run()) == 1
+
+
+def test_disabled_daily_excluded_from_hourly_push(db, spy, monkeypatch):
+    monkeypatch.setattr(ps, "PUSH_ENABLED", True)
+
+    async def run():
+        await cache.save_push_subscription(1, "ep", "p", "a")
+        await cache.set_notify_hour(1, 9)
+        before = await ps.send_push_for_hour(9, "T", "B")
+        await cache.set_notify_prefs(1, {"daily": False})
+        after = await ps.send_push_for_hour(9, "T", "B")
+        return before, after
+
+    assert asyncio.run(run()) == (1, 0)
+
+
+def test_disabled_digest_excluded_from_reengagement(db, spy, monkeypatch):
+    monkeypatch.setattr(ps, "PUSH_ENABLED", True)
+    monkeypatch.setattr(ps, "in_quiet_hours", lambda now=None: False)
+
+    async def run():
+        await cache.save_push_subscription(1, "ep", "p", "a")
+        await cache.set_notify_prefs(1, {"digest": False})
+        async with _db_conn(cache.db_path, user_data=True) as conn:
+            await conn.execute("UPDATE users SET last_active = datetime('now', '-30 days') WHERE id = 1")
+            await conn.commit()
+        return await ps.send_push_to_inactive(7, "T", "B")
+
+    assert asyncio.run(run()) == 0
+
+
+def test_second_device_inherits_category_prefs(db):
+    """Kapatılan kategori ikinci cihazda sessizce geri açılmamalı."""
+    async def run():
+        await cache.save_push_subscription(1, "ep-phone", "p", "a")
+        await cache.set_notify_prefs(1, {"digest": False})
+        await cache.save_push_subscription(1, "ep-tablet", "p", "a")
+        async with _db_conn(cache.db_path, user_data=True) as conn:
+            cur = await conn.execute(
+                "SELECT DISTINCT notify_digest FROM push_subscriptions WHERE user_id = 1")
+            return [r[0] for r in await cur.fetchall()]
+
+    assert asyncio.run(run()) == [0]
+
+
+def test_set_prefs_reports_failure_without_subscription(db):
+    async def run():
+        return await cache.set_notify_prefs(1, {"game": False})
+
+    assert asyncio.run(run()) is False
+
+
+def test_null_prefs_treated_as_enabled(db, spy, monkeypatch):
+    """Geri-doldurulmamış eski satır (NULL) 'kapalı' sanılıp bildirimi kesmemeli."""
+    monkeypatch.setattr(ps, "PUSH_ENABLED", True)
+    monkeypatch.setattr(ps, "in_quiet_hours", lambda now=None: False)
+
+    async def run():
+        await cache.save_push_subscription(1, "ep", "p", "a")
+        async with _db_conn(cache.db_path, user_data=True) as conn:
+            await conn.execute("UPDATE push_subscriptions SET notify_game = NULL")
+            await conn.commit()
+        prefs = await cache.get_notify_prefs(1)
+        sent = await ps.send_push_broadcast("T", "B", category="game")
+        return prefs["game"], sent
+
+    assert asyncio.run(run()) == (True, 1)
+
+
+# ─── /api/push/preferences uçları ────────────────────────────────────────────
+
+@pytest.fixture()
+def client(db):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from backend.routers.push import router
+    app = FastAPI()
+    app.include_router(router)
+    return TestClient(app)
+
+
+def _auth(uid=1):
+    from backend.auth_utils import _create_token
+    return {"Authorization": f"Bearer {_create_token({'type': 'user', 'user_id': uid}, 1)}"}
+
+
+def test_preferences_require_login(client):
+    assert client.get("/api/push/preferences").status_code in (401, 403)
+    assert client.post("/api/push/preferences", json={"game": False}).status_code in (401, 403)
+
+
+def test_preferences_roundtrip(client):
+    asyncio.run(cache.save_push_subscription(1, "ep", "p", "a"))
+    r = client.post("/api/push/preferences", json={"game": False}, headers=_auth())
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["preferences"]["game"] is False
+    # Gönderilmeyen kategoriler dokunulmadan kalmalı (kısmi güncelleme)
+    assert body["preferences"]["social"] is True
+    assert client.get("/api/push/preferences", headers=_auth()).json()["preferences"]["game"] is False
+
+
+def test_preferences_partial_update_does_not_reset_others(client):
+    asyncio.run(cache.save_push_subscription(1, "ep", "p", "a"))
+    client.post("/api/push/preferences", json={"game": False}, headers=_auth())
+    client.post("/api/push/preferences", json={"digest": False}, headers=_auth())
+    prefs = client.get("/api/push/preferences", headers=_auth()).json()["preferences"]
+    assert prefs == {"social": True, "daily": True, "game": False, "digest": False}
+
+
+def test_preferences_reject_unknown_category(client):
+    """Şemada olmayan alan sessizce yutulmalı, 500'e dönüşmemeli."""
+    asyncio.run(cache.save_push_subscription(1, "ep", "p", "a"))
+    r = client.post("/api/push/preferences", json={"bilinmeyen": False}, headers=_auth())
+    assert r.status_code == 200
+    assert r.json()["ok"] is False
+    assert r.json()["preferences"]["social"] is True
+
+
+def test_preferences_are_scoped_to_caller(client):
+    """Bir kullanıcının tercihi başka kullanıcınınkini değiştirmemeli."""
+    asyncio.run(cache.save_push_subscription(1, "ep", "p", "a"))
+    client.post("/api/push/preferences", json={"game": False}, headers=_auth(uid=1))
+    assert asyncio.run(cache.get_notify_prefs(1))["game"] is False
+    assert asyncio.run(cache.get_notify_prefs(2))["game"] is True

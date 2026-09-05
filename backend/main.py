@@ -666,6 +666,7 @@ async def lifespan(app: FastAPI):
                             "Sinemood",
                             "Haftalık raporun hazır 📊 Bu hafta ne kadar yol geldin, Üstad özetledi.",
                             url="/profil", tag="weekly-report", pwa_only=False,
+                            category="digest",
                         )
                         logger.info("[WeeklyPush] Pazar 19:00 haftalik rapor push gonderildi: %s", week_key)
             except Exception as e:
@@ -3645,7 +3646,7 @@ async def trigger_daily_push(simulate: str = Query(None, description="Ödül tes
         film_sent = await send_push_broadcast(
             "Sinemood",
             f"Üstad'ın bugünkü filmi hazır: {m.get('title') or 'Bugünün Filmi'} 🎬",
-            url="/gunun-filmi", tag="daily-film",
+            url="/gunun-filmi", tag="daily-film", category="daily",
         )
 
     # ── Ödül günü: bugün töreni olan ödülleri duyur ──

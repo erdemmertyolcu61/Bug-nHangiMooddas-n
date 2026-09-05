@@ -144,14 +144,16 @@ async def _deliver_batch(subs: list, payload: dict, pwa_only: bool = False) -> i
     return sent
 
 
-async def send_push_to_user(user_id: int, title: str, body: str,
-                            url: str = "/", tag: str = "sinemood") -> int:
-    """Bir kullanıcının tüm cihazlarına push gönderir. Ölü abonelikleri temizler.
+async def send_push_to_user(user_id: int, title: str, body: str, url: str = "/",
+                            tag: str = "sinemood", category: str = "social") -> int:
+    """Bir kullanıcının cihazlarına push gönderir. Ölü abonelikleri temizler.
+    `category` kullanıcının kapattığı kategorileri eler (varsayılan "social" —
+    bu fonksiyonun tüm çağrıları işlemseldir: arkadaşlık, öneri, davet).
     Döner: başarıyla gönderilen cihaz sayısı."""
     if not user_id:
         return 0
     try:
-        subs = await cache.get_push_subscriptions(user_id)
+        subs = await cache.get_push_subscriptions(user_id, category=category)
     except Exception:
         return 0
     payload = {"title": title, "body": body, "url": url, "tag": tag}
@@ -159,13 +161,14 @@ async def send_push_to_user(user_id: int, title: str, body: str,
 
 
 async def send_push_for_hour(hour: int, title: str, body: str, url: str = "/",
-                             tag: str = "sinemood", pwa_only: bool = False) -> int:
+                             tag: str = "sinemood", pwa_only: bool = False,
+                             category: str = "daily") -> int:
     """notify_hour == hour olan abonelere push gönderir (kullanıcı-ayarlı günlük saat).
     pwa_only=False (varsayılan): Android tarayıcı aboneleri DAHİL herkese gönderir.
     (iOS yalnız kurulu PWA'da abone olabildiği için is_pwa filtresi gereksiz.)
     Ölü abonelikleri temizler. Döner: başarıyla gönderilen cihaz sayısı."""
     try:
-        subs = await cache.get_push_subscriptions_by_hour(hour)
+        subs = await cache.get_push_subscriptions_by_hour(hour, category=category)
     except Exception:
         return 0
     payload = {"title": title, "body": body, "url": url, "tag": tag}
@@ -173,7 +176,8 @@ async def send_push_for_hour(hour: int, title: str, body: str, url: str = "/",
 
 
 async def send_push_broadcast(title: str, body: str, url: str = "/", tag: str = "sinemood",
-                              pwa_only: bool = False, allow_quiet_hours: bool = False) -> int:
+                              pwa_only: bool = False, allow_quiet_hours: bool = False,
+                              category: str = "game") -> int:
     """Tüm abonelere push gönderir (günlük içerik). Ölü abonelikleri temizler.
     pwa_only=True: sadece Ana Ekrana Eklenmiş (PWA) kullanıcılara gönderir.
     Gece sessiz saatlerinde (00:00–08:00) gönderim yapılmaz; bilinçli bir
@@ -183,7 +187,7 @@ async def send_push_broadcast(title: str, body: str, url: str = "/", tag: str = 
         logger.info("[Push] Sessiz saat — broadcast atlandi (tag=%s)", tag)
         return 0
     try:
-        subs = await cache.get_all_push_subscriptions()
+        subs = await cache.get_all_push_subscriptions(category=category)
     except Exception:
         return 0
     payload = {"title": title, "body": body, "url": url, "tag": tag}
@@ -191,7 +195,8 @@ async def send_push_broadcast(title: str, body: str, url: str = "/", tag: str = 
 
 
 async def send_push_to_inactive(days: int, title: str, body: str, url: str = "/",
-                                tag: str = "re-engage", allow_quiet_hours: bool = False) -> int:
+                                tag: str = "re-engage", allow_quiet_hours: bool = False,
+                                category: str = "digest") -> int:
     """`days` gündür uygulamaya girmemiş kullanıcılara hatırlatma push'u.
     Kanal ayrımını _deliver_batch yapar — native (FCM) aboneler de kapsanır.
     Kullanıcının istemediği bir pazarlama mesajı olduğu için broadcast ile aynı
@@ -200,7 +205,7 @@ async def send_push_to_inactive(days: int, title: str, body: str, url: str = "/"
         logger.info("[Push] Sessiz saat — re-engagement atlandi")
         return 0
     try:
-        subs = await cache.get_inactive_user_subs(days=days)
+        subs = await cache.get_inactive_user_subs(days=days, category=category)
     except Exception as e:
         logger.warning("[Push] pasif kullanici sorgusu basarisiz: %s", e)
         return 0

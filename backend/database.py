@@ -27,6 +27,24 @@ from backend.config import DATABASE_PATH
 
 logger = logging.getLogger("film_elestirimeni")
 
+# ─── Bildirim kategorileri ───────────────────────────────────────────────────
+# Kullanıcı her kategoriyi ayrı ayrı kapatabilir (KVKK/GDPR: pazarlama amaçlı
+# mesajlar işlemsel olanlardan ayrı reddedilebilmeli). Her kategori
+# push_subscriptions tablosunda `notify_<ad>` kolonuyla temsil edilir.
+#   social → arkadaşlık isteği, gelen film önerisi, liste/düello daveti (işlemsel)
+#   daily  → günün filmi (kullanıcının seçtiği saatte)
+#   game   → Mood Kâhini yenilenmesi, ödül günü duyuruları
+#   digest → haftalık rapor ve "seni özledik" hatırlatmaları (pazarlama)
+NOTIFY_CATEGORIES = ("social", "daily", "game", "digest")
+
+
+def _notify_column(category: str) -> str:
+    """Kategori adını kolon adına çevirir. Ad SQL'e gömüldüğü için beyaz liste
+    dışındaki her değer hata verir — kategori asla kullanıcı girdisinden gelmez."""
+    if category not in NOTIFY_CATEGORIES:
+        raise ValueError(f"Bilinmeyen bildirim kategorisi: {category!r}")
+    return f"notify_{category}"
+
 # ── SQLite Connection Pool ───────────────────────────────────────────────────
 # Prevents ~30ms open/close overhead on every database operation.
 # Initialized once at startup via MovieCache.init_pool(), closed via close_pool().
@@ -727,6 +745,10 @@ class MovieCache:
                     auth TEXT NOT NULL,
                     is_pwa INTEGER DEFAULT 0,
                     notify_hour INTEGER DEFAULT 18,
+                    notify_social INTEGER DEFAULT 1,
+                    notify_daily INTEGER DEFAULT 1,
+                    notify_game INTEGER DEFAULT 1,
+                    notify_digest INTEGER DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -756,6 +778,21 @@ class MovieCache:
                 await db.execute("ALTER TABLE push_subscriptions ADD COLUMN sub_type TEXT DEFAULT 'vapid'")
             except Exception:
                 logger.warning("[DB] ALTER push_subscriptions ADD sub_type failed")
+            # Bildirim kategorileri — varsayılan AÇIK (mevcut davranış korunur)
+            for _cat in NOTIFY_CATEGORIES:
+                _col = f"notify_{_cat}"
+                try:
+                    await db.execute(
+                        f"ALTER TABLE push_subscriptions ADD COLUMN {_col} INTEGER DEFAULT 1")
+                except Exception:
+                    logger.debug("[DB] ALTER push_subscriptions ADD %s atlandi (muhtemelen var)", _col)
+                # ALTER ... DEFAULT mevcut satırları her motorda geri-doldurmuyor;
+                # NULL kalan tercih "kapalı" sanılırsa bildirim sessizce kesilir.
+                try:
+                    await db.execute(
+                        f"UPDATE push_subscriptions SET {_col} = 1 WHERE {_col} IS NULL")
+                except Exception:
+                    pass
             # reaction migration (öneri reaksiyonları)
             try:
                 await db.execute("ALTER TABLE direct_recommendations ADD COLUMN reaction TEXT")
@@ -1189,6 +1226,10 @@ class MovieCache:
                 auth TEXT NOT NULL,
                 is_pwa INTEGER DEFAULT 0,
                 notify_hour INTEGER DEFAULT 18,
+                notify_social INTEGER DEFAULT 1,
+                notify_daily INTEGER DEFAULT 1,
+                notify_game INTEGER DEFAULT 1,
+                notify_digest INTEGER DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""",
             """CREATE TABLE IF NOT EXISTS user_moods (
@@ -1255,6 +1296,15 @@ class MovieCache:
             # Backfill: ALTER ... DEFAULT 18 Turso'da mevcut satırları geri-doldurmuyordu →
             # NULL notify_hour'lar günün filmi (saat-bazlı) push'unda hiç eşleşmiyordu.
             "UPDATE push_subscriptions SET notify_hour = 18 WHERE notify_hour IS NULL",
+            # Bildirim kategorileri — varsayılan AÇIK; backfill şart (bkz. notify_hour notu)
+            "ALTER TABLE push_subscriptions ADD COLUMN notify_social INTEGER DEFAULT 1",
+            "ALTER TABLE push_subscriptions ADD COLUMN notify_daily INTEGER DEFAULT 1",
+            "ALTER TABLE push_subscriptions ADD COLUMN notify_game INTEGER DEFAULT 1",
+            "ALTER TABLE push_subscriptions ADD COLUMN notify_digest INTEGER DEFAULT 1",
+            "UPDATE push_subscriptions SET notify_social = 1 WHERE notify_social IS NULL",
+            "UPDATE push_subscriptions SET notify_daily = 1 WHERE notify_daily IS NULL",
+            "UPDATE push_subscriptions SET notify_game = 1 WHERE notify_game IS NULL",
+            "UPDATE push_subscriptions SET notify_digest = 1 WHERE notify_digest IS NULL",
             "ALTER TABLE direct_recommendations ADD COLUMN dismissed INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN last_active TIMESTAMP",
             "ALTER TABLE watchlist ADD COLUMN watched_at TIMESTAMP",
@@ -1689,16 +1739,30 @@ class MovieCache:
                 # notify_hour sabit 18 yazılırsa kullanıcının İKİNCİ cihazı
                 # kendi saatiyle kaydolur → günün filmi push'u iki farklı saatte
                 # iki kez giderdi. Yeni cihaz kullanıcının mevcut saatini devralır.
-                """INSERT INTO push_subscriptions (endpoint, user_id, p256dh, auth, is_pwa, sub_type, notify_hour)
+                # Yeni cihaz, kullanıcının mevcut tercihlerini (saat + kategori)
+                # devralır: sabit varsayılan yazmak, kullanıcının kapattığı bir
+                # kategoriyi ikinci cihazda sessizce geri açardı.
+                """INSERT INTO push_subscriptions
+                       (endpoint, user_id, p256dh, auth, is_pwa, sub_type, notify_hour,
+                        notify_social, notify_daily, notify_game, notify_digest)
                    VALUES (?, ?, ?, ?, ?, ?,
                            COALESCE((SELECT notify_hour FROM push_subscriptions
-                                     WHERE user_id = ? AND notify_hour IS NOT NULL LIMIT 1), 18))
+                                     WHERE user_id = ? AND notify_hour IS NOT NULL LIMIT 1), 18),
+                           COALESCE((SELECT notify_social FROM push_subscriptions
+                                     WHERE user_id = ? AND notify_social IS NOT NULL LIMIT 1), 1),
+                           COALESCE((SELECT notify_daily FROM push_subscriptions
+                                     WHERE user_id = ? AND notify_daily IS NOT NULL LIMIT 1), 1),
+                           COALESCE((SELECT notify_game FROM push_subscriptions
+                                     WHERE user_id = ? AND notify_game IS NOT NULL LIMIT 1), 1),
+                           COALESCE((SELECT notify_digest FROM push_subscriptions
+                                     WHERE user_id = ? AND notify_digest IS NOT NULL LIMIT 1), 1))
                    ON CONFLICT(endpoint) DO UPDATE SET
                        user_id=excluded.user_id, p256dh=excluded.p256dh,
                        auth=excluded.auth, is_pwa=excluded.is_pwa,
                        sub_type=excluded.sub_type,
                        notify_hour=COALESCE(push_subscriptions.notify_hour, 18)""",
-                (endpoint, user_id, p256dh, auth, is_pwa, sub_type, user_id),
+                (endpoint, user_id, p256dh, auth, is_pwa, sub_type,
+                 user_id, user_id, user_id, user_id, user_id),
             )
             await db.commit()
             return True
@@ -1730,15 +1794,58 @@ class MovieCache:
             row = await cur.fetchone()
             return int(row[0]) if row and row[0] is not None else 18
 
-    async def get_push_subscriptions_by_hour(self, hour: int) -> list:
+    async def get_notify_prefs(self, user_id: int) -> dict:
+        """Kullanıcının kategori tercihleri. Kaydı yoksa hepsi açık kabul edilir."""
+        defaults = {c: True for c in NOTIFY_CATEGORIES}
+        if not user_id:
+            return defaults
+        cols = ", ".join(f"notify_{c}" for c in NOTIFY_CATEGORIES)
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                f"SELECT {cols} FROM push_subscriptions WHERE user_id = ? LIMIT 1",
+                (user_id,),
+            )
+            row = await cur.fetchone()
+        if not row:
+            return defaults
+        # NULL (geri-doldurulmamış eski satır) → açık say.
+        return {c: (True if row[i] is None else bool(row[i]))
+                for i, c in enumerate(NOTIFY_CATEGORIES)}
+
+    async def set_notify_prefs(self, user_id: int, prefs: dict) -> bool:
+        """Verilen kategorileri kullanıcının TÜM cihazlarında günceller.
+        Tercih cihaz değil kullanıcı düzeyinde anlamlıdır (notify_hour ile aynı).
+        Döner: en az bir satır güncellendiyse True."""
+        if not user_id or not prefs:
+            return False
+        sets, values = [], []
+        for cat, on in prefs.items():
+            sets.append(f"{_notify_column(cat)} = ?")
+            values.append(1 if on else 0)
+        values.append(user_id)
+        async with _get_connection(self.db_path, user_data=True) as db:
+            cur = await db.execute(
+                f"UPDATE push_subscriptions SET {', '.join(sets)} WHERE user_id = ?",
+                tuple(values),
+            )
+            await db.commit()
+            # Aboneliği yoksa UPDATE hiçbir satıra dokunmaz — "kaydedildi" deme.
+            return (cur.rowcount or 0) > 0
+
+    async def get_push_subscriptions_by_hour(self, hour: int, category: str = None) -> list:
         """notify_hour == hour olan tüm abonelikleri döndürür (saatlik günlük push).
 
         notify_hour NULL olan abonelikler varsayılan 18 kabul edilir (COALESCE) —
         aksi halde Turso'da geri-doldurulmamış NULL kolonlar yüzünden günün filmi
         push'u hiç eşleşmez ve sessizce kimseye gitmez."""
         async with _get_connection(self.db_path, user_data=True) as db:
+            col = _notify_column(category) if category else None
+            # COALESCE: geri-doldurulmamış NULL tercih "kapalı" sayılıp bildirimi
+            # sessizce kesmesin — varsayılan her zaman AÇIK.
+            filt = f" AND COALESCE({col}, 1) = 1" if col else ""
             cur = await db.execute(
-                "SELECT endpoint, p256dh, auth, user_id, is_pwa, sub_type FROM push_subscriptions WHERE COALESCE(notify_hour, 18) = ?",
+                "SELECT endpoint, p256dh, auth, user_id, is_pwa, sub_type FROM push_subscriptions "
+                f"WHERE COALESCE(notify_hour, 18) = ?{filt}",
                 (int(hour),),
             )
             rows = await cur.fetchall()
@@ -1758,22 +1865,29 @@ class MovieCache:
             await db.commit()
             return True
 
-    async def get_push_subscriptions(self, user_id: int) -> list:
-        """Bir kullanıcının tüm push aboneliklerini döndürür."""
+    async def get_push_subscriptions(self, user_id: int, category: str = None) -> list:
+        """Bir kullanıcının push aboneliklerini döndürür.
+        `category` verilirse o kategoriyi kapatmış cihazlar hariç tutulur."""
         async with _get_connection(self.db_path, user_data=True) as db:
+            col = _notify_column(category) if category else None
+            filt = f" AND COALESCE({col}, 1) = 1" if col else ""
             cur = await db.execute(
-                "SELECT endpoint, p256dh, auth, sub_type, is_pwa FROM push_subscriptions WHERE user_id = ?",
+                "SELECT endpoint, p256dh, auth, sub_type, is_pwa FROM push_subscriptions "
+                f"WHERE user_id = ?{filt}",
                 (user_id,),
             )
             rows = await cur.fetchall()
             return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2],
                      "sub_type": r[3] or "vapid", "is_pwa": r[4] or 0} for r in rows]
 
-    async def get_all_push_subscriptions(self) -> list:
-        """Tüm aboneliği döndürür (toplu günlük bildirim için)."""
+    async def get_all_push_subscriptions(self, category: str = None) -> list:
+        """Tüm aboneliği döndürür (toplu bildirim için).
+        `category` verilirse o kategoriyi kapatmış cihazlar hariç tutulur."""
         async with _get_connection(self.db_path, user_data=True) as db:
+            col = _notify_column(category) if category else None
+            where = f" WHERE COALESCE({col}, 1) = 1" if col else ""
             cur = await db.execute(
-                "SELECT endpoint, p256dh, auth, user_id, is_pwa, sub_type FROM push_subscriptions"
+                "SELECT endpoint, p256dh, auth, user_id, is_pwa, sub_type FROM push_subscriptions" + where
             )
             rows = await cur.fetchall()
             return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2], "user_id": r[3], "is_pwa": r[4] or 0, "sub_type": r[5] or "vapid"} for r in rows]
@@ -1784,15 +1898,17 @@ class MovieCache:
             await db.execute("UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
             await db.commit()
 
-    async def get_inactive_user_subs(self, days: int = 7) -> list:
+    async def get_inactive_user_subs(self, days: int = 7, category: str = None) -> list:
         """Belirtilen gündür aktif olmayan kullanıcıların push aboneliklerini döndürür."""
         async with _get_connection(self.db_path, user_data=True) as db:
+            col = _notify_column(category) if category else None
+            filt = f" AND COALESCE(ps.{col}, 1) = 1" if col else ""
             cur = await db.execute(
                 """SELECT ps.endpoint, ps.p256dh, ps.auth, ps.user_id, ps.is_pwa, ps.sub_type
                    FROM push_subscriptions ps
                    WHERE ps.user_id NOT IN (
                        SELECT id FROM users WHERE last_active >= datetime('now', ? || ' days')
-                   )""",
+                   )""" + filt,
                 (f"-{int(days)}",),
             )
             rows = await cur.fetchall()
