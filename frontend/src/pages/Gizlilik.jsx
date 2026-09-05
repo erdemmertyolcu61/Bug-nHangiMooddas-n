@@ -76,16 +76,22 @@ export default function Gizlilik() {
             <h2 className="text-lg font-bold text-fg">2a. Bildirimler</h2>
             <p>
               Bildirimler <span className="text-fg">tamamen isteğe bağlıdır</span> ve yalnızca siz
-              cihazınızda izin verdikten sonra gönderilir. İki tür bildirim vardır: size özel
-              olanlar (arkadaşlık isteği, gelen film önerisi) ve günlük/haftalık içerik
-              hatırlatmaları (günün filmi, haftalık rapor).
+              cihazınızda izin verdikten sonra gönderilir. Bildirimler dört türe ayrılır ve
+              <span className="text-fg"> her birini ayrı ayrı kapatabilirsiniz</span> (Profil →
+              Ayarlar → "Bildirim Türleri"):
             </p>
+            <ul className="list-disc pl-5 space-y-1.5">
+              <li><span className="text-fg">Sosyal:</span> arkadaşlık isteği, size gönderilen film önerisi, liste/düello daveti. Bunlar başka bir kullanıcının size yönelttiği işlemsel bildirimlerdir.</li>
+              <li><span className="text-fg">Günün Filmi:</span> seçtiğiniz saatte günlük öneri.</li>
+              <li><span className="text-fg">Oyun &amp; Etkinlik:</span> Mood Kâhini yenilenmesi, ödül günü duyuruları.</li>
+              <li><span className="text-fg">Özet &amp; Hatırlatma:</span> haftalık rapor ve uzun süre girmediğinizde gönderilen dönüş hatırlatmaları.</li>
+            </ul>
             <p>
               Günlük bildirimin saatini Profil → Ayarlar → "Günlük Film Saati" bölümünden
-              seçebilirsiniz. <span className="text-fg">Gece 00:00–08:00 arasında bildirim
-              göndermeyiz.</span> Bildirimleri tamamen kapatmak için zil menüsündeki anahtarı
-              kapatmanız veya cihaz ayarlarınızdan izni geri almanız yeterlidir; izni geri
-              aldığınızda cihaz kaydınız silinir.
+              seçebilirsiniz. <span className="text-fg">Gece 00:00–08:00 arasında içerik ve
+              hatırlatma bildirimi göndermeyiz.</span> Bildirimleri tamamen kapatmak için zil
+              menüsündeki anahtarı kapatmanız veya cihaz ayarlarınızdan izni geri almanız
+              yeterlidir; izni geri aldığınızda cihaz kaydınız silinir.
             </p>
           </section>
 

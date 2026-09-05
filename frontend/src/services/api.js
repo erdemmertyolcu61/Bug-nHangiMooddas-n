@@ -589,6 +589,26 @@ export async function setNotifyTime(hour) {
   return res.ok ? res.json() : { ok: false };
 }
 
+/** Kategori bazlı bildirim tercihleri. Hata durumunda hepsi açık varsayılır. */
+export async function getNotifyPreferences() {
+  const res = await fetch(`${BASE}/push/preferences`, { headers: { ...authHeaders() } });
+  if (!res.ok) return { preferences: { social: true, daily: true, game: true, digest: true } };
+  return res.json();
+}
+
+/**
+ * Tek bir kategoriyi açar/kapatır. Kısmi güncelleme: gönderilmeyen
+ * kategoriler sunucuda mevcut değerinde kalır.
+ */
+export async function setNotifyPreference(category, enabled) {
+  const res = await fetch(`${BASE}/push/preferences`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ [category]: enabled }),
+  });
+  return res.ok ? res.json() : { ok: false };
+}
+
 /**
  * KVKK md. 11 kapsamında hesaptaki TÜM kişisel verileri indirir.
  * Hata sessizce yutulmaz: çağıran kullanıcıya durumu bildirebilsin.

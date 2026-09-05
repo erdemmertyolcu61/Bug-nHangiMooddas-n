@@ -71,6 +71,10 @@ Bu liste, sistemi canlıya alırken Render (veya benzeri) ortamında yapılması
 - [ ] **Bildirim akışı:** izin ver → zil toggle'ı "açık" → Ayarlar'da "Günlük Film Saati"
       görünüyor → saat değiştir → `GET /api/push/notify-time` yeni saati dönüyor.
       İkinci cihazdan abone ol → aynı saati devralmalı (iki farklı saatte iki push GELMEMELİ).
+- [ ] **Bildirim türleri:** Ayarlar → "Bildirim Türleri" → "Oyun & Etkinlik"i kapat →
+      `GET /api/push/preferences` `game: false` dönmeli, diğerleri `true` kalmalı.
+      Kapalı kategori bildirimi almamalı; "Sosyal" açık kaldığı sürece arkadaşlık
+      isteği bildirimi gelmeye devam etmeli.
 - [ ] **Verilerim:** Profil → Ayarlar → "Verilerim" indirilen JSON'da `eksik_bolumler: []`
       ve izleme listesi dışındaki bölümler (notlar, sözler, listeler) de dolu.
 - [ ] Hem Espresso hem Latte temasında görsel/okunabilirlik kontrolü.

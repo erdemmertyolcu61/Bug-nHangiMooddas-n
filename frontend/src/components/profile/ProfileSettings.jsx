@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Settings, Bell, Palette, Database, AlertTriangle, ChevronRight, ChevronDown, Clock, EyeOff, Ban, Crown,
+  Settings, Bell, BellRing, Palette, Database, AlertTriangle, ChevronRight, ChevronDown, Clock, EyeOff, Ban, Crown,
   ShieldCheck, FileText,
 } from 'lucide-react';
-import { exportMyData, getNotifyTime, setNotifyTime, setActivityVisibility, getBlockedUsers, unblockUser } from '../../services/api';
+import {
+  exportMyData, getNotifyTime, setNotifyTime, getNotifyPreferences, setNotifyPreference,
+  setActivityVisibility, getBlockedUsers, unblockUser,
+} from '../../services/api';
 import { resolveAvatarUrl } from '../../utils/apiConfig';
 import { getApiUrl } from '../../utils/apiConfig';
 import { isPushSubscribed } from '../../utils/push';
@@ -64,6 +67,99 @@ function NotifyTimeRow() {
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+/**
+ * Kategori bazlı bildirim tercihleri — yalnız bu cihaz push'a aboneyse görünür.
+ * "Sosyal" kategorisi işlemseldir (biri sana bir şey gönderdi); diğerleri
+ * içerik/pazarlama mesajlarıdır ve ayrı ayrı kapatılabilmeleri gerekir.
+ */
+const NOTIFY_CATEGORY_LABELS = [
+  { key: 'social', label: 'Sosyal', desc: 'Arkadaşlık isteği, gelen film önerisi, davetler' },
+  { key: 'daily', label: 'Günün Filmi', desc: 'Seçtiğin saatte günlük film önerisi' },
+  { key: 'game', label: 'Oyun & Etkinlik', desc: 'Mood Kâhini yenilenmesi, ödül günleri' },
+  { key: 'digest', label: 'Özet & Hatırlatma', desc: 'Haftalık rapor ve dönüş hatırlatmaları' },
+];
+
+function NotifyPrefsRow() {
+  const [subscribed, setSubscribed] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [prefs, setPrefs] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const sub = await isPushSubscribed();
+      if (!alive) return;
+      setSubscribed(sub);
+      if (!sub) return;
+      try {
+        const r = await getNotifyPreferences();
+        if (alive && r?.preferences) setPrefs(r.preferences);
+      } catch { /* sessiz */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  if (!subscribed) return null;
+
+  const toggle = async (key) => {
+    const next = !(prefs?.[key] ?? true);
+    setPrefs((p) => ({ ...p, [key]: next }));
+    const r = await setNotifyPreference(key, next);
+    // Sunucu kaydedemediyse anahtarı geri al — kullanıcı kapattığını sanmasın.
+    if (!r?.ok) setPrefs((p) => ({ ...p, [key]: !next }));
+    else if (r.preferences) setPrefs(r.preferences);
+  };
+
+  const offCount = prefs
+    ? NOTIFY_CATEGORY_LABELS.filter(({ key }) => prefs[key] === false).length
+    : 0;
+
+  return (
+    <div>
+      <button onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-3.5 px-5 py-4 text-left transition-all hover:bg-white/[0.04]">
+        <BellRing size={17} className="text-ivory/65" />
+        <div className="flex-1 min-w-0">
+          <p className="font-sans text-[14px] font-semibold text-ivory/80">Bildirim Türleri</p>
+          <p className="font-sans text-[12px] text-ivory/60 mt-0.5">
+            {offCount === 0 ? 'Hepsi açık' : `${offCount} tür kapalı`}
+          </p>
+        </div>
+        {open ? <ChevronDown size={14} className="text-ivory/60 shrink-0" />
+              : <ChevronRight size={14} className="text-ivory/60 shrink-0" />}
+      </button>
+      {open && (
+        <div className="px-5 pb-4 space-y-2">
+          {prefs === null ? (
+            <p className="text-[12px] text-ivory/40">Yükleniyor...</p>
+          ) : (
+            NOTIFY_CATEGORY_LABELS.map(({ key, label, desc }) => {
+              const on = prefs[key] !== false;
+              return (
+                <button key={key} onClick={() => toggle(key)}
+                  role="switch" aria-checked={on} aria-label={label}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] text-left hover:border-white/[0.12] transition-all">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-ivory/80">{label}</p>
+                    <p className="text-[11px] text-ivory/50 mt-0.5 leading-snug">{desc}</p>
+                  </div>
+                  <span className={`shrink-0 w-10 h-6 rounded-full p-0.5 transition-colors ${
+                    on ? 'bg-amber/70' : 'bg-white/10'
+                  }`}>
+                    <span className={`block w-5 h-5 rounded-full bg-[#1c1512] transition-transform ${
+                      on ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -252,6 +348,7 @@ export default function ProfileSettings({ theme, toggleTheme, logout, navigate, 
 
       <div className="rounded-2xl bg-[#1c1512]/90 border border-white/[0.06] overflow-hidden divide-y divide-white/[0.04]">
         <NotifyTimeRow />
+        <NotifyPrefsRow />
         <ActivityToggleRow />
         <BlockedUsersRow />
         {settings.map(({ icon: Icon, label, desc, danger, action, badge, premium }) => (
