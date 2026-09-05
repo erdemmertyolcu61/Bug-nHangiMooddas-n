@@ -589,8 +589,10 @@ async def lifespan(app: FastAPI):
     async def _daily_push_scheduler():
         """Her 60 sn'de bir saati kontrol eder, 18:00 İstanbul'da
         sadece PWA kullanıcılarına günün filmi push'unu gönderir."""
-        from backend.services.push_service import send_push_broadcast, send_push_for_hour, PUSH_ENABLED as _push_ok
-        from backend.database import cache as _cache_for_push
+        from backend.services.push_service import (
+            send_push_broadcast, send_push_for_hour, send_push_to_inactive,
+            PUSH_ANY_ENABLED as _push_ok,
+        )
         tz = ZoneInfo("Europe/Istanbul")
         last_push = None  # (date, hour) — saat başı bir kez
         last_weekly = None
@@ -622,42 +624,36 @@ async def lifespan(app: FastAPI):
                                 logger.info("[DailyPush] %02d:00 push gonderildi (%d cihaz): %s",
                                             now_tr.hour, n, m.get("title"))
 
-                # ── Mood Kâhini sıfırlanma push'u (gece yarısı 00:00) ──
+                # ── Mood Kâhini yenilenme push'u ──
+                # Oyun gece yarısı sıfırlanır ama duyuru 00:00'da GİTMEZ: ayarlardaki
+                # saat seçici 08:00–23:00 sunduğu için gece bildirimi ürün vaadini
+                # çiğniyordu (ve uyandırıyordu). Sabah 09:00'a alındı.
                 game_key = now_tr.date()
-                if now_tr.hour == 0 and now_tr.minute == 0 and _push_ok and last_game_push != game_key:
+                if now_tr.hour == 9 and now_tr.minute == 0 and _push_ok and last_game_push != game_key:
                     last_game_push = game_key
                     await send_push_broadcast(
                         "Sinemood",
                         "Mood Kâhini yenilendi 🔮 Bugünün filmlerini keşfet.",
                         url="/oyun", tag="mood-oracle-daily", pwa_only=False,
                     )
-                    logger.info("[GamePush] Gece yarısı oyun push'u gonderildi: %s", game_key)
+                    logger.info("[GamePush] Sabah oyun push'u gonderildi: %s", game_key)
 
                 # ── Pasif kullanıcı re-engagement push'u (günde 1 kez 10:00) ──
                 if now_tr.hour == 10 and now_tr.minute == 0 and _push_ok and last_reengage != game_key:
                     last_reengage = game_key
                     try:
-                        inactive_subs = await _cache_for_push.get_inactive_user_subs(days=7)
-                        if inactive_subs:
-                            from backend.services.push_service import _send_web_push as __send_push
-                            _payload = {
-                                "title": "Sinemood",
-                                "body": "Seni özledik 🎬 Uzun zamandır yoktun, Üstad'ın yeni seçkileri seni bekliyor.",
-                                "url": "/kesfet",
-                                "tag": "re-engage",
-                            }
-                            sent = 0
-                            for sub in inactive_subs:
-                                result = await asyncio.to_thread(__send_push, sub, _payload)
-                                if result == "ok":
-                                    sent += 1
-                                elif result == "gone":
-                                    try:
-                                        await _cache_for_push.delete_push_subscription(sub["endpoint"])
-                                    except Exception:
-                                        pass
-                            if sent:
-                                logger.info("[ReEngage] %d pasif kullaniciya re-engagement push gonderildi", sent)
+                        # Doğrudan _send_web_push çağrılıyordu → native (FCM)
+                        # aboneler boş p256dh/auth ile web push denemesine
+                        # düşüp her seferinde başarısız oluyordu. Servis
+                        # fonksiyonu kanalı aboneliğin sub_type'ından seçer.
+                        sent = await send_push_to_inactive(
+                            7,
+                            "Sinemood",
+                            "Seni özledik 🎬 Uzun zamandır yoktun, Üstad'ın yeni seçkileri seni bekliyor.",
+                            url="/kesfet",
+                        )
+                        if sent:
+                            logger.info("[ReEngage] %d pasif kullaniciya re-engagement push gonderildi", sent)
                     except Exception as e:
                         logger.warning("[ReEngage] Hata: %s", e)
 
@@ -749,6 +745,15 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    # API hiçbir cihaz iznine ihtiyaç duymaz — hepsini kapat.
+    response.headers.setdefault(
+        "Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+    )
+    # HSTS yalnız üretimde: dev'de localhost'u HTTPS'e kilitler.
+    if IS_PRODUCTION:
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
+        )
     # Kullanıcı yüklemeleri (avatar) tarayıcıda asla HTML/script olarak yorumlanmasın
     if request.url.path.startswith("/uploads"):
         response.headers["Content-Security-Policy"] = "default-src 'none'; img-src 'self'"
@@ -3627,8 +3632,8 @@ async def daily_film(request: Request, personal: bool = Query(True), movie_id: i
 @app.post("/api/admin/daily-push", dependencies=[Depends(verify_admin)])
 async def trigger_daily_push(simulate: str = Query(None, description="Ödül testi için MM-DD")):
     """Günün filmini + (varsa) bugün töreni olan ödülü tüm abonelere push'lar (harici cron)."""
-    from backend.services.push_service import send_push_broadcast, PUSH_ENABLED
-    if not PUSH_ENABLED:
+    from backend.services.push_service import send_push_broadcast, PUSH_ANY_ENABLED
+    if not PUSH_ANY_ENABLED:
         return {"ok": False, "enabled": False, "sent": 0}
 
     film_sent = 0
@@ -3662,18 +3667,20 @@ async def trigger_daily_push(simulate: str = Query(None, description="Ödül tes
 async def push_debug(user_id: int):
     """Bir kullanıcının push subscription'larını listeler + test push gönderir.
     Teşhis: subscription var mı? Gidiyor mu? is_pwa değeri ne?"""
+    from backend.services.push_service import _deliver, PUSH_ANY_ENABLED
     subs = await cache.get_push_subscriptions(user_id)
-    result = {"user_id": user_id, "subscription_count": len(subs), "subscriptions": []}
+    result = {"user_id": user_id, "subscription_count": len(subs),
+              "push_configured": PUSH_ANY_ENABLED, "subscriptions": []}
+    test_payload = {"title": "Sinemood Test", "body": "Push testi — bu bildirim yok sayılabilir.",
+                    "url": "/", "tag": "push-debug"}
     for s in subs:
         entry = {
             "endpoint_tail": s["endpoint"][-40:],  # güvenlik: tamamını gösterme
             "is_pwa": s.get("is_pwa", "N/A"),
+            "sub_type": s.get("sub_type", "vapid"),
         }
-        if PUSH_ENABLED:
-            from backend.services.push_service import _send_web_push
-            import asyncio
-            test_payload = {"title": "Sinemood Test", "body": "Push testi — bu bildirim yok sayılabilir.", "url": "/", "tag": "push-debug"}
-            res = await asyncio.to_thread(_send_web_push, s, test_payload)
+        if PUSH_ANY_ENABLED:
+            res = await _deliver(s, test_payload)
             entry["test_result"] = res
             if res == "gone":
                 await cache.delete_push_subscription(s["endpoint"])
@@ -3685,8 +3692,8 @@ async def push_debug(user_id: int):
 async def trigger_game_push():
     """Gece yarısı Mood Kâhini sıfırlanınca tüm abonelere 'yeni oyun hazır' push'lar.
     Harici cron'la 00:00'da tetiklenir (günün filmi push'undan ayrı zamanlanabilir)."""
-    from backend.services.push_service import send_push_broadcast, PUSH_ENABLED
-    if not PUSH_ENABLED:
+    from backend.services.push_service import send_push_broadcast, PUSH_ANY_ENABLED
+    if not PUSH_ANY_ENABLED:
         return {"ok": False, "enabled": False, "sent": 0}
     sent = await send_push_broadcast(
         "Sinemood",

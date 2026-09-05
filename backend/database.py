@@ -1686,14 +1686,19 @@ class MovieCache:
             return False
         async with _get_connection(self.db_path, user_data=True) as db:
             await db.execute(
+                # notify_hour sabit 18 yazılırsa kullanıcının İKİNCİ cihazı
+                # kendi saatiyle kaydolur → günün filmi push'u iki farklı saatte
+                # iki kez giderdi. Yeni cihaz kullanıcının mevcut saatini devralır.
                 """INSERT INTO push_subscriptions (endpoint, user_id, p256dh, auth, is_pwa, sub_type, notify_hour)
-                   VALUES (?, ?, ?, ?, ?, ?, 18)
+                   VALUES (?, ?, ?, ?, ?, ?,
+                           COALESCE((SELECT notify_hour FROM push_subscriptions
+                                     WHERE user_id = ? AND notify_hour IS NOT NULL LIMIT 1), 18))
                    ON CONFLICT(endpoint) DO UPDATE SET
                        user_id=excluded.user_id, p256dh=excluded.p256dh,
                        auth=excluded.auth, is_pwa=excluded.is_pwa,
                        sub_type=excluded.sub_type,
                        notify_hour=COALESCE(push_subscriptions.notify_hour, 18)""",
-                (endpoint, user_id, p256dh, auth, is_pwa, sub_type),
+                (endpoint, user_id, p256dh, auth, is_pwa, sub_type, user_id),
             )
             await db.commit()
             return True
@@ -1704,12 +1709,14 @@ class MovieCache:
             return False
         hour = max(0, min(23, int(hour)))
         async with _get_connection(self.db_path, user_data=True) as db:
-            await db.execute(
+            cur = await db.execute(
                 "UPDATE push_subscriptions SET notify_hour = ? WHERE user_id = ?",
                 (hour, user_id),
             )
             await db.commit()
-            return True
+            # Aboneliği yoksa UPDATE hiçbir satıra dokunmaz; "kaydedildi" demek
+            # kullanıcıyı yanıltır (tercih hiçbir yerde durmuyor).
+            return (cur.rowcount or 0) > 0
 
     async def get_notify_hour(self, user_id: int) -> int:
         """Kullanıcının seçtiği bildirim saati (yoksa varsayılan 18)."""
@@ -1755,11 +1762,12 @@ class MovieCache:
         """Bir kullanıcının tüm push aboneliklerini döndürür."""
         async with _get_connection(self.db_path, user_data=True) as db:
             cur = await db.execute(
-                "SELECT endpoint, p256dh, auth, sub_type FROM push_subscriptions WHERE user_id = ?",
+                "SELECT endpoint, p256dh, auth, sub_type, is_pwa FROM push_subscriptions WHERE user_id = ?",
                 (user_id,),
             )
             rows = await cur.fetchall()
-            return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2], "sub_type": r[3] or "vapid"} for r in rows]
+            return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2],
+                     "sub_type": r[3] or "vapid", "is_pwa": r[4] or 0} for r in rows]
 
     async def get_all_push_subscriptions(self) -> list:
         """Tüm aboneliği döndürür (toplu günlük bildirim için)."""
@@ -1780,7 +1788,7 @@ class MovieCache:
         """Belirtilen gündür aktif olmayan kullanıcıların push aboneliklerini döndürür."""
         async with _get_connection(self.db_path, user_data=True) as db:
             cur = await db.execute(
-                """SELECT ps.endpoint, ps.p256dh, ps.auth, ps.user_id, ps.is_pwa
+                """SELECT ps.endpoint, ps.p256dh, ps.auth, ps.user_id, ps.is_pwa, ps.sub_type
                    FROM push_subscriptions ps
                    WHERE ps.user_id NOT IN (
                        SELECT id FROM users WHERE last_active >= datetime('now', ? || ' days')
@@ -1788,7 +1796,10 @@ class MovieCache:
                 (f"-{int(days)}",),
             )
             rows = await cur.fetchall()
-            return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2], "user_id": r[3], "is_pwa": r[4] or 0} for r in rows]
+            # sub_type olmadan çağıran taraf her aboneliği web push sanıp native
+            # (FCM) cihazlara boş p256dh/auth ile gönderim denerdi → hep başarısız.
+            return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2], "user_id": r[3],
+                     "is_pwa": r[4] or 0, "sub_type": r[5] or "vapid"} for r in rows]
 
     async def create_friend_request(self, user_id: int, friend_id: int) -> dict:
         """PENDING istek oluştur. Karşı taraf zaten istek attıysa karşılıklı ACCEPTED yapar."""
