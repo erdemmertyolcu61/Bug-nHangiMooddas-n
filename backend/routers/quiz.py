@@ -26,6 +26,14 @@ QUESTIONS_PER_GAME = 10
 QUESTION_TIME_MS = 30_000
 ROOM_EXPIRE_MINUTES = 10
 
+# Geçerli joker türleri. `player_jokers` JSON'una serbest anahtar yazılmasını
+# engeller — aşağıdaki sentinel de dahil iç durumun ezilmemesi buna bağlı.
+VALID_JOKERS = ("fifty_fifty", "freeze_time", "double_chance", "poster_hint")
+
+# Çifte şans jokerinde bekleyen ikinci deneme. Alt çizgiyle başlar → hiçbir
+# geçerli joker türüyle çakışamaz.
+RETRY_PENDING_KEY = "_dc_pending"
+
 
 # ─── Pydantic Models ────────────────────────────────────────────────────────
 
@@ -337,7 +345,15 @@ async def _check_advance_question(db, room: dict) -> dict:
     answer_count = (await cur.fetchone())[0]
     both_answered = answer_count >= 2
 
-    if not both_answered and not time_expired:
+    # Çifte şans: oyuncuya ikinci deneme hakkı verildiyse rakibin cevabı soruyu
+    # ilerletmemeli — aksi halde ikinci deneme "Yanlış soru index'i" ile düşer.
+    # Bu kontrol submit_answer'da değil BURADA olmalı: poll_room da bu
+    # fonksiyonu çağırır ve tek başına ilerletirdi.
+    retry_pending = any(pj.get(RETRY_PENDING_KEY) == q_idx for pj in jokers.values())
+
+    # Süre dolduysa her koşulda ilerle. Bekleme durumunu süreye bağlamamak
+    # oyuncu ikinci denemeyi hiç göndermediğinde odayı kalıcı kilitlerdi.
+    if not time_expired and (not both_answered or retry_pending):
         return room
 
     next_q = q_idx + 1
@@ -844,9 +860,12 @@ async def use_joker(room_id: str, body: JokerBody, user: dict = Depends(verify_u
         if body.question_index != room["current_question"]:
             raise HTTPException(status_code=400, detail="Yanlış soru index'i")
         
+        if body.joker_type not in VALID_JOKERS:
+            raise HTTPException(status_code=400, detail="Geçersiz joker türü")
+
         jokers = json.loads(room.get("player_jokers") or "{}")
         my_jokers = jokers.setdefault(str(me), {})
-        
+
         if body.joker_type in my_jokers:
             raise HTTPException(status_code=400, detail="Bu joker zaten kullanılmış")
             
@@ -928,7 +947,17 @@ async def submit_answer(room_id: str, body: AnswerBody, user: dict = Depends(ver
         has_double_chance = my_jokers.get("double_chance") == body.question_index
         
         if existing:
-            if existing[1] == 1 or not has_double_chance:
+            # Çifte şans TEK ek deneme verir. Eski koşul yalnız "doğru cevapladı
+            # mı" bakıyordu → jokeri olan oyuncu doğruyu bulana kadar sınırsız
+            # deneyebiliyordu (şıkları tek tek elemek mümkündü). Sunucu artık
+            # bekleyen-tekrar durumunu şart koşuyor; o da ilk denemede açılıp
+            # ikinci denemede kapanır.
+            retry_allowed = (
+                existing[1] != 1
+                and has_double_chance
+                and my_jokers.get(RETRY_PENDING_KEY) == body.question_index
+            )
+            if not retry_allowed:
                 raise HTTPException(status_code=400, detail="Bu soruyu zaten cevapladın")
         
         started_at = room.get("question_started_at", "")
@@ -980,6 +1009,21 @@ async def submit_answer(room_id: str, body: AnswerBody, user: dict = Depends(ver
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (room_id, body.question_index, me, body.selected_answer, int(is_correct), elapsed_ms, score),
             )
+        can_retry = has_double_chance and not is_correct and not existing
+
+        # Bekleyen ikinci deneme odaya YAZILMALI: _check_advance_question hem
+        # burada hem her poll_room'da çalışır ve durumu yalnız buradan görebilir.
+        # İlerleme kontrolünden ÖNCE commit edilir.
+        if can_retry:
+            my_jokers[RETRY_PENDING_KEY] = body.question_index
+        elif existing:
+            my_jokers.pop(RETRY_PENDING_KEY, None)  # tekrar tüketildi → serbest bırak
+        if can_retry or existing:
+            jokers[str(me)] = my_jokers
+            await db.execute(
+                "UPDATE quiz_rooms SET player_jokers = ? WHERE id = ?",
+                (json.dumps(jokers), room_id),
+            )
         await db.commit()
 
         cur_cnt = await db.execute(
@@ -992,7 +1036,6 @@ async def submit_answer(room_id: str, body: AnswerBody, user: dict = Depends(ver
             room = await _get_room(db, room_id)
             await _check_advance_question(db, room)
 
-        can_retry = has_double_chance and not is_correct and not existing
         return {
             "is_correct": is_correct,
             "correct_answer": None if can_retry else correct_answer,
