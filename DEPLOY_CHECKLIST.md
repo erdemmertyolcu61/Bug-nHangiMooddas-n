@@ -100,6 +100,15 @@ Aşağıdakiler olmadan uygulama derlenir ama **bildirimler ve Google girişi se
 - [ ] `npx cap sync` çalıştırıldı mı — web build'i native projelere kopyalar.
 
 ## 8. Yasal — mağaza başvurusundan ÖNCE
+- [ ] **Fragman / telif:** Fragmanlar YouTube'un resmî gömülü oynatıcısıyla
+      (`youtube-nocookie.com/embed`) oynatılıyor ve video ID'si TMDB'den geliyor —
+      video hiçbir yerde indirilmiyor, yeniden barındırılmıyor. Bu, YouTube
+      Hizmet Şartları'nın izin verdiği yol. **Yapılmaması gerekenler:** videoyu
+      indirmek/proxy'lemek, oynatıcıyı gizlemek/kırpmak, reklamları engellemek,
+      YouTube markasını kaldırmak. Bunlardan biri yapılırsa ToS ihlali doğar.
+- [x] **TMDB atfı:** "Bu ürün TMDb API'sini kullanır ancak TMDb tarafından
+      onaylanmamıştır" bildirimi ana sayfa altbilgisinde görünür durumda
+      (TMDB şartları "prominently" gösterilmesini istiyor).
 - [ ] **Veri sorumlusu kimliği (KVKK md. 10):** `frontend/src/pages/Gizlilik.jsx` §1'de
       şu an yalnızca "Sinemood" yazıyor. Kanun, veri sorumlusunun **gerçek kimliğini**
       (şahıs adı veya şirket unvanı + adres) şart koşar. Yayından önce doldur.

@@ -418,6 +418,13 @@ export default function MoodSelector() {
               Koşullar
             </button>
           </div>
+          {/* TMDB API şartları bu bildirimi uygulamada "belirgin biçimde"
+              (prominently) göstermeyi zorunlu kılıyor; yalnızca gizlilik/koşullar
+              metinlerinin içinde geçmesi yeterli değil. */}
+          <p className="text-[8px] leading-relaxed text-fg-subtle/80 text-center max-w-xs px-4">
+            Film verileri TMDB tarafından sağlanır. Bu ürün TMDb API'sini kullanır
+            ancak TMDb tarafından onaylanmamıştır.
+          </p>
         </motion.footer>
         </>)}
       </div>
