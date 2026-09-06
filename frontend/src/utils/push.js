@@ -49,6 +49,72 @@ async function getFirebaseMessaging() {
   return _firebaseMessaging;
 }
 
+/**
+ * Native hatasını kullanıcıya gösterilebilir bir sebebe çevirir.
+ *
+ * En sık karşılaşılan durum yapılandırma eksikliği: `google-services.json` /
+ * `GoogleService-Info.plist` konmadan derlenen uygulama SORUNSUZ kurulur ve
+ * açılır, yalnız FCM ilklendirmesi patlar. Eskiden hepsi "tekrar dene" diye
+ * gösteriliyordu — oysa tekrar denemek ASLA çözmez.
+ */
+function nativeFailureReason(e) {
+  const msg = String(e?.message || e || '').toLowerCase();
+  if (msg.includes('firebaseapp') || msg.includes('firebase app') ||
+      msg.includes('not initialized') || msg.includes('default app') ||
+      msg.includes('google-services') || msg.includes('googleservice')) {
+    return 'no-firebase-config';
+  }
+  if (msg.includes('unimplemented') || msg.includes('not implemented') ||
+      msg.includes('plugin is not')) {
+    return 'plugin-missing';
+  }
+  if (msg.includes('permission')) return 'denied';
+  return 'error';
+}
+
+/** Sunucuya FCM jetonunu yazar (upsert — tekrar çağırmak zararsız). */
+async function registerFcmToken(fm) {
+  const { token } = await fm.getToken();
+  if (!token) return null;
+  await subscribePush({ endpoint: token, type: 'fcm', is_pwa: false });
+  return token;
+}
+
+let _tokenRefreshBound = false;
+function bindTokenRefresh(fm) {
+  if (_tokenRefreshBound) return;   // iki kez bağlanınca her yenilemede çift istek
+  _tokenRefreshBound = true;
+  fm.addListener('tokenRefresh', async ({ token: newToken }) => {
+    if (newToken) {
+      await subscribePush({ endpoint: newToken, type: 'fcm', is_pwa: false }).catch(() => {});
+    }
+  });
+}
+
+/**
+ * İzin ZATEN verilmişse jetonu sessizce sunucuya yazar.
+ *
+ * Neden gerekli: Android 13+'ta izin bir kez verildikten sonra
+ * `checkPermissions()` hep "granted" döner. Arayüz bunu "abone" sayıp anahtarı
+ * AÇIK gösteriyordu; kullanıcı hiç dokunmadığı için `subscribePush()` hiç
+ * çağrılmıyor, sunucuda TEK BİR jeton olmuyordu. Sonuç: ayarlar "açık"
+ * görünürken hiçbir bildirim gelmiyor. Uygulama her açılışta bu boşluğu kapatır.
+ */
+export async function ensureNativePushRegistered() {
+  if (!isNative) return { ok: false, reason: 'not-native' };
+  try {
+    const fm = await getFirebaseMessaging();
+    const { receive } = await fm.checkPermissions();
+    if (receive !== 'granted') return { ok: false, reason: 'not-granted' };
+    const token = await registerFcmToken(fm);
+    if (!token) return { ok: false, reason: 'no-token' };
+    bindTokenRefresh(fm);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: nativeFailureReason(e) };
+  }
+}
+
 // ═══════════════════════════════════════════
 // Public API (platform-agnostic)
 // ═══════════════════════════════════════════
@@ -63,7 +129,12 @@ export async function isPushSubscribed() {
     try {
       const fm = await getFirebaseMessaging();
       const { receive } = await fm.checkPermissions();
-      return receive === 'granted';
+      if (receive !== 'granted') return false;
+      // İzin tek başına YETMEZ: jeton alınamıyorsa (Firebase yapılandırması
+      // eksik ya da jeton silinmiş) sunucuda abonelik yoktur, dolayısıyla
+      // hiçbir bildirim gelmez. "Açık" göstermek kullanıcıyı yanıltır.
+      const { token } = await fm.getToken();
+      return !!token;
     } catch { return false; }
   }
   if (!webPushSupported() || Notification.permission !== 'granted') return false;
@@ -89,18 +160,13 @@ export async function enablePush() {
       const fm = await getFirebaseMessaging();
       const { receive } = await fm.requestPermissions();
       if (receive !== 'granted') return { ok: false, reason: 'denied' };
-      const { token } = await fm.getToken();
+      const token = await registerFcmToken(fm);
       if (!token) return { ok: false, reason: 'no-token' };
-      await subscribePush({ endpoint: token, type: 'fcm', is_pwa: false });
-
-      fm.addListener('tokenRefresh', async ({ token: newToken }) => {
-        await subscribePush({ endpoint: newToken, type: 'fcm', is_pwa: false }).catch(() => {});
-      });
-
+      bindTokenRefresh(fm);
       return { ok: true };
     } catch (e) {
       console.error('[Push] native enable error:', e);
-      return { ok: false, reason: 'error' };
+      return { ok: false, reason: nativeFailureReason(e) };
     }
   }
 
@@ -130,6 +196,13 @@ export async function disablePush() {
   if (isNative) {
     try {
       const fm = await getFirebaseMessaging();
+      // ÖNCE sunucudan sil: deleteToken() sonrası jetonu bir daha okuyamayız ve
+      // kayıt sunucuda ölü kalırdı — kullanıcı kapatmış olmasına rağmen her
+      // günlük push denemesi o jetona gitmeye devam ederdi.
+      try {
+        const { token } = await fm.getToken();
+        if (token) await unsubscribePush(token).catch(() => {});
+      } catch { /* jeton okunamadı — silmeye yine de devam */ }
       await fm.deleteToken();
       return { ok: true };
     } catch { return { ok: false }; }

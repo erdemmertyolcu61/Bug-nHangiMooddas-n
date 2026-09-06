@@ -310,7 +310,11 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave, starting })
           <div className="space-y-2">
             <p className="text-xs text-amber/50">Oda kodunu arkadaşınla paylaş</p>
             <div className="inline-block bg-surface-2/60 border-2 border-amber/40 rounded-2xl px-8 py-4">
-              <span className="text-3xl font-mono font-bold text-amber tracking-[0.4em]">{roomId}</span>
+              {/* -mr-[0.4em]: letter-spacing SON harften sonra da boşluk bırakır; bu
+                  boşluk kutuya dahil olduğu için ortalanan kod ~0.2em sola kaymış
+                  görünüyordu (30px puntoda gözle görülür). Negatif sağ kenar boşluğu
+                  o fazlalığı kutudan düşürüp kodu gerçekten ortalar. */}
+              <span className="text-3xl font-mono font-bold text-amber tracking-[0.4em] -mr-[0.4em]">{roomId}</span>
             </div>
           </div>
         )}
@@ -343,7 +347,7 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave, starting })
         <div className="space-y-1">
           <p className="text-[10px] text-amber/40 uppercase tracking-wider">Oda Kodu</p>
           <div className="inline-block bg-surface-2/60 border-2 border-amber/40 rounded-2xl px-6 py-3">
-            <span className="text-2xl font-mono font-bold text-amber tracking-[0.4em]">{roomId}</span>
+            <span className="text-2xl font-mono font-bold text-amber tracking-[0.4em] -mr-[0.4em]">{roomId}</span>
           </div>
         </div>
       )}

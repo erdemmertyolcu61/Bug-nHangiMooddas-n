@@ -41,8 +41,17 @@ export default function BottomNav() {
               }`}
             >
               <Icon size={20} strokeWidth={active ? 2.4 : 1.8} className="shrink-0" />
-              <span className="w-full text-center text-[8px] font-bold uppercase tracking-[0.01em] leading-[1.1] line-clamp-2 break-words">
-                {item.label}
+              {/* Etiket kutusu HER ZAMAN iki satır yüksekliğinde (2.2em = 2 ×
+                  leading-1.1). Tek satırlık etiketlerde kutu yine iki satır
+                  kaldığı için ikonlar aynı hizada kalır; sabit yükseklik
+                  olmadan "Kafan mı Karışık?" iki satıra sarıp o hücrenin
+                  ikonunu diğer dördünden 4.4px yukarı itiyordu. `em` kullanmak
+                  Android'in sistem yazı ölçeğinde de kutunun tam iki satır
+                  kalmasını sağlar. */}
+              <span className="w-full flex items-center justify-center text-[8px] leading-[1.1] h-[2.2em]">
+                <span className="w-full text-center font-bold uppercase tracking-[0.01em] line-clamp-2 break-words">
+                  {item.label}
+                </span>
               </span>
             </button>
           );

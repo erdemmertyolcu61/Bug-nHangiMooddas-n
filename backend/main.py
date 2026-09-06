@@ -587,17 +587,41 @@ async def lifespan(app: FastAPI):
 
     # ── Günlük push zamanlayıcı (18:00 İstanbul) ─────────────────────────────
     async def _daily_push_scheduler():
-        """Her 60 sn'de bir saati kontrol eder, 18:00 İstanbul'da
-        sadece PWA kullanıcılarına günün filmi push'unu gönderir."""
+        """Her 60 sn'de bir saati kontrol eder ve zamanı gelen push işlerini
+        tetikler (günün filmi = kullanıcının seçtiği saat, oyun 09:00,
+        re-engagement 10:00, haftalık rapor Pazar 19:00 — İstanbul saati).
+
+        Tetikleyiciler DAKİKAYA değil, işlenmiş son dilime (tarih+saat / tarih /
+        ISO hafta) bakar; böylece döngü kayması ya da bloklanan bir olay
+        döngüsü yüzünden bir dilim atlanmaz."""
         from backend.services.push_service import (
             send_push_broadcast, send_push_for_hour, send_push_to_inactive,
             PUSH_ANY_ENABLED as _push_ok,
+            PUSH_ENABLED as _vapid_ok, FCM_ENABLED as _fcm_ok,
         )
+        # Yapılandırma yoksa zamanlayıcı sessizce hiçbir şey yapmıyordu: log
+        # temiz, hata yok, bildirim de yok. Durumu açılışta TEK SEFER yaz ki
+        # "bildirim gelmiyor" derdinin ilk bakılacak yeri burası olsun.
+        if _push_ok:
+            # Log mesajlarinda ASCII kal: Windows konsolu (cp1254) em-dash'i
+            # bozuk karakterle basiyor.
+            logger.info("[Push] Zamanlayici aktif - kanallar: VAPID=%s FCM=%s", _vapid_ok, _fcm_ok)
+        else:
+            logger.warning(
+                "[Push] TUM bildirimler KAPALI — ne VAPID ne FCM yapilandirilmis. "
+                "Native icin GOOGLE_APPLICATION_CREDENTIALS (veya FIREBASE_CONFIG), "
+                "web icin VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY ortam degiskenlerini ayarla."
+            )
         tz = ZoneInfo("Europe/Istanbul")
-        last_push = None  # (date, hour) — saat başı bir kez
-        last_weekly = None
-        last_game_push = None  # date — günde bir kez
-        last_reengage = None   # (date) — günde bir kez
+        # ÖNEMLİ: "daha önce gönderilmedi" (None) ile başlamak, sunucu 18:40'ta
+        # yeniden başlatıldığında 18:00 push'unu İKİNCİ kez göndertirdi. Bu yüzden
+        # açılış anındaki dilim "işlenmiş" sayılır; ilk gönderim bir SONRAKİ
+        # saat başında olur.
+        _boot = datetime.now(tz)
+        last_push = (_boot.date(), _boot.hour)
+        last_weekly = _boot.isocalendar()[:2] if (_boot.weekday() == 6 and _boot.hour >= 19) else None
+        last_game_push = _boot.date() if _boot.hour >= 9 else None
+        last_reengage = _boot.date() if _boot.hour >= 10 else None
         while True:
             try:
                 now_tr = datetime.now(tz)
@@ -606,7 +630,14 @@ async def lifespan(app: FastAPI):
                 # Her saat başı (HH:00), o saati seçmiş abonelere günün filmini gönderir.
                 # Varsayılan saat 18 (mevcut kullanıcılar 18:00'da almaya devam eder).
                 push_key = (now_tr.date(), now_tr.hour)
-                if now_tr.minute == 0 and last_push != push_key:
+                # `minute == 0` ŞARTI KALDIRILDI. Döngünün periyodu 60sn + iş
+                # süresi olduğu için örnekleme noktası her turda ileri kayıyor;
+                # er ya da geç bir dakika hiç örneklenmiyor. O dakika 00 ise
+                # kullanıcının seçtiği saatteki film bildirimi sessizce
+                # kayboluyordu (olay döngüsü bir saniye bile bloklanırsa aynı
+                # şey olur). Artık dilim (tarih, saat) DEĞİŞTİĞİNDE gönderilir:
+                # tetikleyici bir anlık nokta değil, saatin tamamı.
+                if last_push != push_key:
                     last_push = push_key
                     if _push_ok:
                         payload = await _get_daily_film()
@@ -629,7 +660,7 @@ async def lifespan(app: FastAPI):
                 # saat seçici 08:00–23:00 sunduğu için gece bildirimi ürün vaadini
                 # çiğniyordu (ve uyandırıyordu). Sabah 09:00'a alındı.
                 game_key = now_tr.date()
-                if now_tr.hour == 9 and now_tr.minute == 0 and _push_ok and last_game_push != game_key:
+                if now_tr.hour >= 9 and _push_ok and last_game_push != game_key:
                     last_game_push = game_key
                     await send_push_broadcast(
                         "Sinemood",
@@ -639,7 +670,7 @@ async def lifespan(app: FastAPI):
                     logger.info("[GamePush] Sabah oyun push'u gonderildi: %s", game_key)
 
                 # ── Pasif kullanıcı re-engagement push'u (günde 1 kez 10:00) ──
-                if now_tr.hour == 10 and now_tr.minute == 0 and _push_ok and last_reengage != game_key:
+                if now_tr.hour >= 10 and _push_ok and last_reengage != game_key:
                     last_reengage = game_key
                     try:
                         # Doğrudan _send_web_push çağrılıyordu → native (FCM)
@@ -659,7 +690,7 @@ async def lifespan(app: FastAPI):
 
                 # ── Haftalık rapor push (Pazar 19:00 İstanbul) ──
                 week_key = now_tr.isocalendar()[:2]  # (yıl, ISO hafta no)
-                if now_tr.weekday() == 6 and now_tr.hour == 19 and now_tr.minute == 0 and last_weekly != week_key:
+                if now_tr.weekday() == 6 and now_tr.hour >= 19 and last_weekly != week_key:
                     last_weekly = week_key
                     if _push_ok:
                         await send_push_broadcast(

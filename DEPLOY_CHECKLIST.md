@@ -98,6 +98,18 @@ Aşağıdakiler olmadan uygulama derlenir ama **bildirimler ve Google girişi se
       Google Auth **Web** client ID bekler, iOS kendi client ID'sini plist'ten okur).
 - [ ] **`VITE_API_BASE_URL`** = Railway backend adresi (native'de proxy yok, mutlak URL şart).
 - [ ] `npx cap sync` çalıştırıldı mı — web build'i native projelere kopyalar.
+- [ ] **Backend'de FCM kimlik bilgisi** (`GOOGLE_APPLICATION_CREDENTIALS` = servis
+      hesabı JSON yolu **veya** `FIREBASE_CONFIG` = gömülü JSON). İkisi de yoksa
+      `FCM_ENABLED=False` olur ve **native bildirimlerin tamamı** sessizce iptal
+      edilir. Doğrulama: açılış logunda tek satır var —
+      `[Push] Zamanlayici aktif - kanallar: VAPID=? FCM=?`. `FCM=False` ise
+      telefona hiçbir bildirim gitmez.
+- [ ] **`MainActivity.java` yazı ölçeği sınırı duruyor mu?** Android WebView sistem
+      "Yazı tipi boyutu" ayarını web içeriğine uygular (iOS uygulamaz). %130'da alt
+      menüde `MOODLAR` → `MOODLA / R` diye bölünür, %150'de beş etiketten dördü
+      bozulur. `MainActivity` ölçeği **1.15** ile sınırlar. `npx cap add android`
+      bu dosyayı **sıfırdan üretip sınırı siler** — preflight bunu yakalar
+      (`npm run native:check`), yakalarsa dosyayı `git checkout` ile geri al.
 
 ## 8. Yasal — mağaza başvurusundan ÖNCE
 - [ ] **Fragman / telif:** Fragmanlar YouTube'un resmî gömülü oynatıcısıyla

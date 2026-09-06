@@ -25,6 +25,7 @@ const wantIos = target === 'all' || target === 'ios';
 
 const P = {
   androidManifest: resolve(root, 'android/app/src/main/AndroidManifest.xml'),
+  androidMainActivity: resolve(root, 'android/app/src/main/java/app/sinemood/MainActivity.java'),
   googleServices: resolve(root, 'android/app/google-services.json'),
   iosInfo: resolve(root, 'ios/App/App/Info.plist'),
   iosEntitlements: resolve(root, 'ios/App/App/App.entitlements'),
@@ -87,6 +88,27 @@ if (wantAndroid) {
       'cihazlarda bildirimler SESSİZCE engellenir (izin diyalogu bile çıkmaz).'
     );
   }
+  // `npx cap add android` MainActivity.java'yi SIFIRDAN uretir ve yazi olcegi
+  // sinirini silip goturur. Kayip sessizdir: uygulama derlenir, acilir, yalniz
+  // sistem yazi boyutu buyuk olan cihazlarda alt menu etiketleri kelimenin
+  // ortasindan bolunur.
+  const mainActivity = read(P.androidMainActivity);
+  if (!mainActivity) {
+    warnings.push(
+      'MainActivity.java bulunamadi — Android yazi olcegi siniri yok. ' +
+      'Sistem yazi boyutu %130+ olan cihazlarda alt menu etiketleri bolunur.'
+    );
+  } else if (!mainActivity.includes('setTextZoom')) {
+    errors.push(
+      'MainActivity.java icinde setTextZoom sinirlamasi yok (muhtemelen ' +
+      'cap add android dosyayi yeniden uretti).\n' +
+      '      Android WebView sistem yazi boyutunu web icerigine uygular; ' +
+      '%130 ayarinda alt menude "MOODLAR" -> "MOODLA / R" diye bolunur.\n' +
+      '      git checkout ile geri al: ' +
+      'frontend/android/app/src/main/java/app/sinemood/MainActivity.java'
+    );
+  }
+
   if (!existsSync(P.googleServices)) {
     errors.push(
       'android/app/google-services.json yok → FCM çalışmaz, bildirim gitmez.\n' +

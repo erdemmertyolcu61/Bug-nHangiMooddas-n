@@ -99,5 +99,9 @@ frontend/ios/**
 # Keep native customizations tracked:
 !frontend/android/app/src/main/AndroidManifest.xml
 !frontend/android/app/src/main/res/**
+# MainActivity.java'yi `cap sync` UZERINE YAZMAZ (yalniz `cap add` uretir), yani
+# elle eklenen yazi-olcegi siniri burada kalicidir — ama takip edilmezse yeni bir
+# checkout'ta kaybolur.
+!frontend/android/app/src/main/java/**
 !frontend/ios/App/App/Info.plist
 !frontend/ios/App/App/App.entitlements

@@ -98,11 +98,16 @@ export default function NotificationsBell({ open: externalOpen, onOpenChange }) 
           track(EVENTS.NOTIF_ENABLED, { source: 'bell' });
         } else {
           // Başarısızsa sebebi kullanıcıya açıkça göster (özellikle iOS).
+          // "tekrar dene" YALNIZ gerçekten geçici sebeplerde yazmalı: yapılandırma
+          // eksikse tekrar denemek hiçbir zaman çözmez, kullanıcıyı döngüye sokar.
           const reasons = {
             unsupported: 'Bu cihaz/tarayıcı anlık bildirimi desteklemiyor. iPhone\'da uygulamayı "Ana Ekrana Ekle" ile kurup ikondan aç (iOS 16.4+).',
             disabled: 'Bildirim servisi şu an kapalı. Birazdan tekrar dene.',
-            denied: 'Bildirim izni reddedilmiş. iPhone Ayarlar → Bildirimler → Sinemood\'dan izin verebilirsin.',
+            denied: 'Bildirim izni reddedilmiş. Telefon Ayarları → Bildirimler → Sinemood\'dan izin verebilirsin.',
             'no-sw': 'Servis çalışanı hazır değil; uygulamayı kapatıp tekrar aç.',
+            'no-token': 'Cihaz bildirim kaydı alınamadı. İnternet bağlantını kontrol edip tekrar dene.',
+            'no-firebase-config': 'Bildirim servisi bu sürümde etkin değil. Uygulamayı mağazadan güncelle.',
+            'plugin-missing': 'Bildirim servisi bu sürümde etkin değil. Uygulamayı mağazadan güncelle.',
           };
           setPushMsg(reasons[r.reason] || 'Bildirim açılamadı, tekrar dene.');
         }

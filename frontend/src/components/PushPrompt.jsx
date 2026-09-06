@@ -2,7 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BellRing, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { pushSupported, isPushSubscribed, isPushEnabledOnServer, enablePush } from '../utils/push';
+import {
+  pushSupported, isPushSubscribed, isPushEnabledOnServer, enablePush,
+  ensureNativePushRegistered,
+} from '../utils/push';
+import { isNative } from '../utils/native';
 import { track, EVENTS } from '../utils/analytics';
 
 const DISMISS_KEY = 'fc_push_prompt_dismissed';
@@ -25,6 +29,12 @@ export default function PushPrompt() {
     let alive = true;
     let timer = null;
     (async () => {
+      // Native'de İZİN zaten verilmiş olabilir; o durumda kart hiç çıkmaz ve
+      // jeton sunucuya hiç yazılmazdı (bkz. ensureNativePushRegistered).
+      // Bu yüzden kart kararından ÖNCE ve "kapattım" bayrağından BAĞIMSIZ
+      // olarak kaydı tamamla — aksi halde kartı bir kez kapatan kullanıcı
+      // bildirimleri kalıcı olarak kaybediyordu.
+      if (isNative) { await ensureNativePushRegistered(); if (!alive) return; }
       try { if (localStorage.getItem(DISMISS_KEY)) return; } catch {}
       if (!pushSupported()) return;
       try {
