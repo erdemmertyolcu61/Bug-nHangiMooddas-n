@@ -79,7 +79,27 @@ Bu liste, sistemi canlıya alırken Render (veya benzeri) ortamında yapılması
       ve izleme listesi dışındaki bölümler (notlar, sözler, listeler) de dolu.
 - [ ] Hem Espresso hem Latte temasında görsel/okunabilirlik kontrolü.
 
-## 7. Yasal — mağaza başvurusundan ÖNCE
+## 7. Native (iOS/Android) — kod tarafı hazır, bu dosyalar SENDE
+Aşağıdakiler olmadan uygulama derlenir ama **bildirimler ve Google girişi sessizce çalışmaz**.
+
+- [ ] **Firebase yapılandırma dosyaları** (FCM için zorunlu, repoda yok):
+      - `frontend/android/app/google-services.json` — Firebase Console → Android app
+      - `frontend/ios/App/App/GoogleService-Info.plist` — Firebase Console → iOS app
+      ℹ️ Android'de dosya yoksa gradle şu uyarıyı basıp devam eder:
+      *"google-services.json not found … Push Notifications won't work"*.
+- [ ] **iOS Push yetkinliği:** Apple Developer portalında App ID (`app.sinemood`) için
+      **Push Notifications** açılmalı. `App.entitlements` içindeki `aps-environment`
+      anahtarı eklendi; portal tarafı açık değilse **imzalama başarısız olur**.
+- [ ] **iOS Google Sign-In URL şeması:** `Info.plist` → `CFBundleURLSchemes` şu an yalnız
+      `sinemood` içeriyor. `GoogleService-Info.plist`'teki **`REVERSED_CLIENT_ID`**
+      (`com.googleusercontent.apps.…`) ikinci bir şema olarak eklenmeli — yoksa OAuth
+      geri dönüşü uygulamaya ulaşamaz ve **iOS'ta Google girişi tamamlanmaz**.
+- [ ] **`VITE_GOOGLE_CLIENT_ID`** native build'de de tanımlı olmalı (Android tarafında
+      Google Auth **Web** client ID bekler, iOS kendi client ID'sini plist'ten okur).
+- [ ] **`VITE_API_BASE_URL`** = Railway backend adresi (native'de proxy yok, mutlak URL şart).
+- [ ] `npx cap sync` çalıştırıldı mı — web build'i native projelere kopyalar.
+
+## 8. Yasal — mağaza başvurusundan ÖNCE
 - [ ] **Veri sorumlusu kimliği (KVKK md. 10):** `frontend/src/pages/Gizlilik.jsx` §1'de
       şu an yalnızca "Sinemood" yazıyor. Kanun, veri sorumlusunun **gerçek kimliğini**
       (şahıs adı veya şirket unvanı + adres) şart koşar. Yayından önce doldur.
