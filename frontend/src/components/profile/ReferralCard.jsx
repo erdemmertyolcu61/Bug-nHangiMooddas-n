@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Gift, Link2, Check, Trophy } from 'lucide-react';
 import { getReferrals } from '../../services/api';
-import { copyToClipboard, shareToWhatsApp, shareToTelegram, shareToInstagram } from '../../utils/shareUtils';
+import { copyToClipboard, shareToWhatsApp, shareToInstagram } from '../../utils/shareUtils';
 import { track, EVENTS } from '../../utils/analytics';
 
 /**

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { Download, Share2, Star } from 'lucide-react';
 import ShareButtons from './ShareButtons';
 import { useShareableImage } from '../utils/useShareableImage';

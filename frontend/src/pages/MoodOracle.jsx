@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Brain, Trophy, Share2, Download, RefreshCw,
+  Brain, Trophy, Share2, Download,
   ChevronLeft, Check, X, ArrowRight, Quote, Clock, Users, Globe2,
 } from 'lucide-react';
 import { MOODS } from '../context/MoodContext';
 import { getMoodOracleRounds, proxyImageUrl, submitOracleScore, getOracleLeaderboard, isLoggedIn } from '../services/api';
-import { getOracleState, applyResult, rankFor } from '../utils/oracleRank';
+import { getOracleState, applyResult } from '../utils/oracleRank';
 import { shareToWhatsApp, shareToTelegram, shareToInstagram } from '../utils/shareUtils';
 import { useShareableImage } from '../utils/useShareableImage';
 import { track, EVENTS } from '../utils/analytics';

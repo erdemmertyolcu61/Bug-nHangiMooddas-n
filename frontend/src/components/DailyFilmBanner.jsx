@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CalendarDays, Star, ChevronRight, X } from 'lucide-react';
+import { Star, ChevronRight, X } from 'lucide-react';
 import { getDailyFilm, proxyImageUrl } from '../services/api';
 
 export default function DailyFilmBanner() {

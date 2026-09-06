@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { X, Camera, User, AtSign, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -100,7 +100,7 @@ export default function EditProfileModal({ onClose, onSaved }) {
       if (!base64 || base64.length < 100) throw new Error('encode');
       setAvatarPreview(base64);
       setAvatarBase64(base64);
-    } catch (_) {
+    } catch {
       setError('Bu fotoğraf açılamadı (HEIC/desteklenmeyen olabilir). Lütfen JPEG veya PNG seç ya da fotoğrafın ekran görüntüsünü al.');
     } finally {
       setProcessing(false);

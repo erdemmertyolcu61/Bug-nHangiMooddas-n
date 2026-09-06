@@ -1,5 +1,4 @@
-import React, { useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useRef } from 'react';
 import { Download, Share2 } from 'lucide-react';
 import { MOOD_NAMES } from '../utils/moodQuiz';
 import ShareButtons from './ShareButtons';

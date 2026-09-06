@@ -105,7 +105,7 @@ function fadeAudio(audio, from, to, durationMs, token) {
     const interval = setInterval(() => {
       if (token !== transitionId) {
         clearInterval(interval);
-        try { audio.volume = to; } catch (e) {}
+        try { audio.volume = to; } catch {}
         resolve(false);
         return;
       }
@@ -148,7 +148,7 @@ export async function playMoodAudio(moodId) {
       oldAudio.pause();
       oldAudio.currentTime = 0;
       oldAudio.volume = 0;
-    } catch (e) {}
+    } catch {}
   }
 
   // 2. Setup new audio (Check preload cache first)
@@ -202,10 +202,10 @@ export async function stopMoodAudio() {
 
   try {
     await fadeAudio(audio, audio.volume, 0, 800, token); // Slower fade for exit
-  } catch (err) {}
+  } catch {}
 
   // Always pause regardless of whether fade completed or was cancelled
-  try { audio.pause(); audio.currentTime = 0; } catch (e) {}
+  try { audio.pause(); audio.currentTime = 0; } catch {}
 }
 
 /**
@@ -216,7 +216,7 @@ export function suspendMoodAudio() {
   suspended = true;
   transitionId += 1; // sürmekte olan fade'leri iptal et
   if (currentAudio && !currentAudio.paused) {
-    try { currentAudio.pause(); } catch (e) {}
+    try { currentAudio.pause(); } catch {}
   }
 }
 
@@ -230,7 +230,7 @@ export function resumeMoodAudio() {
     try {
       currentAudio.volume = targetVolume;
       currentAudio.play().catch(() => {});
-    } catch (e) {}
+    } catch {}
   }
 }
 

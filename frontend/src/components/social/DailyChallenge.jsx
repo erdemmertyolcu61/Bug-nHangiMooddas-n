@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Sparkles, Send, Check } from 'lucide-react';
+import { Send, Check } from 'lucide-react';
 import { getDailyChallenge, respondToChallenge, searchMovies, isLoggedIn } from '../../services/api';
 import { resolveAvatarUrl } from '../../utils/apiConfig';
 

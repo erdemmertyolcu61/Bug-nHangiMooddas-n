@@ -73,7 +73,7 @@ export default function useSpeechRecognition({
     if (!isListening) {
       try {
         recognitionRef.current.start();
-      } catch (err) {
+      } catch {
         // already started
       }
     }
@@ -83,7 +83,7 @@ export default function useSpeechRecognition({
     if (recognitionRef.current && isListening) {
       try {
         recognitionRef.current.stop();
-      } catch (err) {
+      } catch {
         // already stopped
       }
     }

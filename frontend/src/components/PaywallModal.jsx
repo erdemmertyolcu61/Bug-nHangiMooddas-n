@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Crown, Sparkles, Check, Loader2, RotateCcw } from 'lucide-react';
+import { X, Crown, Check, Loader2, RotateCcw } from 'lucide-react';
 import { getOfferings, purchasePackage, restorePurchases } from '../utils/purchases';
 import { isNative } from '../utils/native';
 

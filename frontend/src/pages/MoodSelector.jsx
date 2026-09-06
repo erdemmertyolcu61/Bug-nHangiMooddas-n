@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMood, MOODS } from '../context/MoodContext';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Book, ChevronRight, Brain, User, Gem, Search, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getApiUrl, resolveAvatarUrl } from '../utils/apiConfig';
+import { resolveAvatarUrl } from '../utils/apiConfig';
 
 import { track, EVENTS } from '../utils/analytics';
 import useDocumentMeta from '../utils/useDocumentMeta';
@@ -107,7 +107,7 @@ export default function MoodSelector() {
   const handleMoodClick = useCallback(async (mood) => {
     track(EVENTS.MOOD_SELECT, { mood: mood.id });
     recordMoodPick(mood.id); // kişisel sıralama sayacı (client-side)
-    try { playMoodAudio(mood.id); } catch(e) {}
+    try { playMoodAudio(mood.id); } catch {}
     selectMood(mood.id);
     // Implicit mood sharing (fire-and-forget, giriş yapmışsa)
     if (user) shareMood(mood.id).catch(() => {});
@@ -116,7 +116,7 @@ export default function MoodSelector() {
   }, [selectMood, navigate, user]);
 
   const handleQuizComplete = (moodId) => {
-    try { playMoodAudio(moodId); } catch(e) {}
+    try { playMoodAudio(moodId); } catch {}
     selectMood(moodId);
     if (user) shareMood(moodId).catch(() => {});
     setQuizOpen(false);

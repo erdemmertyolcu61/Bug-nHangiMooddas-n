@@ -9,10 +9,10 @@
  *  - ProfileSocial: Arkadaşlar / İstekler / Öneriler (tabbed)
  *  - ProfileSettings: Bildirim, tema, veri dışa aktarma, hesap silme
  */
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, ChevronLeft, User, Share2, Link2, Brain, Users, Settings, Trophy, Activity } from 'lucide-react';
+import { LogOut, ChevronLeft, User, Link2, Users, Settings, Trophy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -21,7 +21,7 @@ import {
   getRecommendationHistory, retractRecommendation, getMe,
   getMyCommunityRecommendations, getFriendsActivity,
 } from '../services/api';
-import { resolveAvatarUrl, getApiUrl, getShareUrl } from '../utils/apiConfig';
+import { resolveAvatarUrl, getShareUrl } from '../utils/apiConfig';
 import useDocumentMeta from '../utils/useDocumentMeta';
 import { copyToClipboard } from '../utils/shareUtils';
 import GoogleSignInButton from '../components/GoogleSignInButton';

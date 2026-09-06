@@ -3,7 +3,6 @@
  * Kullanıcı bir platforma ilk kez tıkladığında çıkar; onay verirse
  * platform "linked" işaretlenir ve sonraki tıklamalarda sorulmaz.
  */
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShieldCheck, ExternalLink } from 'lucide-react';
 

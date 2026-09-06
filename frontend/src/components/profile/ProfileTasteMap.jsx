@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Clock, Clapperboard, Gauge, Palette, Timer } from 'lucide-react';
 import TasteMapCard from '../TasteMapCard';

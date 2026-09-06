@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Eye, Bookmark, CalendarDays } from 'lucide-react';
 

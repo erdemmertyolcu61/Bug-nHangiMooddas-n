@@ -2,7 +2,7 @@
  * Public Profile Page — /u/:username
  * Read-only view of a user's profile with taste map, stats, and recent movies.
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronLeft, UserX, Heart, Star, Send, Users, RotateCcw, Quote } from 'lucide-react';

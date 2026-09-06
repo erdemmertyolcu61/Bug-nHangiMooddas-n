@@ -137,7 +137,7 @@ export function AuthProvider({ children }) {
       window.__fc_user_token = data.token;
       initPurchases(data.user?.user_id).then(() => loginPurchases(data.user?.user_id));
       return { ok: true };
-    } catch (e) {
+    } catch {
       return { ok: false, error: 'Bağlantı hatası (backend çalışıyor mu?)' };
     }
   }, []);

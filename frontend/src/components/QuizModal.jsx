@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, Heart, ArrowRight, Star, Eye, BookmarkPlus, Check, Brain } from 'lucide-react';
+import { X, ChevronLeft, Heart, ArrowRight, Star, Brain } from 'lucide-react';
 import { QUESTIONS, MOOD_NAMES, calculateQuizResult, getResultMessage } from '../utils/moodQuiz';
 import { moodQuizSearch } from '../services/api';
 import OptimizedImage from './OptimizedImage';

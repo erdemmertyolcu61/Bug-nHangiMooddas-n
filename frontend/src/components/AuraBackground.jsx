@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMood } from '../context/MoodContext';
 import { useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';

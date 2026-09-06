@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Swords, Trophy, Users, Check, X, ChevronLeft, Clock, Zap, Snowflake, Dices, Scissors,
-  Loader2, Crown, ArrowRight, RotateCcw, Image,
+  Loader2, ArrowRight, RotateCcw, Image,
 } from 'lucide-react';
 import {
-  getDuelloCategories, createDuelloRoom, getDuelloState,
+  getDuelloCategories, createDuelloRoom,
   joinDuelloRoom, setDuelloReady, startDuello,
   submitDuelloAnswer, getDuelloResults, leaveDuelloRoom, rematchDuello,
   isLoggedIn, callDuelloJoker,
@@ -16,7 +16,6 @@ import useDuelloPoll from '../hooks/useDuelloPoll';
 import useQuizSounds from '../hooks/useQuizSounds';
 import { resolveAvatarUrl } from '../utils/apiConfig';
 import useDocumentMeta from '../utils/useDocumentMeta';
-import { getLeague } from '../utils/league';
 
 const TOTAL_QUESTIONS = 10;
 const QUESTION_TIME = 30;
@@ -1223,7 +1222,7 @@ export default function QuizDuello() {
     try {
       await startDuello(roomId);
       refetch();
-    } catch (e) {
+    } catch {
       setStartingGame(false);
     }
   };

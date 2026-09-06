@@ -1,4 +1,3 @@
-import React from 'react';
 
 export default function SinemoodLogo({ variant = 'logo', size = 'md', className = '' }) {
   const dims = {

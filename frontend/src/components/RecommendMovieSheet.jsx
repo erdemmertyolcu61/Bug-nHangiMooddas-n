@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Send, X, Film, Loader2 } from 'lucide-react';
 import { searchMovies, recommendMovieToFriend } from '../services/api';

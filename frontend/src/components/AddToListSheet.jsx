@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Check, ListPlus, Loader2 } from 'lucide-react';
-import { getCustomLists, createCustomList, addToCustomList, proxyImageUrl } from '../services/api';
+import { getCustomLists, createCustomList, addToCustomList } from '../services/api';
 
 const EMOJIS = ['🎬', '🍿', '🚀', '🌌', '🕵️', '💔', '😂', '👻', '🎭', '🏆', '🌙', '🔥'];
 

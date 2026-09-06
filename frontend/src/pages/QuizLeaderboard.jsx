@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, ChevronLeft, Loader2, Crown } from 'lucide-react';
+import { Trophy, ChevronLeft, Loader2 } from 'lucide-react';
 import { getDuelloLeaderboard, isLoggedIn } from '../services/api';
 import { resolveAvatarUrl } from '../utils/apiConfig';
 import useDocumentMeta from '../utils/useDocumentMeta';
@@ -99,7 +99,7 @@ export default function QuizLeaderboard() {
           </div>
         ) : (
           <div className="space-y-1.5">
-            {data.players.map((p, i) => {
+            {data.players.map((p) => {
               const isMe = data.my_rank === p.rank;
               return (
                 <div

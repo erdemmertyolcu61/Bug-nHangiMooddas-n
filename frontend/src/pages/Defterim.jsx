@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Trash2, Edit3, Save, X, Book, Star, MessageCircle, Check, Brain, Heart, RefreshCw, Eye, EyeOff, Share2, Copy, Film, ListPlus, Users, RotateCcw, Mic, MicOff, BookOpen } from 'lucide-react';
+import { ChevronLeft, Trash2, Edit3, Save, Book, MessageCircle, Check, Brain, Heart, RefreshCw, Eye, EyeOff, Share2, Copy, Film, ListPlus, Users, RotateCcw, Mic, MicOff, BookOpen } from 'lucide-react';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getWatchlist, removeFromWatchlist, saveNote, getNote, getTasteMap, proxyImageUrl, toggleWatched, saveRating, recommendToCommunity, unrecommendFromCommunity, getCommunityRecommendations } from '../services/api';

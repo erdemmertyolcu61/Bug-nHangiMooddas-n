@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Shuffle, RefreshCw, X, Star, BookOpen, ExternalLink } from 'lucide-react';
+import { ChevronLeft, Shuffle, RefreshCw, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { proxyImageUrl } from '../services/api';
 import { getApiUrl } from '../utils/apiConfig';

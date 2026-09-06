@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Bell, X, Play, Star, UserPlus, Check, UserX, BellRing, CalendarDays, ChevronRight } from 'lucide-react';
+import { Bell, X, Play, Star, UserPlus, Check, BellRing, CalendarDays, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   getRecommendationHistory, getUnreadShareCount, markSharesRead, markShareRead, dismissShare,

@@ -3,7 +3,7 @@
  * Ana sayfadan erişilir. Sonuçlar TMDB araması; bir filme tıklayınca
  * FilmDetailModal doğrudan açılır (Topluluğa Öner dahil).
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Search as SearchIcon, X, Users, RotateCcw, User, ChevronRight, Film } from 'lucide-react';

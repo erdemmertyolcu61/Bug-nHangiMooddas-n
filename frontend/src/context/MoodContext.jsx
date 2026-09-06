@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useCallback, useMemo, useRef } from 'react';
+import { createContext, useState, useContext, useCallback, useMemo, useRef } from 'react';
 
 import { Coffee, Zap, Moon, Film, Droplets, Smile, Heart, Brain, Flame, Map as MapIcon, VolumeX, Ghost, Gem, Camera, Radio } from 'lucide-react';
 import { repositoryMovies, proxyImageUrl } from '../services/api';

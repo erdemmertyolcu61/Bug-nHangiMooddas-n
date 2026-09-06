@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMood } from '../context/MoodContext';
 import { ChevronLeft, Send, RefreshCw, Brain, Clock, TrendingUp, Gem, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { postConfusedRecommendation, proxyImageUrl, addToWatchlist, toggleWatched } from '../services/api';
-import OptimizedImage from '../components/OptimizedImage';
+import { postConfusedRecommendation, addToWatchlist, toggleWatched } from '../services/api';
 import FilmDetailModal from '../components/FilmDetailModal';
 import MovieCard from '../components/MovieCard';
 import { playMoodAudio } from '../utils/moodAudioManager';
@@ -210,7 +209,7 @@ export default function KafanMiKarisik() {
   };
 
   const goToMood = (moodId) => {
-    try { playMoodAudio(moodId); } catch (e) {}
+    try { playMoodAudio(moodId); } catch {}
     selectMood(moodId);
     navigate('/discover');
   };

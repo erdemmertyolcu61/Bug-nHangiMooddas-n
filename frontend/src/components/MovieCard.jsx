@@ -1,7 +1,5 @@
-import React, { memo } from 'react';
-import { motion } from 'framer-motion';
+import { memo } from 'react';
 import { Clapperboard, BookmarkPlus, Check, Eye, Star } from 'lucide-react';
-import { proxyImageUrl } from '../services/api';
 import OptimizedImage from './OptimizedImage';
 
 const IMG_BASE = 'https://image.tmdb.org/t/p/w500';

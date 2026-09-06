@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Send, Check, X, Users, UserPlus, Loader2 } from 'lucide-react';
 import { getFriends, recommendMovieToFriend, sendFriendRequest } from '../services/api';
 import { resolveAvatarUrl } from '../utils/apiConfig';
-import OptimizedImage from './OptimizedImage';
 import LottieAnimation from './LottieAnimation';
 
 /**

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { isStreakMilestone, STREAK_MILESTONES } from './streak';
 
 describe('isStreakMilestone', () => {

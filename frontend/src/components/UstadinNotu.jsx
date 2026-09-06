@@ -1,4 +1,3 @@
-import React from 'react';
 
 const UstadinNotu = ({ noteText, movieName }) => {
   if (!noteText && !movieName) return null;

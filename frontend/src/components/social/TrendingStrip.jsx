@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Flame } from 'lucide-react';
 import { getTrending, proxyImageUrl } from '../../services/api';
 import { resolveAvatarUrl } from '../../utils/apiConfig';
 import FilmDetailModal from '../FilmDetailModal';
