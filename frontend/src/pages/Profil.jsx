@@ -19,7 +19,7 @@ import {
   getWatchlist, getTasteMap, getFriends, getFriendRequests,
   respondFriendRequest, removeFriend, sendFriendRequest,
   getRecommendationHistory, retractRecommendation, getMe,
-  getMyCommunityRecommendations, getFriendsActivity,
+  getMyCommunityRecommendations,
 } from '../services/api';
 import { resolveAvatarUrl, getShareUrl } from '../utils/apiConfig';
 import useDocumentMeta from '../utils/useDocumentMeta';
@@ -206,7 +206,6 @@ export default function Profil() {
   const [respondLoading, setRespondLoading] = useState(null);
 
   /* ─── Friend Activity ──────────────────────────────────────────── */
-  const [friendActivity, setFriendActivity] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
 
   /* ─── Shares ───────────────────────────────────────────────────── */
@@ -266,12 +265,11 @@ export default function Profil() {
       if (document.visibilityState !== 'visible') return;
       try {
         setSocialError('');
-        const [fr, rq, hist, comm, act] = await Promise.all([
+        const [fr, rq, hist, comm] = await Promise.all([
           getFriends().catch(() => ({ friends: [] })),
           getFriendRequests().catch(() => ({ requests: [] })),
           getRecommendationHistory().catch(() => ({ received: [], sent: [] })),
           getMyCommunityRecommendations().catch(() => ({ recommendations: [] })),
-          getFriendsActivity().catch(() => ({ activities: [] })),
         ]);
         setFriends(fr.friends || []);
         setRequests(rq.requests || []);
@@ -279,7 +277,6 @@ export default function Profil() {
         setSentShares(hist.sent || []);
         const pr = dedupeRecs(comm?.recommendations || []);
         setCommunityRecs(pr);
-        setFriendActivity(act.activities || []);
         // Otomatik markSharesRead kaldırıldı (bkz. mount effect notu).
       } catch {}
     };

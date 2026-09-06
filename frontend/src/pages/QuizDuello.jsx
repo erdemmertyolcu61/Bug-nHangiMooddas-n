@@ -298,7 +298,7 @@ function DuelloIntro({ onCreateRoom, onJoinRoom, onNavigateLeaderboard }) {
 
 // ─── LOBBY: Bekleme odası ──────────────────────────────────────────────────
 
-function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
+function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave, starting }) {
   if (!roomState) {
     return (
       <div className="space-y-6 text-center">
@@ -451,11 +451,13 @@ function DuelloLobby({ roomId, roomState, onReady, onStart, onLeave }) {
         {is_creator && bothReady && (
           <button
             onClick={onStart}
+            disabled={starting}
             className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-bold
                        shadow-[0_4px_20px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.4)]
-                       active:scale-[0.97] active:shadow-[0_2px_10px_rgba(245,158,11,0.2)] transition-all"
+                       active:scale-[0.97] active:shadow-[0_2px_10px_rgba(245,158,11,0.2)] transition-all
+                       disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100"
           >
-            Düelloyu Başlat
+            {starting ? 'Başlatılıyor…' : 'Düelloyu Başlat'}
           </button>
         )}
 
@@ -997,9 +999,7 @@ function DuelloResults({ roomId, prefetchedResults, onPlayAgain, onRematch, onGo
   }
 
   const { creator, opponent, winner_id, is_draw, questions } = results;
-  const iWon = winner_id === (creator?.id);
   const winner = winner_id === creator?.id ? creator : opponent;
-  const loser = winner_id === creator?.id ? opponent : creator;
 
   return (
     <div className="space-y-6">
@@ -1300,6 +1300,13 @@ export default function QuizDuello() {
           </div>
         )}
 
+        {pollError && isPolling && (
+          <div className="mb-4 p-3 rounded-xl bg-amber-900/20 border border-amber-500/30 text-amber-300/90 text-xs text-center"
+               role="status">
+            Bağlantı koptu, yeniden deneniyor… Oyun donmuş görünüyorsa internetini kontrol et.
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           {phase === 'intro' && (
             <motion.div
@@ -1328,6 +1335,7 @@ export default function QuizDuello() {
                 roomState={roomState}
                 onReady={handleReady}
                 onStart={handleStart}
+                starting={startingGame}
                 onLeave={handleLeave}
               />
             </motion.div>
