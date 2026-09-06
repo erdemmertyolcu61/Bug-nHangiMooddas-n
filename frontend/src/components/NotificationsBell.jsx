@@ -33,7 +33,6 @@ export default function NotificationsBell({ open: externalOpen, onOpenChange }) 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [detailMovie, setDetailMovie] = useState(null);
-  const [pushAvail, setPushAvail] = useState(false);
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMsg, setPushMsg] = useState('');
@@ -69,15 +68,16 @@ export default function NotificationsBell({ open: externalOpen, onOpenChange }) 
     };
   }, [token, refreshCount]);
 
-  // Push uygunluğu + mevcut abonelik durumu (token varsa, bir kez)
+  // Mevcut abonelik durumu (token varsa, bir kez).
+  // Not: push kartı desteklenmeyen cihazda da görünür (rehber metniyle),
+  // bu yüzden ayrı bir "uygun mu" state'i tutulmuyor.
   useEffect(() => {
-    if (!token || !pushSupported()) { setPushAvail(false); return; }
+    if (!token || !pushSupported()) return;
     let alive = true;
     (async () => {
       const enabled = await isPushEnabledOnServer();
-      if (!alive) return;
-      setPushAvail(enabled);
-      if (enabled) setPushOn(await isPushSubscribed());
+      if (!alive || !enabled) return;
+      setPushOn(await isPushSubscribed());
     })();
     return () => { alive = false; };
   }, [token]);

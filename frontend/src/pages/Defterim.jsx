@@ -13,7 +13,6 @@ import FilmDetailModal from '../components/FilmDetailModal';
 import { useAchievements } from '../components/AchievementCelebration';
 import { ListelerAnasayfa } from './Listeler';
 
-const IMG_BASE = 'https://image.tmdb.org/t/p/w1280';
 
 /** ISO → clean Turkish date: "20 Mayıs 2026" */
 const formatDefterDate = (iso) => {
@@ -424,7 +423,6 @@ export default function Defterim() {
                       {Object.keys(normalizedMoodPct).length > 0 && (
                         <div className="space-y-2.5">
                           {(() => {
-                            const topMoodSet = new Set((tasteMap.top_moods || []).map(m => m.mood_id));
                             return Object.entries(normalizedMoodPct).slice(0, 4).map(([mid, pct]) => {
                               const MOOD_COLORS = {
                                 battaniye: '#f59e0b', gece: '#94a3b8', gozyasi: '#ec4899',
@@ -437,7 +435,6 @@ export default function Defterim() {
                               const moodObj = tasteMap.top_moods?.find(m => m.mood_id === mid);
                               const label = moodObj?.title || mid.replace('-', ' ');
                               const barColor = MOOD_COLORS[mid] || '#d4af37';
-                              const isTop = topMoodSet.has(mid);
                               return (
                                 <div key={mid} className="flex items-center gap-3">
                                   <span className="text-[12px] font-semibold text-[#f5f2eb]/60 w-24 sm:w-32 min-w-0 capitalize">

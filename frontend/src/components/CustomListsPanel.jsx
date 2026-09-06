@@ -36,19 +36,15 @@ export default function CustomListsPanel({ user }) {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [showCollabPanel, setShowCollabPanel] = useState(false);
   const [friends, setFriends] = useState([]);
-  const [friendsLoading, setFriendsLoading] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState('');
 
   const loadFriends = useCallback(async () => {
     if (!user) return;
-    setFriendsLoading(true);
     try {
       const d = await getFriends();
       setFriends(d.friends || []);
     } catch {
       setFriends([]);
-    } finally {
-      setFriendsLoading(false);
     }
   }, [user]);
 

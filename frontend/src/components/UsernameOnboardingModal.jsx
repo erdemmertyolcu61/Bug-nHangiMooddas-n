@@ -17,7 +17,7 @@ const SKIP_KEY = 'fc_username_prompt_skipped';
  * kullanıcı sonradan profil ayarlarından değiştirebilir. (A3: kayıt sürtünmesi ↓)
  */
 export default function UsernameOnboardingModal() {
-  const { token, user, updateUser } = useAuth();
+  const { token, updateUser } = useAuth();
   const [show, setShow] = useState(false);
   const [checked, setChecked] = useState(false);
   const [value, setValue] = useState('');

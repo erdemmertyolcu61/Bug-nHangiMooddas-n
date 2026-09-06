@@ -100,12 +100,10 @@ export function calculateQuizResult(answerIndexes) {
   // Count target frequency → top mood for display
   const counts = {};
   let maxCount = 0;
-  let topTarget = "battaniye";
   for (const t of allTargets) {
     counts[t] = (counts[t] || 0) + 1;
     if (counts[t] > maxCount) {
       maxCount = counts[t];
-      topTarget = t;
     }
   }
 

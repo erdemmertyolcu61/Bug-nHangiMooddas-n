@@ -43,8 +43,6 @@ export default function SurpriseFilm() {
 
   // Film detay state
   const [showDetail, setShowDetail] = useState(false);
-  const [analysisData, setAnalysisData] = useState(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
 
   const phraseTimer = useRef(null);
 
@@ -64,7 +62,6 @@ export default function SurpriseFilm() {
     setError(null);
     setMovie(null);
     setShowDetail(false);
-    setAnalysisData(null);
     startPhraseRotation();
     try {
       const res = await fetch(getApiUrl(`/api/recommend/surprise?exclude_ids=${seenIds.join(',')}`));

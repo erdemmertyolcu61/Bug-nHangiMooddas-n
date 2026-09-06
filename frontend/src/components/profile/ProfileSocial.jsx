@@ -12,7 +12,6 @@ import RecommendMovieSheet from '../RecommendMovieSheet';
 const sanitize = (str) =>
   String(str ?? '').replace(/[<>{}$]/g, '').replace(/javascript:/gi, '').trim();
 
-const IMG_BASE = 'https://image.tmdb.org/t/p/w200';
 
 /* ── Zaman etiketleri ────────────────────────────────────────── */
 function timeAgo(dateStr) {

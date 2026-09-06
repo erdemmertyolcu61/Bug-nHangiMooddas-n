@@ -3,19 +3,11 @@ import { Play, ExternalLink, RefreshCw } from 'lucide-react';
 import { suspendMoodAudio, resumeMoodAudio } from '../utils/moodAudioManager';
 import LottieAnimation from './LottieAnimation';
 
-function isPWA() {
-  return typeof window !== 'undefined' && (
-    window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone
-  );
-}
-
 export default function TrailerPlayer({ youtubeKey, posterSrc, title = 'Film', playing = false, onStart, onLoad, onError }) {
   const iframeRef = useRef(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [iframeFailed, setIframeFailed] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const isMobilePWA = useRef(isPWA());
 
   useEffect(() => {
     if (!playing) return;

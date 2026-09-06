@@ -59,7 +59,6 @@ export default function ReactionControl({ reaction = null, onChange, readOnly = 
     if (!anim) return;
     if (userActing.current) { userActing.current = false; return; }
     anim.goToAndStop(frameFor(reaction), true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reaction]);
 
   const pick = useCallback((r) => {
