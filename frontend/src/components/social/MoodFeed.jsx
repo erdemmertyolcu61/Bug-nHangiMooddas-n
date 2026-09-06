@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Eye, Bookmark, Send, ChevronLeft, Film, Users, Heart, MessageCircle, Loader2, RefreshCw, Compass } from 'lucide-react';
+import { Activity, Eye, Bookmark, Send, ChevronLeft, Film, Users, Loader2, RefreshCw, Compass, Smile } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getSocialFeed, likeActivity, unlikeActivity, commentOnActivity, reactToMood } from '../../services/api';
+import { getSocialFeed, reactToMood } from '../../services/api';
 import { resolveAvatarUrl } from '../../utils/apiConfig';
 import { proxyImageUrl } from '../../services/api';
 import { MOODS } from '../../context/MoodContext';
@@ -38,9 +38,16 @@ function MoodCard({ fm, onRecommend, onReact }) {
   const REACTION_EMOJIS = ['🔥', '🫂', '😂', '🎬'];
 
   const handleReact = async (emoji) => {
-    setSentEmoji(emoji);
+    const prev = sentEmoji;
+    setSentEmoji(emoji);           // iyimser: dokunuş anında geri bildirim
     setShowReactions(false);
-    onReact?.(fm.user_id, emoji);
+    try {
+      await onReact?.(fm.user_id, emoji);
+    } catch {
+      // Sunucu reddetti (ör. artık arkadaş değil) → rozeti geri al,
+      // kullanıcı tepkisinin kaydedildiğini sanmasın.
+      setSentEmoji(prev);
+    }
   };
 
   return (
@@ -69,11 +76,50 @@ function MoodCard({ fm, onRecommend, onReact }) {
 
       <p className="text-[10px] sm:text-[11px] text-white/30">{timeAgo(fm.updated_at)}</p>
 
+      {/* Emoji reaksiyon seçici — tetikleyici butona basılınca açılır */}
+      <AnimatePresence>
+        {showReactions && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.94 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-x-1.5 bottom-11 z-10 flex items-center justify-between
+                       px-1.5 py-1.5 rounded-2xl bg-[#241a16] border border-white/10 shadow-lg"
+          >
+            {REACTION_EMOJIS.map((e) => (
+              <button
+                key={e}
+                onClick={() => handleReact(e)}
+                aria-label={`${e} gönder`}
+                className="text-[15px] leading-none p-1 rounded-lg hover:bg-white/10 active:scale-90 transition-all"
+              >
+                {e}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Aksiyon butonları */}
       <div className="flex gap-1.5 mt-1">
         <button
+          onClick={() => setShowReactions((s) => !s)}
+          aria-label={sentEmoji ? `Gönderilen tepki: ${sentEmoji}` : 'Tepki gönder'}
+          aria-expanded={showReactions}
+          className={`shrink-0 flex items-center justify-center w-8 py-1.5 sm:py-2 rounded-xl border transition-all ${
+            sentEmoji
+              ? 'bg-amber/15 border-amber/30'
+              : 'bg-white/[0.04] border-white/10 hover:bg-white/10'
+          }`}
+        >
+          {sentEmoji
+            ? <span className="text-[12px] leading-none">{sentEmoji}</span>
+            : <Smile size={11} className="text-white/45" />}
+        </button>
+        <button
           onClick={() => onRecommend({ id: fm.user_id, name: fm.name, username: fm.username, avatar: fm.avatar })}
-          className="w-full flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-[10px] font-bold uppercase tracking-wider
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-[10px] font-bold uppercase tracking-wider
             bg-amber/12 border border-amber/20 text-amber hover:bg-amber/20 transition-all"
         >
           <Send size={9} className="sm:size-[10px]" /> Öner

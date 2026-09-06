@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Book, BookOpen, X, Brain, Users, Search } from 'lucide-react';
+import { ChevronLeft, X, Users, Search, Brain } from 'lucide-react';
 import { resolveAvatarUrl } from '../../utils/apiConfig';
 
 /**
@@ -45,6 +45,17 @@ export default function DiscoverHeader({ selectedMood, user, searchQuery, onSear
               aria-label={mobileSearchOpen ? 'Aramayı kapat' : 'Ara'}
             >
               {mobileSearchOpen ? <X size={18} className="text-[#e8d3d3]/60" /> : <Search size={18} className="text-[#e8d3d3]/60" />}
+            </button>
+            {/* Ruh hali testi — Discover'da QuizModal render ediliyor ve
+                onOpenQuiz prop'u geliyordu, ama bu buton bileşen ayrıştırması
+                sırasında düşmüştü: modal hiçbir yoldan açılamıyordu. */}
+            <button
+              onClick={onOpenQuiz}
+              className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all shrink-0"
+              aria-label="Ruh hali testi"
+              title="Ruh hali testi"
+            >
+              <Brain size={18} className="text-[#e8d3d3]/60" />
             </button>
             <button
               onClick={() => navigate('/profil')}

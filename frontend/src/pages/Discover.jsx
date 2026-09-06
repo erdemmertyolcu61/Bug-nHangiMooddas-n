@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMood } from '../context/MoodContext';
 import { Users, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { addToWatchlist, removeFromWatchlist, toggleWatched, searchMovies, recommendToCommunity, unrecommendFromCommunity, getCommunityRecommendations, getSimilarMovies, getTasteMap } from '../services/api';
+import { addToWatchlist, removeFromWatchlist, toggleWatched, searchMovies, recommendToCommunity, unrecommendFromCommunity, getCommunityRecommendations, getTasteMap } from '../services/api';
 import { buildMatcher } from '../utils/personalMatch';
 import { useAuth } from '../context/AuthContext';
 import { checkBackendHealth } from '../utils/apiConfig';
@@ -14,7 +14,7 @@ import StreamingConsentModal from '../components/StreamingConsentModal';
 import useDocumentMeta from '../utils/useDocumentMeta';
 import FilmDetailModal from '../components/FilmDetailModal';
 import MovieCard from '../components/MovieCard';
-import { isPlatformLinked, linkPlatform, getPlatformInfo, buildWatchUrl } from '../utils/streamingMemory';
+import { linkPlatform, buildWatchUrl } from '../utils/streamingMemory';
 import { playMoodAudio } from '../utils/moodAudioManager';
 import { useCache } from '../hooks/useCache';
 import MoodBackdrop from '../components/discover/MoodBackdrop';
@@ -67,8 +67,6 @@ export default function Discover() {
   const [matcher, setMatcher] = useState(null); // kişisel uyum% (taste map'ten); yoksa null
   const [loading, setLoading] = useState(true);
   const [selectedMovie, setSelectedMovie] = useState(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [savedIds, setSavedIds] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState('recommended');
@@ -148,7 +146,7 @@ export default function Discover() {
   const handleQuizComplete = (moodId) => {
     setQuizOpen(false);
     if (selectedMood?.id !== moodId) {
-      try { playMoodAudio(moodId); } catch(e) {}
+      try { playMoodAudio(moodId); } catch {}
       selectMood(moodId);
     }
   };
@@ -251,8 +249,6 @@ export default function Discover() {
       setSelectedMovie({ ...movie, ...cached });
       return;
     }
-    
-    setIsAnalyzing(true);
     try {
       const res = await fetch(getApiUrl(`/api/movies/${movie.id}/analyze`));
       if (!res.ok) throw new Error("Analysis failed");
@@ -260,14 +256,9 @@ export default function Discover() {
       const enrichedData = { ...movie, ...data };
       setCachedAnalysis(movie.id, data);
       setSelectedMovie(enrichedData);
-      if (data.in_watchlist) {
-        setSavedIds(prev => new Set([...prev, movie.id]));
-      }
     } catch (err) {
       console.error('Analiz hatası:', err);
       setError("Film analizi yapılamadı. API bağlantısını kontrol edin.");
-    } finally {
-      setIsAnalyzing(false);
     }
   }, []);
 
@@ -305,16 +296,6 @@ export default function Discover() {
     }, 400);
   }, [selectedMood?.id]);
 
-  const handleSaveToJournal = async () => {
-    if (!selectedMovie) return;
-    try {
-        await addToWatchlist(selectedMovie);
-        setSavedIds(prev => new Set([...prev, selectedMovie.id]));
-    } catch (err) {
-        console.error('Deftere eklenemedi:', err);
-    }
-  };
-
   // Topluluk önerileri (Community Sharing)
   const [recommenders, setRecommenders] = useState([]);
   const [recommending, setRecommending] = useState(false);
@@ -328,43 +309,6 @@ export default function Discover() {
     });
     return () => { active = false; };
   }, [selectedMovie?.id]);
-
-  // Benzer filmler — "Bunları da sevebilirsin"
-  const [similarMovies, setSimilarMovies] = useState([]);
-  useEffect(() => {
-    if (!selectedMovie?.id) { setSimilarMovies([]); return; }
-    let active = true;
-    setSimilarMovies([]);
-    getSimilarMovies(selectedMovie.id).then((d) => {
-      if (active) setSimilarMovies(d.movies || []);
-    });
-    return () => { active = false; };
-  }, [selectedMovie?.id]);
-
-  const openSimilarMovie = async (m) => {
-    const cached = getCachedAnalysis(m.id);
-    if (cached) {
-      setSelectedMovie({ id: m.id, ...cached });
-      document.querySelector('.no-scrollbar')?.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-    setSelectedMovie({
-      id: m.id, title: m.title, poster_url: m.poster_url,
-      release_date: m.release_date, vote_average: m.vote_average,
-      overview: m.overview,
-    });
-    setIsAnalyzing(true);
-    try {
-      const res = await fetch(getApiUrl(`/api/movies/${m.id}/analyze`));
-      if (res.ok) {
-        const data = await res.json();
-        setCachedAnalysis(m.id, data);
-        setSelectedMovie({ id: m.id, ...data });
-      }
-    } catch {} finally {
-      setIsAnalyzing(false);
-    }
-  };
 
   const alreadyRecommended = recommenders.some((r) => user && r.uid === user.id);
 
@@ -396,23 +340,6 @@ export default function Discover() {
   const openWatchUrl = (providerId) => {
     const url = buildWatchUrl(providerId, selectedMovie?.title, selectedMovie?.watch_providers?.link);
     window.location.href = url;
-  };
-
-  const handleProviderClick = (e, provider) => {
-    e.preventDefault();
-    const info = getPlatformInfo(provider.provider_id);
-    if (!info) {
-      const fallback = selectedMovie?.watch_providers?.link;
-      if (fallback) window.location.href = fallback;
-      return;
-    }
-    if (isPlatformLinked(provider.provider_id)) {
-      // İkinci ve sonraki tıklamalar: soru sorulmadan doğrudan geç
-      openWatchUrl(provider.provider_id);
-    } else {
-      // İlk tıklama: onay modalı
-      setConsentTarget({ providerId: provider.provider_id, info });
-    }
   };
 
   const confirmConsent = () => {

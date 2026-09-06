@@ -1,14 +1,13 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users, UserPlus, Bell, Check, X, Search, Trash2, Star as StarIcon,
-  Send, RotateCcw, MessageCircle, ChevronRight, Info, UsersRound,
+  Users, UserPlus, Bell, Check, X, Search, Star as StarIcon,
+  Send, RotateCcw, Info, UsersRound,
   Eye, Bookmark,
 } from 'lucide-react';
 import { resolveAvatarUrl } from '../../utils/apiConfig';
 import { proxyImageUrl, unrecommendFromCommunity, getMyCommunityRecommendations, reactToRecommendation } from '../../services/api';
 import RecommendMovieSheet from '../RecommendMovieSheet';
-import UserSearch from '../social/UserSearch';
 
 const sanitize = (str) =>
   String(str ?? '').replace(/[<>{}$]/g, '').replace(/javascript:/gi, '').trim();
@@ -625,9 +624,12 @@ function ShareCard({ share: s, direction, onDetail, onRetract, onReaction, local
       <div className="flex-1 min-w-0 flex flex-col gap-1">
         {/* Person line */}
         <div className="flex items-center gap-2">
+          {/* Ham <img> kullanılıyordu: failedAvatars/onAvatarError prop'ları
+              geliyor ama bağlanmamıştı → bozuk avatar, baş harf yerine kırık
+              resim ikonu olarak görünüyordu. Ortak Avatar bileşeni bunu yönetir. */}
           {person?.avatar && (
-            <img src={resolveAvatarUrl(person.avatar)} alt=""
-              className="w-5 h-5 rounded-full object-cover border border-white/10" referrerPolicy="no-referrer" />
+            <Avatar src={person.avatar} name={personLabel} size={20}
+              failedAvatars={failedAvatars} onError={onAvatarError} id={`share_${s.id}`} />
           )}
           <span className="text-[11px] text-ivory/45">
             {isSent ? 'Onerdigin →' : ''} <span className="text-amber/70 font-semibold">@{personLabel}</span>
