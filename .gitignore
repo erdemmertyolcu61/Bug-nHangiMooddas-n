@@ -87,10 +87,17 @@ audio_files/
 # ============================================
 # Capacitor native projects (mostly generated)
 # ============================================
-frontend/android/
-frontend/ios/
+# NOT: Bir DIZIN yok sayilirsa git icine hic inmez ve alt yollardaki `!` kurallari
+# HIC CALISMAZ. Bu yuzden `frontend/android/` yerine icerigi (`/**`) yok sayilir ve
+# once tum dizinler geri acilir (`!.../**/`); ancak ondan sonra dosya istisnalari
+# islenebilir. Eski hali yuzunden AndroidManifest.xml ve App.entitlements
+# "takipli" saniliyordu ama aslinda git tarafindan hic gorulmuyordu.
+frontend/android/**
+frontend/ios/**
+!frontend/android/**/
+!frontend/ios/**/
 # Keep native customizations tracked:
 !frontend/android/app/src/main/AndroidManifest.xml
-!frontend/android/app/src/main/res/
+!frontend/android/app/src/main/res/**
 !frontend/ios/App/App/Info.plist
 !frontend/ios/App/App/App.entitlements

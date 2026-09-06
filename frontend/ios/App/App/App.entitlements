@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- APNs kaydi icin ZORUNLU. Bu anahtar olmadan uygulama push token'i hic
+	     alamaz; FCM de iOS'a APNs uzerinden gittigi icin tum iOS bildirimleri
+	     sessizce olur. App Store dagitim profili bunu otomatik 'production'a
+	     yukseltir. ONEMLI: Apple Developer portalinda App ID icin "Push
+	     Notifications" yetkinligi ACIK olmali, yoksa imzalama basarisiz olur. -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:bug-n-hangi-mooddas-n.vercel.app</string>
+	</array>
+</dict>
+</plist>

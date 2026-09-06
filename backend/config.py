@@ -36,7 +36,17 @@ DATABASE_PATH = os.getenv("DATABASE_PATH", "movie_cache.db")
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "https://bug-n-hangi-mooddas-n.vercel.app").rstrip("/")
 
 # ─── CORS ───
-_default_origins = "http://localhost:3005,http://localhost:5173,http://127.0.0.1:3005,http://127.0.0.1:5173,https://bug-n-hangi-mooddas-n.vercel.app,capacitor://localhost,http://localhost"
+# Native (Capacitor) origin'leri platforma gore DEGISIR:
+#   iOS     -> capacitor://localhost
+#   Android -> https://localhost  (capacitor.config.ts: androidScheme: 'https')
+# https://localhost eksikken Android uygulamasinin TUM API cagrilari CORS
+# preflight'inda dusuyordu.
+_default_origins = (
+    "http://localhost:3005,http://localhost:5173,"
+    "http://127.0.0.1:3005,http://127.0.0.1:5173,"
+    "https://bug-n-hangi-mooddas-n.vercel.app,"
+    "capacitor://localhost,https://localhost,http://localhost"
+)
 ALLOWED_ORIGINS = [
     o.strip() for o in os.getenv("ALLOWED_ORIGINS", _default_origins).split(",") if o.strip()
 ]
