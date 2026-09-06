@@ -37,7 +37,7 @@ export default function BottomNav() {
               onClick={() => handlePress(item)}
               aria-current={active ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 basis-0 min-w-0 min-h-[52px] px-0.5 rounded-2xl transition-colors duration-300 ${
-                active ? 'text-amber' : 'text-ivory/45 active:text-ivory/80'
+                active ? 'text-amber' : 'text-ivory/50 active:text-ivory/80'
               }`}
             >
               <Icon size={20} strokeWidth={active ? 2.4 : 1.8} className="shrink-0" />

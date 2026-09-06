@@ -33,7 +33,7 @@ export default function Header() {
           <div className="w-8 h-8 rounded-full bg-amber/15 border border-amber/30 flex items-center justify-center group-hover:bg-amber/25 transition-colors">
             <span className="text-amber text-xs font-bold">S</span>
           </div>
-          <span className="text-[13px] font-bold uppercase tracking-[0.25em] text-ivory/80 group-hover:text-ivory transition-colors">
+          <span className="text-[13px] font-bold uppercase tracking-[0.25em] text-ivory group-hover:text-white transition-colors">
             Sinemood
           </span>
         </NavLink>
@@ -51,7 +51,7 @@ export default function Header() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${
                   isActive
                     ? 'text-amber bg-amber/10'
-                    : 'text-ivory/45 hover:text-ivory/70 hover:bg-white/5'
+                    : 'text-ivory/55 hover:text-ivory/80 hover:bg-white/5'
                 }`}
               >
                 <Icon size={15} strokeWidth={isActive ? 2.4 : 1.8} />

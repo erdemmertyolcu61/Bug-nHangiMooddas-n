@@ -200,14 +200,14 @@ export default function MoodSelector() {
         >
           <div className="flex items-center justify-center gap-3 sm:gap-4 mb-5 sm:mb-6">
             <div className="h-px w-10 sm:w-20 bg-gradient-to-r from-transparent to-amber/30" />
-            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.4em] sm:tracking-[0.6em] text-rose/50 text-center">Sinemood</span>
+            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.4em] sm:tracking-[0.6em] text-fg-subtle text-center">Sinemood</span>
             <div className="h-px w-10 sm:w-20 bg-gradient-to-l from-transparent to-amber/30" />
           </div>
           <h1 className="text-[2.6rem] sm:text-6xl md:text-8xl font-serif font-normal tracking-tight mb-4 leading-[0.95] sm:leading-[0.9]">
             Bugün Hangi<br />
             <span className="italic text-amber font-semibold">Mooddasın?</span>
           </h1>
-          <p className="text-sm sm:text-base md:text-lg text-rose/60 font-serif italic leading-relaxed max-w-xl mx-auto px-2">
+          <p className="text-sm sm:text-base md:text-lg text-fg-muted font-serif italic leading-relaxed max-w-xl mx-auto px-2">
             Ruh halini seç ve bizimle yolculuğa çıkmaya hazırlan.
           </p>
         </motion.header>
@@ -401,20 +401,20 @@ export default function MoodSelector() {
             title="?"
             aria-label="Gizli mini oyun"
             className="group relative w-8 h-8 flex items-center justify-center rounded-full
-                       text-rose/25 hover:text-amber/80 transition-all duration-500 hover:scale-110"
+                       text-fg-subtle hover:text-amber/80 transition-all duration-500 hover:scale-110"
           >
             <span className="pointer-events-none absolute inset-0 rounded-full border border-amber/15 animate-ping opacity-20 group-hover:opacity-0" />
             <Gem size={15} strokeWidth={1.5} />
           </button>
-          <p className="text-[8px] uppercase tracking-[0.5em] text-rose/30 font-medium">sinema bir atmosferdir</p>
+          <p className="text-[8px] uppercase tracking-[0.5em] text-fg-subtle font-medium">sinema bir atmosferdir</p>
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/gizlilik')}
-              className="text-[9px] uppercase tracking-[0.3em] text-rose/30 hover:text-amber/70 transition-colors duration-500">
+              className="text-[9px] uppercase tracking-[0.3em] text-fg-subtle hover:text-amber/70 transition-colors duration-500">
               Gizlilik & KVKK
             </button>
-            <span className="text-[9px] text-rose/20">·</span>
+            <span className="text-[9px] text-fg-subtle/60">·</span>
             <button onClick={() => navigate('/kosullar')}
-              className="text-[9px] uppercase tracking-[0.3em] text-rose/30 hover:text-amber/70 transition-colors duration-500">
+              className="text-[9px] uppercase tracking-[0.3em] text-fg-subtle hover:text-amber/70 transition-colors duration-500">
               Koşullar
             </button>
           </div>
